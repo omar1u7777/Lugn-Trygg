@@ -311,6 +311,33 @@ def login_user(validated_data):
             else:
                 logger.warning(f"Unknown type for created_at in login: {type(created_at_raw)}")
 
+        # 2FA GATE: if the account has 2FA enabled, do NOT issue a full session
+        # here. Revoke the session tokens the service just minted, hand back only
+        # a short-lived pending_2fa token, and require /verify-2fa to complete
+        # login. This closes the hole where a correct password alone yielded a
+        # fully usable session before the second factor.
+        if user_data.get('two_factor_enabled', False):
+            if refresh_token:
+                try:
+                    AuthService.revoke_refresh_token(refresh_token, reason="pending_2fa")
+                except Exception as revoke_err:
+                    logger.warning("Failed to revoke pre-2FA refresh token: %s", revoke_err)
+
+            pending_token = AuthService.generate_pending_2fa_token(user.uid)
+            audit_log('login_pending_2fa', user.uid, {'email': _mask_email(user.email)})
+
+            return APIResponse.success({
+                'requires2FA': True,
+                'pendingToken': pending_token,
+                'userId': user.uid,
+                'user': {
+                    'id': user.uid,
+                    'user_id': user.uid,
+                    'email': user.email,
+                    'twoFactorEnabled': True,
+                }
+            }, "Tvåfaktorsautentisering krävs")
+
         response_data = {
             'accessToken': access_token,
             'userId': user.uid,
@@ -344,18 +371,39 @@ def login_user(validated_data):
         return APIResponse.error("Login failed", "INTERNAL_ERROR", 500)
 
 @auth_bp.route('/verify-2fa', methods=['POST', 'OPTIONS'])
-@AuthService.jwt_required
 @rate_limit_by_endpoint
 def verify_2fa():
-    """Verify two-factor authentication"""
+    """Verify two-factor authentication and exchange the pending-2fa token for
+    a full session.
+
+    Authenticated by the short-lived 'pending_2fa' token issued at login (Bearer
+    header) — NOT a full access token, because a 2FA user has no full session
+    until this call succeeds. A full access token is also accepted for backward
+    compatibility with the step-up-while-logged-in flow.
+    """
     if request.method == 'OPTIONS':
         return _preflight_response()
 
     try:
         from ..firebase_config import db
-        user_id = g.get('user_id')
+
+        auth_header = request.headers.get('Authorization', '')
+        user_id = None
+        if auth_header.startswith('Bearer '):
+            bearer = auth_header.split(' ', 1)[1]
+            # Accept the pending-2fa token (normal login gate) or a full access
+            # token (already-logged-in step-up).
+            user_id, pending_err = AuthService.verify_pending_2fa_token(bearer)
+            if pending_err:
+                user_id, _access_err = AuthService.verify_token(bearer)
+        # Fallback: an upstream decorator already authenticated this request.
+        # In production nothing sets g.user_id without prior auth, so this is
+        # only reached for the logged-in step-up path.
+        if not user_id:
+            user_id = g.get('user_id')
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
+        g.user_id = user_id
         data = request.get_json() or {}
 
         if not data:

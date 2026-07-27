@@ -16,10 +16,7 @@ from datetime import UTC, datetime
 from functools import wraps
 from typing import Any
 
-from ..config import (
-    ENCRYPTION_KEY,
-    JWT_SECRET_KEY,
-)
+from ..config import ENCRYPTION_KEY
 
 # HIPAA_ENCRYPTION_KEY is optional and defined in security_config
 HIPAA_ENCRYPTION_KEY = os.getenv('HIPAA_ENCRYPTION_KEY', '')
@@ -301,7 +298,19 @@ class SecurityService:
             return False
 
     def require_auth(self, f):
-        """Decorator for requiring authentication via JWT token."""
+        """Decorator for requiring authentication via JWT token.
+
+        Delegates to AuthService.verify_token — the hardened validator that
+        requires the `type` claim to equal 'access' and checks issuer/audience.
+        This decorator previously decoded the JWT itself with bare
+        `jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])` and NO type/
+        iss/aud checks, so it would have silently accepted a short-lived
+        pending_2fa token (see AuthService.generate_pending_2fa_token) as a
+        full session — a second, weaker auth path that could bypass the 2FA
+        gate the moment anything used this decorator instead of
+        AuthService.jwt_required. It is currently unused by any route; this
+        keeps it safe if that ever changes.
+        """
         @wraps(f)
         def decorated_function(*args, **kwargs):
             from flask import g
@@ -316,18 +325,12 @@ class SecurityService:
                 return {'error': 'Authorization header saknas eller är ogiltig!'}, 401
 
             token = auth_header.split(' ')[1]
-            if not self.validate_token_format(token):
-                return {'error': 'Ogiltigt token-format!'}, 401
 
-            try:
-                import jwt as pyjwt
-                payload = pyjwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
-                user_id = payload.get('sub')
-                if not user_id:
-                    return {'error': 'Ogiltigt token-innehåll!'}, 401
-                g.user_id = user_id
-            except Exception:
-                return {'error': 'Ogiltigt eller utgånget token!'}, 401
+            from .auth_service import AuthService
+            user_id, error = AuthService.verify_token(token)
+            if error or not user_id:
+                return {'error': error or 'Ogiltigt eller utgånget token!'}, 401
+            g.user_id = user_id
 
             return f(*args, **kwargs)
         return decorated_function

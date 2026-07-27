@@ -249,12 +249,20 @@ class AuthService:
             return user, None, access_token, refresh_token
 
         except Exception as e:
-            # Only record failed attempts for credential errors, not infrastructure issues
+            # Only record failed attempts for credential errors, not infrastructure issues.
+            # SECURITY: Firebase's MODERN error code for a wrong password/unknown
+            # user is INVALID_LOGIN_CREDENTIALS (it stopped returning the legacy
+            # INVALID_PASSWORD / EMAIL_NOT_FOUND codes to avoid user enumeration).
+            # Without it in this list no failed attempt was ever recorded, so
+            # account lockout — and therefore brute-force protection — NEVER
+            # triggered. TOO_MANY_ATTEMPTS_TRY_LATER is Firebase's own throttle
+            # signal and must also count.
             error_str = str(e).lower()
             is_credential_error = any(
                 code in error_str
-                for code in ('invalid_password', 'email_not_found', 'invalid_email',
-                             'user_disabled', 'operation_not_allowed')
+                for code in ('invalid_login_credentials', 'invalid_password',
+                             'email_not_found', 'invalid_email', 'user_disabled',
+                             'operation_not_allowed', 'too_many_attempts_try_later')
             )
             if is_credential_error:
                 AuthService.record_failed_attempt(email)
@@ -346,6 +354,57 @@ class AuthService:
             "iss": JWT_ISSUER,
             "aud": JWT_AUDIENCE,
         }, JWT_SECRET_KEY, algorithm="HS256")
+
+    @staticmethod
+    def generate_pending_2fa_token(user_id: str) -> str:
+        """Generate a short-lived token that ONLY authorizes the /verify-2fa
+        exchange — never normal API access.
+
+        When a user has 2FA enabled, login must not hand out a full session
+        before the second factor is proven. This token has type
+        'pending_2fa', which verify_token (which requires type == 'access')
+        rejects for every protected route. It expires in 5 minutes.
+        """
+        return jwt.encode({
+            "sub": user_id,
+            "iat": datetime.now(UTC),
+            "exp": datetime.now(UTC) + timedelta(minutes=5),
+            "type": "pending_2fa",
+            "iss": JWT_ISSUER,
+            "aud": JWT_AUDIENCE,
+        }, JWT_SECRET_KEY, algorithm="HS256")
+
+    @staticmethod
+    def verify_pending_2fa_token(token: str) -> tuple[str | None, str | None]:
+        """Verify a pending-2fa token and return (user_id, error).
+
+        Only accepts tokens of type 'pending_2fa'. Used exclusively by the
+        /verify-2fa endpoint to identify the half-authenticated user.
+        """
+        try:
+            if not token or token.count(".") != 2:
+                return None, "Invalid token format"
+            payload = jwt.decode(
+                token,
+                JWT_SECRET_KEY,
+                algorithms=["HS256"],
+                options={"require": ["exp", "sub", "type"]},
+                issuer=JWT_ISSUER,
+                audience=JWT_AUDIENCE,
+            )
+            if payload.get("type") != "pending_2fa":
+                return None, "Invalid token type"
+            user_id = payload.get("sub")
+            if not isinstance(user_id, str) or len(user_id) < 10:
+                return None, "Invalid user ID in token"
+            return user_id, None
+        except jwt.ExpiredSignatureError:
+            return None, "2FA session expired, please log in again"
+        except jwt.InvalidTokenError:
+            return None, "Invalid 2FA token"
+        except Exception:
+            logger.exception("Pending 2FA token verification failed")
+            return None, "Internal error during token verification"
 
     @staticmethod
     def generate_refresh_token(user_id: str) -> str:

@@ -403,20 +403,18 @@ class ProactiveInterventionService:
     async def _send_intervention(self, intervention: Intervention):
         """Send intervention to user via push notification or in-app message."""
         try:
-            from ..services.crisis_escalation import get_crisis_escalation_service
+            from ..services.crisis_escalation import CrisisEscalationService
 
-            # Get notification service
-            escalation_service = get_crisis_escalation_service()
-
-            # Send push notification
-            await escalation_service._send_push_notification(
-                alert=None,  # Not a crisis alert
-                user_data={
-                    'fcm_token': await self._get_fcm_token(intervention.user_id)
-                },
-                title="Lugn & Trygg",
-                body=intervention.message,
-                data={
+            # Send push notification via the shared FCM primitive. This is not
+            # a crisis alert, so we use the generic send_fcm() static method
+            # rather than _send_push_notification() (which requires a
+            # CrisisAlert and is crisis-message-specific).
+            fcm_token = await self._get_fcm_token(intervention.user_id)
+            await CrisisEscalationService.send_fcm(
+                fcm_token,
+                "Lugn & Trygg",
+                intervention.message,
+                {
                     'type': 'proactive_intervention',
                     'action': intervention.action,
                     'intervention_type': intervention.type.value

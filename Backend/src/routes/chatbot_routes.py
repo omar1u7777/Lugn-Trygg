@@ -7,6 +7,7 @@ from flask import Blueprint, Response, g, make_response, request, stream_with_co
 from src.firebase_config import db
 from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
+from src.services.consent_service import consent_service
 from src.services.rate_limiting import rate_limit_by_endpoint
 from src.services.subscription_service import (
     SubscriptionLimitError,
@@ -120,6 +121,7 @@ def _to_camel_case_message(msg: dict) -> dict:
 @chatbot_bp.route("/chat", methods=["POST", "OPTIONS"])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
+@consent_service.require_consent(['ai_processing'])
 def chat_with_ai():
     if request.method == 'OPTIONS':
         return _preflight_response()
@@ -264,7 +266,7 @@ def chat_with_ai():
 
             # CRISIS INTERVENTION: Real escalation with SMS/email/push
             try:
-                from src.services.crisis_escalation import CrisisAlert, get_crisis_escalation_service
+                from src.services.crisis_escalation import CrisisAlert
 
                 # Use semantic crisis detector for better accuracy
                 from src.services.crisis_intervention import crisis_intervention_service
@@ -302,86 +304,23 @@ def chat_with_ai():
                         requires_immediate_action=assessment.overall_risk_level == 'critical'
                     )
 
-                    # Execute REAL escalation in background thread to avoid blocking
-                    import threading
-                    def escalate_async(alert):
-                        """
-                        Run crisis escalation with exponential-backoff retries.
-                        3 attempts: immediate → 2 s → 4 s.
-                        Logs CRITICAL if all attempts fail so ops can act.
-                        """
-                        import asyncio
-                        import time as _time
-
-                        MAX_RETRIES = 3
-                        BASE_DELAY = 2.0  # seconds
-                        last_error: str = "unknown"
-
-                        for attempt in range(1, MAX_RETRIES + 1):
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            try:
-                                escalation_service = get_crisis_escalation_service()
-                                result = loop.run_until_complete(
-                                    escalation_service.escalate(alert)
-                                )
-                                if result.success:
-                                    logger.info(
-                                        "✅ Crisis escalation completed (attempt %d/%d) "
-                                        "via channels: %s",
-                                        attempt, MAX_RETRIES,
-                                        [c.value for c in result.channels_used],
-                                    )
-                                    return  # Success — stop retrying
-                                else:
-                                    last_error = (
-                                        f"{len(result.failures)} channel(s) failed"
-                                    )
-                                    logger.error(
-                                        "❌ Crisis escalation attempt %d/%d: %s",
-                                        attempt, MAX_RETRIES, last_error,
-                                    )
-                            except Exception as esc_err:
-                                last_error = str(esc_err)
-                                logger.exception(
-                                    "Crisis escalation thread attempt %d/%d raised: %s",
-                                    attempt, MAX_RETRIES, esc_err,
-                                )
-                            finally:
-                                loop.close()
-
-                            if attempt < MAX_RETRIES:
-                                delay = BASE_DELAY * (2 ** (attempt - 1))  # 2 s, 4 s
-                                logger.info(
-                                    "⏳ Retrying crisis escalation in %.0f s "
-                                    "(attempt %d/%d)…",
-                                    delay, attempt + 1, MAX_RETRIES,
-                                )
-                                _time.sleep(delay)
-
-                        logger.critical(
-                            "🚨 CRISIS ESCALATION FAILED after %d attempts for "
-                            "user=%s, risk=%s. Last error: %s. REQUIRES MANUAL REVIEW.",
-                            MAX_RETRIES, alert.user_id, alert.risk_level, last_error,
-                        )
-
-                    # Start escalation in background thread (fire-and-forget).
-                    # The daemon thread handles retries internally; we must NOT
-                    # join() here because that would block the response for up to
-                    # 60 s, exhausting gevent workers at 10k-user scale.
-                    escalation_thread = threading.Thread(
-                        target=escalate_async,
-                        args=(crisis_alert,),
-                        daemon=True
-                    )
-                    escalation_thread.start()
+                    # Durable escalation: persist a pending task document to
+                    # Firestore WITHIN the request context before responding.
+                    # Unlike the previous fire-and-forget daemon thread, the
+                    # alert now survives worker recycles, OOM kills and rolling
+                    # deploys — the CrisisTaskWorker (transaction-safe, with
+                    # exponential backoff) guarantees at-least-once delivery.
+                    from src.services.crisis_task_queue import enqueue_crisis_escalation
+                    task_id = enqueue_crisis_escalation(crisis_alert)
 
                     # Store alert info in response for frontend
                     ai_response["crisis_escalation"] = {
                         "escalated": True,
                         "alert_id": crisis_alert.timestamp.isoformat(),
                         "channels_attempted": ["sms", "email", "push", "dashboard"],
-                        "pending": True
+                        "pending": True,
+                        "task_id": task_id,
+                        "delivery": "queued_durable"
                     }
 
             except Exception as crisis_err:
@@ -424,54 +363,48 @@ def chat_with_ai():
 @AuthService.jwt_required
 @rate_limit_by_endpoint
 def legacy_chat_message():
-    """Legacy alias for /chat used by older integrations and middleware tests."""
+    """Legacy alias for /chat used by older integrations and middleware tests.
+
+    No separate @require_consent here: this calls chat_with_ai() directly,
+    which IS the fully decorated function object (Python decorators wrap the
+    callable itself), so jwt_required/rate_limit/consent all re-apply on that
+    inner call. Adding another consent decorator here would only add a second,
+    redundant Firestore consent read per request.
+    """
     if request.method == 'OPTIONS':
         return _preflight_response()
     return chat_with_ai()
 
 
 def escalate_async_stream(alert):
-    """Background crisis escalation for the streaming endpoint (fire-and-forget)."""
-    import asyncio
-    import time as _time
+    """Durably enqueue crisis escalation from the streaming endpoint.
 
-    from src.services.crisis_escalation import get_crisis_escalation_service
-
-    MAX_RETRIES = 3
-    BASE_DELAY = 2.0
-    last_error = "unknown"
-
-    for attempt in range(1, MAX_RETRIES + 1):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            escalation_service = get_crisis_escalation_service()
-            result = loop.run_until_complete(escalation_service.escalate(alert))
-            if result.success:
-                logger.info(
-                    "✅ Streaming crisis escalation completed (attempt %d/%d) via: %s",
-                    attempt, MAX_RETRIES, [c.value for c in result.channels_used],
-                )
-                return
-            last_error = f"{len(result.failures)} channel(s) failed"
-            logger.error("❌ Streaming crisis escalation attempt %d/%d: %s", attempt, MAX_RETRIES, last_error)
-        except Exception as exc:
-            last_error = str(exc)
-            logger.exception("Streaming crisis escalation attempt %d/%d raised: %s", attempt, MAX_RETRIES, exc)
-        finally:
-            loop.close()
-        if attempt < MAX_RETRIES:
-            _time.sleep(BASE_DELAY * (2 ** (attempt - 1)))
-
-    logger.critical(
-        "🚨 STREAMING CRISIS ESCALATION FAILED after %d attempts for user=%s. REQUIRES MANUAL REVIEW.",
-        MAX_RETRIES, alert.user_id,
+    Previously this spawned a fire-and-forget daemon thread from INSIDE the SSE
+    stream_with_context generator — the thread could be killed on worker
+    recycle (losing the alert) and also leaked the streaming request context
+    across threads. It now writes a durable /crisis_tasks document, so the
+    CrisisTaskWorker guarantees at-least-once delivery with no thread and no
+    context coupling. Returns the task id (or None if the queue was
+    unavailable, which is logged CRITICAL by the queue itself).
+    """
+    from src.services.crisis_task_queue import (
+        CrisisQueueUnavailableError,
+        enqueue_crisis_escalation,
     )
+    try:
+        return enqueue_crisis_escalation(alert)
+    except CrisisQueueUnavailableError:
+        logger.critical(
+            "🚨 STREAMING CRISIS could not be queued for user=%s. REQUIRES MANUAL REVIEW.",
+            alert.user_id,
+        )
+        return None
 
 
 @chatbot_bp.route("/chat/stream", methods=["POST", "OPTIONS"])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
+@consent_service.require_consent(['ai_processing'])
 def chat_stream():
     """
     Real SSE streaming endpoint for AI chat.
@@ -551,6 +484,65 @@ def chat_stream():
             "content": user_message,
             "timestamp": timestamp
         })
+
+        # DURABILITY FIX: assess crisis risk and enqueue BEFORE streaming
+        # starts, synchronously in this request context — not inside the SSE
+        # generator's `finally` block (which only runs AFTER the full stream
+        # completes or errors). The crisis determination is a pure function of
+        # user_message (identical to what generate_therapeutic_conversation_stream
+        # itself computes internally to decide whether to flag chunks as
+        # 'crisis'), so it can be computed up front exactly like the
+        # non-streaming /chat handler already does above. A worker
+        # crash/recycle mid-stream can no longer lose the escalation, because
+        # the durable /crisis_tasks doc is written before a single SSE byte
+        # is sent. crisis_escalation_enqueued guards the post-stream check
+        # below from double-enqueuing for the same message.
+        crisis_escalation_enqueued = False
+        try:
+            from src.services.crisis_intervention import crisis_intervention_service
+            pre_stream_context = [
+                {"role": "user", "content": user_message}
+            ] + [
+                {"role": msg.get("role"), "content": msg.get("content")}
+                for msg in conversation_history[-3:]
+            ]
+            pre_assessment = crisis_intervention_service.assess_text_crisis_risk(
+                user_message, pre_stream_context,
+            )
+            if pre_assessment.overall_risk_level in ('critical', 'high'):
+                from src.services.crisis_escalation import CrisisAlert
+                from src.services.crisis_task_queue import (
+                    CrisisQueueUnavailableError,
+                    enqueue_crisis_escalation,
+                )
+                logger.warning(
+                    "🚨 CRISIS CONFIRMED pre-stream: user=%s risk=%s",
+                    user_id, pre_assessment.overall_risk_level,
+                )
+                pre_crisis_alert = CrisisAlert(
+                    user_id=user_id,
+                    risk_level=pre_assessment.overall_risk_level,
+                    risk_score=pre_assessment.risk_score,
+                    detected_indicators=[
+                        ind.swedish_description for ind in pre_assessment.active_indicators
+                    ],
+                    text_snippet=user_message[:200],
+                    timestamp=datetime.now(UTC),
+                    requires_immediate_action=pre_assessment.overall_risk_level == 'critical',
+                )
+                try:
+                    enqueue_crisis_escalation(pre_crisis_alert)
+                    crisis_escalation_enqueued = True
+                except CrisisQueueUnavailableError:
+                    logger.critical(
+                        "🚨 Pre-stream crisis escalation could not be queued for "
+                        "user=%s. REQUIRES MANUAL REVIEW.", user_id,
+                    )
+        except Exception as pre_stream_crisis_err:
+            logger.exception(
+                "Pre-stream crisis assessment failed (non-blocking): %s",
+                pre_stream_crisis_err,
+            )
 
         # Analytics optional - disabled to prevent undefined reference errors
 
@@ -637,7 +629,17 @@ def chat_stream():
                     # Previously only the non-streaming /chat endpoint escalated;
                     # the streaming path detected crisis flags but never acted on
                     # them — a critical patient safety gap in a mental health app.
-                    if crisis_detected:
+                    #
+                    # DEFENSE IN DEPTH: the primary enqueue now happens BEFORE
+                    # streaming starts (see crisis_escalation_enqueued above,
+                    # computed synchronously in the request context so a
+                    # worker crash mid-stream can't lose it). This post-stream
+                    # check is a secondary safety net for the rare case where
+                    # the AI's own crisis flag fires without the pre-stream
+                    # assessment catching it; crisis_escalation_enqueued (read
+                    # via closure from the enclosing request scope) prevents
+                    # double-enqueuing the same message.
+                    if crisis_detected and not crisis_escalation_enqueued:
                         try:
                             from src.services.crisis_escalation import CrisisAlert
                             from src.services.crisis_intervention import crisis_intervention_service
@@ -662,12 +664,9 @@ def chat_stream():
                                     timestamp=datetime.now(UTC),
                                     requires_immediate_action=assessment.overall_risk_level == 'critical',
                                 )
-                                import threading as _ct
-                                _ct.Thread(
-                                    target=escalate_async_stream,
-                                    args=(crisis_alert,),
-                                    daemon=True,
-                                ).start()
+                                # Durable enqueue (no thread, no context leak):
+                                # survives worker recycles and rolling deploys.
+                                escalate_async_stream(crisis_alert)
                         except Exception as crisis_err:
                             logger.exception(
                                 "Crisis escalation from streaming endpoint failed (non-blocking): %s",
@@ -1169,6 +1168,7 @@ def get_chat_history():
 @chatbot_bp.route("/analyze-patterns", methods=["POST", "OPTIONS"])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
+@consent_service.require_consent(['ai_processing'])
 def analyze_mood_patterns():
     """Analyze user's mood patterns and provide insights"""
     if request.method == 'OPTIONS':

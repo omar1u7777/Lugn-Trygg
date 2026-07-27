@@ -161,27 +161,97 @@ class TestIsOriginAllowed:
 
     # ── Vercel preview deployments ────────────────────────────────
 
-    def test_vercel_lugntrygg_preview_allowed(self):
-        """A Vercel preview URL with 'lugn-trygg' in the subdomain is allowed."""
+    def test_vercel_preview_allowed_with_pinned_prefix(self):
+        """A Vercel preview URL is allowed ONLY when it matches the exact
+        VERCEL_PREVIEW_PREFIX, anchored — never a substring wildcard."""
         fn = self._get_fn()
-        with mock.patch('main._get_cors_origins_list', return_value=['http://localhost:3000', 'https://*.vercel.app']), \
-             mock.patch.dict(os.environ, {'FLASK_ENV': 'production'}, clear=False):
+        with mock.patch('main._get_cors_origins_list', return_value=['http://localhost:3000']), \
+             mock.patch.dict(os.environ, {'FLASK_ENV': 'production', 'VERCEL_PREVIEW_PREFIX': 'lugn-trygg'}, clear=False):
             assert fn('https://lugn-trygg-abc123.vercel.app') is True
 
     def test_vercel_unrelated_project_blocked(self):
-        """A Vercel preview URL without the project name must be blocked."""
+        """A Vercel preview URL that is not the pinned project must be blocked."""
         fn = self._get_fn()
-        with mock.patch('main._get_cors_origins_list', return_value=['http://localhost:3000', 'https://*.vercel.app']), \
-             mock.patch.dict(os.environ, {'FLASK_ENV': 'production'}, clear=False):
+        with mock.patch('main._get_cors_origins_list', return_value=['http://localhost:3000']), \
+             mock.patch.dict(os.environ, {'FLASK_ENV': 'production', 'VERCEL_PREVIEW_PREFIX': 'lugn-trygg'}, clear=False):
             assert fn('https://totally-different-app.vercel.app') is False
 
-    def test_vercel_domain_must_contain_project_name(self):
-        """Edge case: 'lugntrygg' in domain — should still pass."""
+    def test_vercel_attacker_registrable_substring_blocked(self):
+        """SECURITY: a host that merely CONTAINS the project name (e.g. an
+        attacker-registered 'evil-lugn-trygg-x' or a different-prefix
+        'lugntrygg-staging') must be BLOCKED — the old substring wildcard
+        allowed these."""
         fn = self._get_fn()
-        with mock.patch('main._get_cors_origins_list', return_value=['https://*.vercel.app']), \
+        with mock.patch('main._get_cors_origins_list', return_value=['http://localhost:3000']), \
+             mock.patch.dict(os.environ, {'FLASK_ENV': 'production', 'VERCEL_PREVIEW_PREFIX': 'lugn-trygg'}, clear=False):
+            assert fn('https://evil-lugn-trygg-x.vercel.app') is False
+            assert fn('https://lugntrygg-staging.vercel.app') is False
+
+    def test_vercel_preview_blocked_when_prefix_unset(self):
+        """With no VERCEL_PREVIEW_PREFIX, no *.vercel.app host is trusted."""
+        fn = self._get_fn()
+        with mock.patch('main._get_cors_origins_list', return_value=['http://localhost:3000']), \
              mock.patch.dict(os.environ, {'FLASK_ENV': 'production'}, clear=False):
-            result = fn('https://lugntrygg-staging.vercel.app')
-            assert result is True
+            os.environ.pop('VERCEL_PREVIEW_PREFIX', None)
+            os.environ.pop('VERCEL_PROJECT_SLUG', None)
+            os.environ.pop('VERCEL_TEAM_SLUG', None)
+            assert fn('https://lugn-trygg-abc123.vercel.app') is False
+
+    # ── Hardened two-var (project + team slug) Vercel matching ────
+
+    def test_hardened_project_and_team_slug_allowed(self):
+        """The real deployment's preview URL (project-hash-team) is allowed
+        when both VERCEL_PROJECT_SLUG and VERCEL_TEAM_SLUG are pinned."""
+        fn = self._get_fn()
+        with mock.patch('main._get_cors_origins_list', return_value=['http://localhost:3000']), \
+             mock.patch.dict(os.environ, {
+                 'FLASK_ENV': 'production',
+                 'VERCEL_PROJECT_SLUG': 'lugn-trygg',
+                 'VERCEL_TEAM_SLUG': 'omars-team',
+             }, clear=False):
+            assert fn('https://lugn-trygg-a1b2c3d4-omars-team.vercel.app') is True
+
+    def test_hardened_prefix_collision_project_name_blocked(self):
+        """SECURITY: the exact attack the single-var prefix match allowed —
+        another tenant deploys a project literally named 'lugn-trygg-evil' —
+        must be BLOCKED because its trailing segment is not the pinned team
+        slug. Vercel team slugs are globally unique, so an attacker cannot
+        register the same team slug as the real deployment."""
+        fn = self._get_fn()
+        with mock.patch('main._get_cors_origins_list', return_value=['http://localhost:3000']), \
+             mock.patch.dict(os.environ, {
+                 'FLASK_ENV': 'production',
+                 'VERCEL_PROJECT_SLUG': 'lugn-trygg',
+                 'VERCEL_TEAM_SLUG': 'omars-team',
+             }, clear=False):
+            # Attacker's project name collides with the prefix; attacker's
+            # own (different) team slug at the end must not match ours.
+            assert fn('https://lugn-trygg-evil-x9y8z7-attacker-team.vercel.app') is False
+
+    def test_hardened_wrong_team_slug_blocked(self):
+        """Correct project slug but wrong/attacker team slug must be blocked."""
+        fn = self._get_fn()
+        with mock.patch('main._get_cors_origins_list', return_value=['http://localhost:3000']), \
+             mock.patch.dict(os.environ, {
+                 'FLASK_ENV': 'production',
+                 'VERCEL_PROJECT_SLUG': 'lugn-trygg',
+                 'VERCEL_TEAM_SLUG': 'omars-team',
+             }, clear=False):
+            assert fn('https://lugn-trygg-a1b2c3d4-not-omars-team.vercel.app') is False
+
+    def test_hardened_mode_takes_precedence_over_legacy_prefix(self):
+        """When both the two-var and legacy single-var configs are present,
+        the hardened two-var check governs — the weaker legacy prefix pattern
+        must not additionally widen what's accepted."""
+        fn = self._get_fn()
+        with mock.patch('main._get_cors_origins_list', return_value=['http://localhost:3000']), \
+             mock.patch.dict(os.environ, {
+                 'FLASK_ENV': 'production',
+                 'VERCEL_PROJECT_SLUG': 'lugn-trygg',
+                 'VERCEL_TEAM_SLUG': 'omars-team',
+                 'VERCEL_PREVIEW_PREFIX': 'lugn-trygg',  # would have allowed the evil host below
+             }, clear=False):
+            assert fn('https://lugn-trygg-evil-x9y8z7.vercel.app') is False
 
     # ── Localhost in dev vs prod ──────────────────────────────────
 

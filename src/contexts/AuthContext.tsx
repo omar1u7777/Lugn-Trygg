@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { logoutUser, refreshAccessToken } from "../api/auth";
 import ConsentModal from "../components/Auth/ConsentModal";
 import type { AuthContextProps, User } from "../types/index";
-import { tokenStorage, secureStorage } from "../utils/secureStorage";
+import { tokenStorage, secureStorage, purgeUserScopedStorage } from "../utils/secureStorage";
 import { logger } from '../utils/logger';
 
 // 🎯 Skapa AuthContext för att hantera autentisering globalt i appen
@@ -195,6 +195,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       tokenStorage.clearTokens();
       // Keep consent_given in localStorage, only clear auth-related items
       secureStorage.removeItem('user');
+      // Purge per-user feature caches (chat analytics, challenges, …) so no
+      // sensitive data survives on a shared device.
+      purgeUserScopedStorage();
       navigate("/login");
     }
   }, [navigate]);
@@ -205,6 +208,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setTokenState(null);
       setUserState(null);
       tokenStorage.clearTokens();
+      purgeUserScopedStorage();
       navigate('/login');
     };
     window.addEventListener('auth:force-logout', handleForceLogout);

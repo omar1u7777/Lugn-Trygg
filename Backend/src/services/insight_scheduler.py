@@ -50,18 +50,38 @@ class InsightNotificationScheduler:
         logger.info("🛑 Insight notification scheduler stopped")
 
     def _scheduler_loop(self):
-        """Main scheduler loop - runs every hour."""
+        """Main scheduler loop - runs every hour.
+
+        Each job is guarded by an atomic Firestore periodic claim so that with
+        multiple Gunicorn workers exactly ONE process executes it per window —
+        users can never receive duplicate insights/notifications because two
+        workers' schedulers fired in the same hour.
+        """
+        from src.services.distributed_lock import FirestoreLeaseLock
+        daily_claim = FirestoreLeaseLock('insight_daily_generation')
+        notify_claim = FirestoreLeaseLock('insight_notifications')
+        retention_claim = FirestoreLeaseLock('data_retention_enforcement')
+
         while self.is_running:
             try:
                 current_hour = datetime.now().hour
 
-                # Run daily insight generation at 7 AM
-                if current_hour == 7:
+                # Run daily insight generation at 7 AM — once per ~20 h window
+                if current_hour == 7 and daily_claim.try_claim_period(20 * 3600):
                     self._process_daily_insights()
 
-                # Send pending notifications every 2 hours during day
+                # Send pending notifications every 2 hours during day — once
+                # per ~2 h window across all workers
                 if current_hour % 2 == 0 and self.optimal_hours[0] <= current_hour <= self.optimal_hours[1]:
-                    self._send_pending_notifications()
+                    if notify_claim.try_claim_period(7000):
+                        self._send_pending_notifications()
+
+                # Enforce GDPR/HIPAA data retention daily at 3 AM — once per
+                # ~20 h window across all workers. Previously this NEVER ran
+                # automatically (only via a manual admin HTTP call), so expired
+                # PHI accumulated indefinitely.
+                if current_hour == 3 and retention_claim.try_claim_period(20 * 3600):
+                    self._run_data_retention()
 
                 # Sleep for 1 hour
                 time.sleep(3600)
@@ -69,6 +89,29 @@ class InsightNotificationScheduler:
             except Exception as e:
                 logger.error(f"Scheduler error: {e}")
                 time.sleep(300)  # Retry in 5 min on error
+
+    def _run_data_retention(self):
+        """Run the data-retention policy sweep under telemetry."""
+        try:
+            from src.services.data_retention_service import DataRetentionService
+            from src.utils.telemetry import telemetry
+
+            result = DataRetentionService().apply_retention_policy()
+            telemetry.event(
+                "data_retention_completed",
+                "Scheduled data retention enforcement finished",
+                total_deleted=result.get('total_deleted', 0),
+            )
+            logger.info("🗑️ Scheduled data retention completed: %s docs deleted",
+                        result.get('total_deleted', 0))
+        except Exception as e:
+            from src.utils.telemetry import telemetry
+            telemetry.critical(
+                "data_retention_failed",
+                "Scheduled data retention enforcement raised — expired PHI may persist",
+                error=str(e),
+            )
+            logger.exception("Scheduled data retention failed: %s", e)
 
     def _process_daily_insights(self):
         """Generate insights for all active users."""

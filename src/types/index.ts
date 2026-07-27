@@ -8,7 +8,7 @@ export type UserRole = (typeof USER_ROLES)[number];
 export type User = {
   user_id: string;            // 🔹 Unik identifierare (ska matcha backend)
   email: string;              // 🔹 Användarens e-postadress
-  name?: string;              // 🔹 (Valfritt) Fullständigt namn
+  name?: string | undefined;  // 🔹 (Valfritt) Fullständigt namn
   displayName?: string;       // 🔹 (Valfritt) Visningsnamn
   role?: UserRole;            // 🔹 Användarroll (default: "user")
   createdAt?: Date | string | undefined;  // 🔹 Konto skapat (ISO-format eller Date) - kan vara undefined

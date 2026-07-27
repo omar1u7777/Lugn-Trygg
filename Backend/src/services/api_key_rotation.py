@@ -101,10 +101,24 @@ class APIKeyRotationService:
         logger.info("⏹️ API key rotation scheduler stopped")
 
     def _rotation_scheduler(self):
-        """Background scheduler for key rotation"""
+        """Background scheduler for key rotation.
+
+        Cross-worker safety: the hourly rotation check is guarded by an atomic
+        Firestore periodic claim, so with N Gunicorn workers exactly ONE
+        process performs the check per window — duplicate key rotations under
+        concurrent schedulers are structurally impossible.
+        """
+        from src.services.distributed_lock import FirestoreLeaseLock
+        # 3500 s (slightly under the hourly cycle) so worker clock drift can
+        # never cause a whole window to be skipped.
+        rotation_claim = FirestoreLeaseLock('api_key_rotation')
+
         while self.is_running:
             try:
-                self._check_rotation_schedule()
+                if rotation_claim.try_claim_period(3500):
+                    self._check_rotation_schedule()
+                else:
+                    logger.debug("Key rotation already executed this period by another worker")
                 time.sleep(3600)  # Check every hour
             except Exception as e:
                 logger.error(f"Rotation scheduler error: {e}")

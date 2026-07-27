@@ -4,12 +4,44 @@
 
 import { AxiosError } from 'axios';
 
+/**
+ * Machine-readable error codes for the unified API error contract.
+ * UI layers should branch/translate on `code`, never on message text.
+ */
+export type ApiErrorCode =
+  | 'RATE_LIMITED'
+  | 'OFFLINE_QUEUED'
+  | 'CSRF_UNAVAILABLE'
+  | 'NETWORK_ERROR'
+  | 'TIMEOUT'
+  | 'MALFORMED_ENVELOPE'
+  | 'HTTP_ERROR'
+  | 'REQUEST_SETUP';
+
+/**
+ * Options accepted by every error in the hierarchy. Properties explicitly
+ * allow `undefined` so call sites can forward optional values under
+ * `exactOptionalPropertyTypes` without ceremony.
+ */
+export interface ApiErrorOptions {
+  status?: number | undefined;
+  statusText?: string | undefined;
+  data?: unknown;
+  url?: string | undefined;
+  method?: string | undefined;
+  code?: ApiErrorCode | undefined;
+  retryAfter?: number | undefined;
+  cause?: Error | undefined;
+}
+
 export class ApiError extends Error {
-  public readonly status?: number;
-  public readonly statusText?: string;
-  public readonly data?: unknown;
-  public readonly url?: string;
-  public readonly method?: string;
+  public readonly status: number | undefined;
+  public readonly statusText: string | undefined;
+  public readonly data: unknown;
+  public readonly url: string | undefined;
+  public readonly method: string | undefined;
+  public readonly code: ApiErrorCode | undefined;
+  public readonly retryAfter: number | undefined;
   public readonly timestamp: number;
   public readonly isNetworkError: boolean;
   public readonly isServerError: boolean;
@@ -17,14 +49,7 @@ export class ApiError extends Error {
 
   constructor(
     message: string,
-    options: {
-      status?: number;
-      statusText?: string;
-      data?: unknown;
-      url?: string;
-      method?: string;
-      cause?: Error;
-    } = {}
+    options: ApiErrorOptions = {}
   ) {
     super(message);
     this.name = 'ApiError';
@@ -33,6 +58,8 @@ export class ApiError extends Error {
     this.data = options.data;
     this.url = options.url;
     this.method = options.method;
+    this.code = options.code;
+    this.retryAfter = options.retryAfter;
     this.timestamp = Date.now();
     this.isNetworkError = !options.status;
     this.isServerError = options.status ? options.status >= 500 : false;
@@ -41,6 +68,18 @@ export class ApiError extends Error {
     if (options.cause) {
       this.cause = options.cause;
     }
+  }
+
+  /**
+   * Axios-shaped compatibility view. Lets existing call sites that read
+   * `error.response?.status` / `error.response?.data` keep working after the
+   * interceptor switched from throwing AxiosError to throwing ApiError.
+   */
+  get response(): { status: number; statusText: string | undefined; data: unknown } | undefined {
+    if (this.status === undefined) {
+      return undefined;
+    }
+    return { status: this.status, statusText: this.statusText, data: this.data };
   }
 
   /**
@@ -133,16 +172,9 @@ export class ApiError extends Error {
 }
 
 export class ValidationError extends ApiError {
-  public readonly field?: string;
+  public readonly field: string | undefined;
 
-  constructor(message: string, field?: string, options: {
-    status?: number;
-    statusText?: string;
-    data?: unknown;
-    url?: string;
-    method?: string;
-    cause?: Error;
-  } = {}) {
+  constructor(message: string, field?: string, options: ApiErrorOptions = {}) {
     super(message, options);
     this.name = 'ValidationError';
     this.field = field;
@@ -150,42 +182,21 @@ export class ValidationError extends ApiError {
 }
 
 export class AuthenticationError extends ApiError {
-  constructor(message = 'Authentication required', options: {
-    status?: number;
-    statusText?: string;
-    data?: unknown;
-    url?: string;
-    method?: string;
-    cause?: Error;
-  } = {}) {
+  constructor(message = 'Authentication required', options: ApiErrorOptions = {}) {
     super(message, { status: 401, ...options });
     this.name = 'AuthenticationError';
   }
 }
 
 export class AuthorizationError extends ApiError {
-  constructor(message = 'Insufficient permissions', options: {
-    status?: number;
-    statusText?: string;
-    data?: unknown;
-    url?: string;
-    method?: string;
-    cause?: Error;
-  } = {}) {
+  constructor(message = 'Insufficient permissions', options: ApiErrorOptions = {}) {
     super(message, { status: 403, ...options });
     this.name = 'AuthorizationError';
   }
 }
 
 export class NotFoundError extends ApiError {
-  constructor(resource = 'Resource', options: {
-    status?: number;
-    statusText?: string;
-    data?: unknown;
-    url?: string;
-    method?: string;
-    cause?: Error;
-  } = {}) {
+  constructor(resource = 'Resource', options: ApiErrorOptions = {}) {
     super(`${resource} not found`, { status: 404, ...options });
     this.name = 'NotFoundError';
   }
@@ -194,14 +205,7 @@ export class NotFoundError extends ApiError {
 export class RateLimitError extends ApiError {
   public readonly retryAfter: number;
 
-  constructor(retryAfter = 60, options: {
-    status?: number;
-    statusText?: string;
-    data?: unknown;
-    url?: string;
-    method?: string;
-    cause?: Error;
-  } = {}) {
+  constructor(retryAfter = 60, options: ApiErrorOptions = {}) {
     super(`Rate limit exceeded. Retry after ${retryAfter} seconds`, {
       status: 429,
       ...options
@@ -212,14 +216,7 @@ export class RateLimitError extends ApiError {
 }
 
 export class NetworkError extends ApiError {
-  constructor(message = 'Network error', options: {
-    status?: number;
-    statusText?: string;
-    data?: unknown;
-    url?: string;
-    method?: string;
-    cause?: Error;
-  } = {}) {
+  constructor(message = 'Network error', options: ApiErrorOptions = {}) {
     super(message, options);
     this.name = 'NetworkError';
   }

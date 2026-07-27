@@ -23,14 +23,26 @@ class DataRetentionService:
             'moods': 2555,  # 7 years
             'memories': 2555,
             'chat_sessions': 2555,
-            'ai_conversations': 2555,
+            'ai_conversations': 2555,  # legacy collection name, kept for any old data
+            # 'conversations' is the ACTUAL AI chat transcript store written by
+            # chatbot_routes.py (users/{uid}/conversations). Without this entry
+            # the daily retention sweep deleted everything EXCEPT the highest-
+            # sensitivity data — verbatim therapy transcripts accumulated forever.
+            'conversations': 2555,
             'journal_entries': 2555,
             'voice_recordings': 2555,
             'wellness_activities': 2555,
             'notifications': 365,  # 1 year for non-critical data
             'feedback': 2555,
             'achievements': 2555,
-            'referrals': 2555
+            'referrals': 2555,
+            # Root-level, user_id-filtered, AI-generated psychological
+            # insights — same 7-year clinical-data retention as moods/
+            # conversations. See _delete_expired_data: 'created_at' here is
+            # stored as a native Firestore Timestamp (daily_insight_service_v2
+            # writes a datetime object, not .isoformat()), so it needs the
+            # datetime cutoff, not the ISO-string cutoff used elsewhere.
+            'insights': 2555,
         }
 
         # HIPAA: 7 years minimum for medical records
@@ -133,8 +145,7 @@ class DataRetentionService:
 
         try:
             if collection_name in ['moods', 'memories', 'chat_sessions', 'ai_conversations',
-                                 'journal_entries', 'wellness_activities', 'notifications',
-                                 'achievements']:
+                                 'conversations', 'wellness_activities', 'achievements']:
                 # Subcollections under users/{user_id}/collection_name
                 collection_ref = db.collection('users').document(user_id).collection(collection_name)  # type: ignore
 
@@ -208,6 +219,60 @@ class DataRetentionService:
                 if batch_count > 0:
                     batch.commit()
 
+            elif collection_name in ('insights', 'journal_entries'):
+                # Root-level, user_id-filtered like feedback/referrals, but
+                # 'created_at' is a native Firestore Timestamp field, not an
+                # ISO string — pass the datetime object, not cutoff_iso.
+                # journal_entries: writer is journal_routes.py, which stores
+                # documents in the TOP-LEVEL 'journal_entries' collection
+                # (field 'user_id', 'created_at' as datetime.now(UTC)) — NOT
+                # a users/{uid} subcollection with an ISO 'timestamp' field,
+                # which is what this branch used to (incorrectly) assume.
+                collection_ref = db.collection(collection_name)  # type: ignore
+                old_docs = collection_ref.where(filter=FieldFilter('user_id', '==', user_id)) \
+                                       .where(filter=FieldFilter('created_at', '<', cutoff_date)).stream()
+
+                batch = db.batch()  # type: ignore
+                batch_count = 0
+
+                for doc in old_docs:
+                    batch.delete(doc.reference)
+                    batch_count += 1
+                    deleted_count += 1
+
+                    if batch_count >= 500:
+                        batch.commit()
+                        batch = db.batch()  # type: ignore
+                        batch_count = 0
+
+                if batch_count > 0:
+                    batch.commit()
+
+            elif collection_name == 'notifications':
+                # notifications_routes.py writes to the TOP-LEVEL
+                # 'notifications' collection with a camelCase 'userId' field
+                # and 'sentAt' as a native Firestore Timestamp — not a
+                # users/{uid} subcollection with an ISO 'timestamp' field.
+                collection_ref = db.collection('notifications')  # type: ignore
+                old_docs = collection_ref.where(filter=FieldFilter('userId', '==', user_id)) \
+                                       .where(filter=FieldFilter('sentAt', '<', cutoff_date)).stream()
+
+                batch = db.batch()  # type: ignore
+                batch_count = 0
+
+                for doc in old_docs:
+                    batch.delete(doc.reference)
+                    batch_count += 1
+                    deleted_count += 1
+
+                    if batch_count >= 500:
+                        batch.commit()
+                        batch = db.batch()  # type: ignore
+                        batch_count = 0
+
+                if batch_count > 0:
+                    batch.commit()
+
         except Exception as e:
             logger.error(f"Error deleting expired {collection_name} data for user {user_id}: {str(e)}")
             raise
@@ -243,8 +308,7 @@ class DataRetentionService:
 
         try:
             if collection_name in ['moods', 'memories', 'chat_sessions', 'ai_conversations',
-                                 'journal_entries', 'wellness_activities', 'notifications',
-                                 'achievements']:
+                                 'conversations', 'wellness_activities', 'achievements']:
                 collection_ref = db.collection('users').document(user_id).collection(collection_name)  # type: ignore
                 old_docs = collection_ref.where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream()
                 return len(list(old_docs))
@@ -254,6 +318,18 @@ class DataRetentionService:
                 collection_ref = db.collection(collection_name)  # type: ignore
                 old_docs = collection_ref.where(filter=FieldFilter(field_name, '==', user_id)) \
                                        .where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream()
+                return len(list(old_docs))
+
+            elif collection_name in ('insights', 'journal_entries'):
+                collection_ref = db.collection(collection_name)  # type: ignore
+                old_docs = collection_ref.where(filter=FieldFilter('user_id', '==', user_id)) \
+                                       .where(filter=FieldFilter('created_at', '<', cutoff_date)).stream()
+                return len(list(old_docs))
+
+            elif collection_name == 'notifications':
+                collection_ref = db.collection('notifications')  # type: ignore
+                old_docs = collection_ref.where(filter=FieldFilter('userId', '==', user_id)) \
+                                       .where(filter=FieldFilter('sentAt', '<', cutoff_date)).stream()
                 return len(list(old_docs))
 
         except Exception as e:

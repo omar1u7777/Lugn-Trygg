@@ -1,9 +1,20 @@
 """Verify cookie security flags precisely."""
+import os
+import sys
+
 import requests
 
+BASE = os.getenv("VERIFY_BASE_URL", "https://lugn-trygg-backend.onrender.com")
+# Credentials from environment — never hardcode live credentials in the repo.
+TEST_EMAIL = os.getenv("E2E_TEST_EMAIL")
+TEST_PASSWORD = os.getenv("E2E_TEST_PASSWORD")
+if not TEST_EMAIL or not TEST_PASSWORD:
+    print("ERROR: set E2E_TEST_EMAIL and E2E_TEST_PASSWORD env vars before running.")
+    sys.exit(2)
+
 r = requests.post(
-    "https://lugn-trygg-backend.onrender.com/api/v1/auth/login",
-    json={"email": "e2e-verify@lugntrygg.se", "password": "E2eTest123!Secure"},
+    f"{BASE}/api/v1/auth/login",
+    json={"email": TEST_EMAIL, "password": TEST_PASSWORD},
     timeout=30
 )
 

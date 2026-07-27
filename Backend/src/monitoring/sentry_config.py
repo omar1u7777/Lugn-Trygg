@@ -59,11 +59,23 @@ def init_sentry(app=None):
     if not sentry_dsn:
         _env = os.getenv('FLASK_ENV', 'development').lower()
         if _env == 'production':
-            logger.warning(
-                "[B7] SENTRY_DSN is not set in this PRODUCTION environment. "
-                "Uncaught exceptions, 500 errors, and performance regressions will NOT be "
-                "reported anywhere — you will be flying blind in production. "
-                "Create a project at https://sentry.io, copy the DSN, and set SENTRY_DSN."
+            # Without Sentry, telemetry.critical events — including
+            # crisis_escalation_exhausted (a failed suicide-risk escalation) —
+            # end up as stdout lines nobody watches. That is not an acceptable
+            # production posture for a mental-health platform, so boot is
+            # REFUSED. Conscious opt-out (e.g. an isolated staging smoke test)
+            # requires ALLOW_MISSING_SENTRY=true.
+            if os.getenv('ALLOW_MISSING_SENTRY', '').lower() == 'true':
+                logger.warning(
+                    "[B7] SENTRY_DSN missing in production but ALLOW_MISSING_SENTRY=true — "
+                    "continuing WITHOUT error tracking. CRITICAL events will only reach stdout."
+                )
+                return False
+            raise RuntimeError(
+                "SENTRY_DSN is required in production: without it, CRITICAL events "
+                "(including failed crisis escalations) are never seen by a human. "
+                "Set SENTRY_DSN, or set ALLOW_MISSING_SENTRY=true to consciously "
+                "accept flying blind (staging only)."
             )
         else:
             logger.warning("SENTRY_DSN not configured - monitoring disabled")
@@ -144,8 +156,22 @@ def init_sentry(app=None):
         logger.info("  - Error tracking: ENABLED")
         logger.info("  - Performance monitoring: ENABLED")
 
-    except Exception:
+    except Exception as init_err:
         logger.exception("Failed to initialize Sentry")
+        # A malformed/unreachable DSN reproduces exactly the "flying blind"
+        # state the earlier missing-DSN guard exists to prevent: CRITICAL
+        # telemetry events would only reach stdout. Fail closed in production
+        # the same way, unless explicitly overridden.
+        if (os.getenv('FLASK_ENV', 'development').lower() == 'production'
+                and os.getenv('ALLOW_MISSING_SENTRY', '').lower() != 'true'):
+            raise RuntimeError(
+                "Sentry failed to initialize in production (SENTRY_DSN may be "
+                f"malformed or unreachable): {init_err}. Without working error "
+                "tracking, CRITICAL events (including failed crisis escalations) "
+                "are never seen by a human. Fix SENTRY_DSN, or set "
+                "ALLOW_MISSING_SENTRY=true to consciously accept flying blind "
+                "(staging only)."
+            ) from init_err
         return False
 
     return True

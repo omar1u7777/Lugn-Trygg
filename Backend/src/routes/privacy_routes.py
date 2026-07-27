@@ -190,10 +190,7 @@ def export_user_data(user_id: str):
         logger.info(f"  ✓ {len(moods)} mood entries collected")
 
         # 3. Memories — stored as top-level 'memories' collection
-        if FieldFilter is not None:
-            memories_query = db.collection('memories').where(filter=FieldFilter('user_id', '==', user_id))
-        else:
-            memories_query = db.collection('memories').where(filter=FieldFilter('user_id', '==', user_id))
+        memories_query = db.collection('memories').where(filter=FieldFilter('user_id', '==', user_id))
         memories = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in memories_query.stream()]
         export_data['memories'] = memories
         logger.info(f"  ✓ {len(memories)} memories collected")
@@ -205,10 +202,7 @@ def export_user_data(user_id: str):
         logger.info(f"  ✓ {len(chat_sessions)} chat sessions collected")
 
         # 5. Feedback Submissions
-        if FieldFilter is not None:
-            feedback_query = db.collection('feedback').where(filter=FieldFilter('user_id', '==', user_id))
-        else:
-            feedback_query = db.collection('feedback').where(filter=FieldFilter('user_id', '==', user_id))
+        feedback_query = db.collection('feedback').where(filter=FieldFilter('user_id', '==', user_id))
         feedback = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in feedback_query.stream()]
         export_data['feedback'] = feedback
         logger.info(f"  ✓ {len(feedback)} feedback entries collected")
@@ -220,10 +214,7 @@ def export_user_data(user_id: str):
         logger.info(f"  ✓ {len(achievements)} achievements collected")
 
         # 7. Referral Data (if any)
-        if FieldFilter is not None:
-            referral_query = db.collection('referrals').where(filter=FieldFilter('referrer_id', '==', user_id))
-        else:
-            referral_query = db.collection('referrals').where(filter=FieldFilter('referrer_id', '==', user_id))
+        referral_query = db.collection('referrals').where(filter=FieldFilter('referrer_id', '==', user_id))
         referrals = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in referral_query.stream()]
         export_data['referrals'] = referrals
         logger.info(f"  ✓ {len(referrals)} referrals collected")
@@ -235,10 +226,7 @@ def export_user_data(user_id: str):
         logger.info(f"  ✓ {len(ai_conversations)} AI conversations collected")
 
         # 9. Journal Entries — stored as top-level 'journal_entries' collection
-        if FieldFilter is not None:
-            journal_query = db.collection('journal_entries').where(filter=FieldFilter('user_id', '==', user_id))
-        else:
-            journal_query = db.collection('journal_entries').where(filter=FieldFilter('user_id', '==', user_id))
+        journal_query = db.collection('journal_entries').where(filter=FieldFilter('user_id', '==', user_id))
         journal_entries = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in journal_query.stream()]
         export_data['journalEntries'] = journal_entries
         logger.info(f"  ✓ {len(journal_entries)} journal entries collected")
@@ -249,9 +237,18 @@ def export_user_data(user_id: str):
         export_data['wellnessActivities'] = wellness_activities
         logger.info(f"  ✓ {len(wellness_activities)} wellness activities collected")
 
-        # 11. Notifications
+        # 11. Notifications — subcollection has no real writer (kept as a
+        # harmless safety net); the actual notification history written by
+        # notifications_routes.py lives in the top-level 'notifications'
+        # collection keyed by 'userId'.
         notifications_ref = db.collection('users').document(user_id).collection('notifications')
         notifications = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in notifications_ref.stream()]
+        top_level_notifications_query = db.collection('notifications').where(
+            filter=FieldFilter('userId', '==', user_id)
+        )
+        notifications += [
+            {**(doc.to_dict() or {}), 'id': doc.id} for doc in top_level_notifications_query.stream()
+        ]
         export_data['notifications'] = notifications
         logger.info(f"  ✓ {len(notifications)} notifications collected")
 
@@ -268,10 +265,7 @@ def export_user_data(user_id: str):
             logger.info("  ✓ CBT progress collected")
 
         # 14. Crisis Assessments
-        if FieldFilter is not None:
-            crisis_query = db.collection('crisis_assessments').where(filter=FieldFilter('user_id', '==', user_id))
-        else:
-            crisis_query = db.collection('crisis_assessments').where(filter=FieldFilter('user_id', '==', user_id))
+        crisis_query = db.collection('crisis_assessments').where(filter=FieldFilter('user_id', '==', user_id))
         crisis_assessments = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in crisis_query.stream()]
         export_data['crisisAssessments'] = crisis_assessments
         logger.info(f"  ✓ {len(crisis_assessments)} crisis assessments collected")
@@ -283,27 +277,18 @@ def export_user_data(user_id: str):
             logger.info("  ✓ Safety plan collected")
 
         # 16. Sync History
-        if FieldFilter is not None:
-            sync_query = db.collection('sync_history').where(filter=FieldFilter('user_id', '==', user_id))
-        else:
-            sync_query = db.collection('sync_history').where(filter=FieldFilter('user_id', '==', user_id))
+        sync_query = db.collection('sync_history').where(filter=FieldFilter('user_id', '==', user_id))
         sync_entries = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in sync_query.stream()]
         export_data['syncHistory'] = sync_entries
         logger.info(f"  ✓ {len(sync_entries)} sync history entries collected")
 
         # 17. Peer Chat Messages
         # Peer chat messages are keyed by session_id, not user_id — collect via presence
-        if FieldFilter is not None:
-            presence_query = db.collection('peer_chat_presence').where(filter=FieldFilter('user_id', '==', user_id))
-        else:
-            presence_query = db.collection('peer_chat_presence').where(filter=FieldFilter('user_id', '==', user_id))
+        presence_query = db.collection('peer_chat_presence').where(filter=FieldFilter('user_id', '==', user_id))
         user_sessions = [doc.id for doc in presence_query.stream()]
         peer_messages = []
         for sid in user_sessions:
-            if FieldFilter is not None:
-                msg_query = db.collection('peer_chat_messages').where(filter=FieldFilter('session_id', '==', sid))
-            else:
-                msg_query = db.collection('peer_chat_messages').where(filter=FieldFilter('session_id', '==', sid))
+            msg_query = db.collection('peer_chat_messages').where(filter=FieldFilter('session_id', '==', sid))
             for doc in msg_query.stream():
                 peer_messages.append({**(doc.to_dict() or {}), 'id': doc.id})
         export_data['peerChatMessages'] = peer_messages
@@ -363,227 +348,7 @@ def delete_user_data(user_id: str):
         if db is None:
             return APIResponse.error("Database connection missing", "DB_ERROR", 503)
 
-        logger.warning(f"🗑️  Starting PERMANENT data deletion for user {user_id[:8]}")
-
-        deletion_summary = {
-            'userId': user_id,
-            'deletionDate': datetime.now(UTC).isoformat(),
-            'deletedCollections': []
-        }
-
-        # 1. Delete Mood Entries
-        moods_ref = db.collection('users').document(user_id).collection('moods')
-        deleted_moods = _delete_collection(moods_ref, batch_size=50)
-        deletion_summary['deletedCollections'].append({
-            'collection': 'moods',
-            'count': deleted_moods
-        })
-        logger.info(f"  ✓ Deleted {deleted_moods} mood entries")
-
-        # 2. Delete Memories — stored as top-level 'memories' collection
-        if FieldFilter is not None:
-            memories_query = db.collection('memories').where(filter=FieldFilter('user_id', '==', user_id))
-        else:
-            memories_query = db.collection('memories').where(filter=FieldFilter('user_id', '==', user_id))
-        memory_docs = list(memories_query.stream())
-        for doc in memory_docs:
-            doc.reference.delete()
-        deleted_memories = len(memory_docs)
-        deletion_summary['deletedCollections'].append({
-            'collection': 'memories',
-            'count': deleted_memories
-        })
-        logger.info(f"  ✓ Deleted {deleted_memories} memories")
-
-        # 3. Delete Chat Sessions
-        chat_ref = db.collection('users').document(user_id).collection('chat_sessions')
-        deleted_chats = _delete_collection(chat_ref, batch_size=50)
-        deletion_summary['deletedCollections'].append({
-            'collection': 'chat_sessions',
-            'count': deleted_chats
-        })
-        logger.info(f"  ✓ Deleted {deleted_chats} chat sessions")
-
-        # 4. Delete Achievements
-        achievements_ref = db.collection('users').document(user_id).collection('achievements')
-        deleted_achievements = _delete_collection(achievements_ref, batch_size=50)
-        deletion_summary['deletedCollections'].append({
-            'collection': 'achievements',
-            'count': deleted_achievements
-        })
-        logger.info(f"  ✓ Deleted {deleted_achievements} achievements")
-
-        # 5. Delete Feedback
-        if FieldFilter is not None:
-            feedback_query = db.collection('feedback').where(filter=FieldFilter('user_id', '==', user_id))
-        else:
-            feedback_query = db.collection('feedback').where(filter=FieldFilter('user_id', '==', user_id))
-        feedback_docs = list(feedback_query.stream())
-        for doc in feedback_docs:
-            doc.reference.delete()
-        deletion_summary['deletedCollections'].append({
-            'collection': 'feedback',
-            'count': len(feedback_docs)
-        })
-        logger.info(f"  ✓ Deleted {len(feedback_docs)} feedback entries")
-
-        # 6. Delete Referrals
-        if FieldFilter is not None:
-            referral_query = db.collection('referrals').where(filter=FieldFilter('referrer_id', '==', user_id))
-        else:
-            referral_query = db.collection('referrals').where(filter=FieldFilter('referrer_id', '==', user_id))
-        referral_docs = list(referral_query.stream())
-        for doc in referral_docs:
-            doc.reference.delete()
-        deletion_summary['deletedCollections'].append({
-            'collection': 'referrals',
-            'count': len(referral_docs)
-        })
-        logger.info(f"  ✓ Deleted {len(referral_docs)} referrals")
-
-        # 7. Delete AI Conversations
-        ai_conversations_ref = db.collection('users').document(user_id).collection('ai_conversations')
-        deleted_ai_conversations = _delete_collection(ai_conversations_ref, batch_size=50)
-        deletion_summary['deletedCollections'].append({
-            'collection': 'ai_conversations',
-            'count': deleted_ai_conversations
-        })
-        logger.info(f"  ✓ Deleted {deleted_ai_conversations} AI conversations")
-
-        # 8. Delete Journal Entries — stored as top-level 'journal_entries' collection
-        if FieldFilter is not None:
-            journal_query = db.collection('journal_entries').where(filter=FieldFilter('user_id', '==', user_id))
-        else:
-            journal_query = db.collection('journal_entries').where(filter=FieldFilter('user_id', '==', user_id))
-        journal_docs = list(journal_query.stream())
-        for doc in journal_docs:
-            doc.reference.delete()
-        deleted_journal = len(journal_docs)
-        deletion_summary['deletedCollections'].append({
-            'collection': 'journal_entries',
-            'count': deleted_journal
-        })
-        logger.info(f"  ✓ Deleted {deleted_journal} journal entries")
-
-        # 9. Delete Wellness Activities
-        wellness_ref = db.collection('users').document(user_id).collection('wellness_activities')
-        deleted_wellness = _delete_collection(wellness_ref, batch_size=50)
-        deletion_summary['deletedCollections'].append({
-            'collection': 'wellness_activities',
-            'count': deleted_wellness
-        })
-        logger.info(f"  ✓ Deleted {deleted_wellness} wellness activities")
-
-        # 10. Delete Notifications
-        notifications_ref = db.collection('users').document(user_id).collection('notifications')
-        deleted_notifications = _delete_collection(notifications_ref, batch_size=50)
-        deletion_summary['deletedCollections'].append({
-            'collection': 'notifications',
-            'count': deleted_notifications
-        })
-        logger.info(f"  ✓ Deleted {deleted_notifications} notifications")
-
-        # 11. Delete Subscription
-        subscription_doc = db.collection('subscriptions').document(user_id)
-        if subscription_doc.get().exists:
-            subscription_doc.delete()
-            deletion_summary['deletedCollections'].append({
-                'collection': 'subscriptions',
-                'count': 1
-            })
-            logger.info("  ✓ Deleted subscription")
-
-        # 12. Delete CBT Progress
-        cbt_doc = db.collection('cbt_progress').document(user_id)
-        if cbt_doc.get().exists:
-            cbt_doc.delete()
-            deletion_summary['deletedCollections'].append({
-                'collection': 'cbt_progress',
-                'count': 1
-            })
-            logger.info("  ✓ Deleted CBT progress")
-
-        # 13. Delete Crisis Assessments
-        if FieldFilter is not None:
-            crisis_query = db.collection('crisis_assessments').where(filter=FieldFilter('user_id', '==', user_id))
-        else:
-            crisis_query = db.collection('crisis_assessments').where(filter=FieldFilter('user_id', '==', user_id))
-        crisis_docs = list(crisis_query.stream())
-        for doc in crisis_docs:
-            doc.reference.delete()
-        if crisis_docs:
-            deletion_summary['deletedCollections'].append({
-                'collection': 'crisis_assessments',
-                'count': len(crisis_docs)
-            })
-            logger.info(f"  ✓ Deleted {len(crisis_docs)} crisis assessments")
-
-        # 14. Delete Safety Plans
-        safety_doc = db.collection('safety_plans').document(user_id)
-        if safety_doc.get().exists:
-            safety_doc.delete()
-            deletion_summary['deletedCollections'].append({
-                'collection': 'safety_plans',
-                'count': 1
-            })
-            logger.info("  ✓ Deleted safety plan")
-
-        # 15. Delete Sync History
-        if FieldFilter is not None:
-            sync_query = db.collection('sync_history').where(filter=FieldFilter('user_id', '==', user_id))
-        else:
-            sync_query = db.collection('sync_history').where(filter=FieldFilter('user_id', '==', user_id))
-        sync_docs = list(sync_query.stream())
-        for doc in sync_docs:
-            doc.reference.delete()
-        if sync_docs:
-            deletion_summary['deletedCollections'].append({
-                'collection': 'sync_history',
-                'count': len(sync_docs)
-            })
-            logger.info(f"  ✓ Deleted {len(sync_docs)} sync history entries")
-
-        # 16. Delete Peer Chat Data (presence + messages)
-        if FieldFilter is not None:
-            presence_query = db.collection('peer_chat_presence').where(filter=FieldFilter('user_id', '==', user_id))
-        else:
-            presence_query = db.collection('peer_chat_presence').where(filter=FieldFilter('user_id', '==', user_id))
-        presence_docs = list(presence_query.stream())
-        user_sessions = [doc.id for doc in presence_docs]
-        peer_msg_count = 0
-        for sid in user_sessions:
-            if FieldFilter is not None:
-                msg_query = db.collection('peer_chat_messages').where(filter=FieldFilter('session_id', '==', sid))
-            else:
-                msg_query = db.collection('peer_chat_messages').where(filter=FieldFilter('session_id', '==', sid))
-            for doc in msg_query.stream():
-                doc.reference.delete()
-                peer_msg_count += 1
-        for doc in presence_docs:
-            doc.reference.delete()
-        if presence_docs or peer_msg_count:
-            deletion_summary['deletedCollections'].append({
-                'collection': 'peer_chat',
-                'count': len(presence_docs) + peer_msg_count
-            })
-            logger.info(f"  ✓ Deleted {len(presence_docs)} sessions + {peer_msg_count} peer chat messages")
-
-        # 17. Delete User Profile (LAST)
-        db.collection('users').document(user_id).delete()
-        logger.info("  ✓ Deleted user profile")
-
-        # 13. Delete Firebase Auth Account
-        try:
-            if auth is not None:
-                auth.delete_user(user_id)
-                logger.info("  ✓ Deleted Firebase Auth account")
-        except Exception as auth_error:
-            logger.error(f"  ⚠️  Failed to delete Firebase Auth: {auth_error}")
-
-        # Log audit event
-        audit_log('account_permanently_deleted', user_id, deletion_summary)
-
-        logger.warning(f"✅ PERMANENT deletion completed for user {user_id[:8]}")
+        deletion_summary = purge_user_data(user_id)
 
         return APIResponse.success({
             'summary': deletion_summary
@@ -591,7 +356,327 @@ def delete_user_data(user_id: str):
 
     except Exception as e:
         logger.exception(f"Error deleting user data: {e}")
-        return APIResponse.error("Could not delete data", "DELETE_ERROR", 500)
+        return APIResponse.error("An internal error occurred during data deletion")
+
+
+def purge_user_data(user_id: str) -> dict[str, Any]:
+    """Permanently delete ALL data for `user_id` across every collection.
+
+    Extracted from the delete route so it can be reused by an automated
+    scheduled deletion job WITHOUT a request context. Contains no auth /
+    confirmation logic — callers are responsible for authorization.
+
+    Deletes user-owned subcollections under users/{uid}/*, top-level
+    collections filtered by user id, and the crisis-data collections that
+    were previously excluded (a GDPR gap for the most sensitive records).
+    Returns the deletion summary.
+    """
+    logger.warning(f"🗑️  Starting PERMANENT data deletion for user {user_id[:8]}")
+
+    deletion_summary: dict[str, Any] = {
+        'userId': user_id,
+        'deletionDate': datetime.now(UTC).isoformat(),
+        'deletedCollections': []
+    }
+
+    def _delete_filtered(collection_name: str, field: str, summary_name: str | None = None):
+        """Delete all top-level docs where `field == user_id`."""
+        if FieldFilter is not None:
+            query = db.collection(collection_name).where(filter=FieldFilter(field, '==', user_id))
+        else:
+            query = db.collection(collection_name).where(field, '==', user_id)
+        docs = list(query.stream())
+        for doc in docs:
+            doc.reference.delete()
+        if docs:
+            deletion_summary['deletedCollections'].append({
+                'collection': summary_name or collection_name,
+                'count': len(docs)
+            })
+            logger.info(f"  ✓ Deleted {len(docs)} {summary_name or collection_name}")
+        return len(docs)
+
+    # 1. Delete Mood Entries
+    moods_ref = db.collection('users').document(user_id).collection('moods')
+    deleted_moods = _delete_collection(moods_ref, batch_size=50)
+    deletion_summary['deletedCollections'].append({
+        'collection': 'moods',
+        'count': deleted_moods
+    })
+    logger.info(f"  ✓ Deleted {deleted_moods} mood entries")
+
+    # 2. Delete Memories — stored as top-level 'memories' collection
+    memories_query = db.collection('memories').where(filter=FieldFilter('user_id', '==', user_id))
+    memory_docs = list(memories_query.stream())
+    for doc in memory_docs:
+        doc.reference.delete()
+    deleted_memories = len(memory_docs)
+    deletion_summary['deletedCollections'].append({
+        'collection': 'memories',
+        'count': deleted_memories
+    })
+    logger.info(f"  ✓ Deleted {deleted_memories} memories")
+
+    # 3. Delete Chat Sessions
+    chat_ref = db.collection('users').document(user_id).collection('chat_sessions')
+    deleted_chats = _delete_collection(chat_ref, batch_size=50)
+    deletion_summary['deletedCollections'].append({
+        'collection': 'chat_sessions',
+        'count': deleted_chats
+    })
+    logger.info(f"  ✓ Deleted {deleted_chats} chat sessions")
+
+    # 4. Delete Achievements
+    achievements_ref = db.collection('users').document(user_id).collection('achievements')
+    deleted_achievements = _delete_collection(achievements_ref, batch_size=50)
+    deletion_summary['deletedCollections'].append({
+        'collection': 'achievements',
+        'count': deleted_achievements
+    })
+    logger.info(f"  ✓ Deleted {deleted_achievements} achievements")
+
+    # 5. Delete Feedback
+    feedback_query = db.collection('feedback').where(filter=FieldFilter('user_id', '==', user_id))
+    feedback_docs = list(feedback_query.stream())
+    for doc in feedback_docs:
+        doc.reference.delete()
+    deletion_summary['deletedCollections'].append({
+        'collection': 'feedback',
+        'count': len(feedback_docs)
+    })
+    logger.info(f"  ✓ Deleted {len(feedback_docs)} feedback entries")
+
+    # 6. Delete Referrals
+    referral_query = db.collection('referrals').where(filter=FieldFilter('referrer_id', '==', user_id))
+    referral_docs = list(referral_query.stream())
+    for doc in referral_docs:
+        doc.reference.delete()
+    deletion_summary['deletedCollections'].append({
+        'collection': 'referrals',
+        'count': len(referral_docs)
+    })
+    logger.info(f"  ✓ Deleted {len(referral_docs)} referrals")
+
+    # 7. Delete AI Conversations
+    ai_conversations_ref = db.collection('users').document(user_id).collection('ai_conversations')
+    deleted_ai_conversations = _delete_collection(ai_conversations_ref, batch_size=50)
+    deletion_summary['deletedCollections'].append({
+        'collection': 'ai_conversations',
+        'count': deleted_ai_conversations
+    })
+    logger.info(f"  ✓ Deleted {deleted_ai_conversations} AI conversations")
+
+    # 8. Delete Journal Entries — stored as top-level 'journal_entries' collection
+    journal_query = db.collection('journal_entries').where(filter=FieldFilter('user_id', '==', user_id))
+    journal_docs = list(journal_query.stream())
+    for doc in journal_docs:
+        doc.reference.delete()
+    deleted_journal = len(journal_docs)
+    deletion_summary['deletedCollections'].append({
+        'collection': 'journal_entries',
+        'count': deleted_journal
+    })
+    logger.info(f"  ✓ Deleted {deleted_journal} journal entries")
+
+    # 9. Delete Wellness Activities
+    wellness_ref = db.collection('users').document(user_id).collection('wellness_activities')
+    deleted_wellness = _delete_collection(wellness_ref, batch_size=50)
+    deletion_summary['deletedCollections'].append({
+        'collection': 'wellness_activities',
+        'count': deleted_wellness
+    })
+    logger.info(f"  ✓ Deleted {deleted_wellness} wellness activities")
+
+    # 10. Delete Notifications
+    # The users/{uid}/notifications subcollection has no actual writer (kept
+    # as a harmless no-op safety net); notifications_routes.py's real
+    # notification-history writes go to the TOP-LEVEL 'notifications'
+    # collection keyed by a 'userId' field — delete both.
+    notifications_ref = db.collection('users').document(user_id).collection('notifications')
+    deleted_notifications = _delete_collection(notifications_ref, batch_size=50)
+    deletion_summary['deletedCollections'].append({
+        'collection': 'notifications',
+        'count': deleted_notifications
+    })
+    logger.info(f"  ✓ Deleted {deleted_notifications} notifications")
+    _delete_filtered('notifications', 'userId', 'notifications (top-level)')
+
+    # 11. Delete Subscription
+    subscription_doc = db.collection('subscriptions').document(user_id)
+    if subscription_doc.get().exists:
+        subscription_doc.delete()
+        deletion_summary['deletedCollections'].append({
+            'collection': 'subscriptions',
+            'count': 1
+        })
+        logger.info("  ✓ Deleted subscription")
+
+    # 12. Delete CBT Progress
+    cbt_doc = db.collection('cbt_progress').document(user_id)
+    if cbt_doc.get().exists:
+        cbt_doc.delete()
+        deletion_summary['deletedCollections'].append({
+            'collection': 'cbt_progress',
+            'count': 1
+        })
+        logger.info("  ✓ Deleted CBT progress")
+
+    # 13. Delete Crisis Assessments
+    crisis_query = db.collection('crisis_assessments').where(filter=FieldFilter('user_id', '==', user_id))
+    crisis_docs = list(crisis_query.stream())
+    for doc in crisis_docs:
+        doc.reference.delete()
+    if crisis_docs:
+        deletion_summary['deletedCollections'].append({
+            'collection': 'crisis_assessments',
+            'count': len(crisis_docs)
+        })
+        logger.info(f"  ✓ Deleted {len(crisis_docs)} crisis assessments")
+
+    # 14. Delete Safety Plans
+    safety_doc = db.collection('safety_plans').document(user_id)
+    if safety_doc.get().exists:
+        safety_doc.delete()
+        deletion_summary['deletedCollections'].append({
+            'collection': 'safety_plans',
+            'count': 1
+        })
+        logger.info("  ✓ Deleted safety plan")
+
+    # 15. Delete Sync History
+    sync_query = db.collection('sync_history').where(filter=FieldFilter('user_id', '==', user_id))
+    sync_docs = list(sync_query.stream())
+    for doc in sync_docs:
+        doc.reference.delete()
+    if sync_docs:
+        deletion_summary['deletedCollections'].append({
+            'collection': 'sync_history',
+            'count': len(sync_docs)
+        })
+        logger.info(f"  ✓ Deleted {len(sync_docs)} sync history entries")
+
+    # 16. Delete Peer Chat Data (presence + messages)
+    presence_query = db.collection('peer_chat_presence').where(filter=FieldFilter('user_id', '==', user_id))
+    presence_docs = list(presence_query.stream())
+    user_sessions = [doc.id for doc in presence_docs]
+    peer_msg_count = 0
+    for sid in user_sessions:
+        msg_query = db.collection('peer_chat_messages').where(filter=FieldFilter('session_id', '==', sid))
+        for doc in msg_query.stream():
+            doc.reference.delete()
+            peer_msg_count += 1
+    for doc in presence_docs:
+        doc.reference.delete()
+    if presence_docs or peer_msg_count:
+        deletion_summary['deletedCollections'].append({
+            'collection': 'peer_chat',
+            'count': len(presence_docs) + peer_msg_count
+        })
+        logger.info(f"  ✓ Deleted {len(presence_docs)} sessions + {peer_msg_count} peer chat messages")
+
+    # 18. Delete AI chat transcripts — the ACTUAL conversation store is
+    # users/{uid}/conversations (see chatbot_routes). This was previously
+    # NEVER deleted (the code only removed 'ai_conversations'/'chat_sessions'),
+    # leaving verbatim therapy transcripts behind after account deletion — a
+    # GDPR Art. 17 violation. This is the fix.
+    conversations_ref = db.collection('users').document(user_id).collection('conversations')
+    deleted_conversations = _delete_collection(conversations_ref, batch_size=50)
+    if deleted_conversations:
+        deletion_summary['deletedCollections'].append({
+            'collection': 'conversations',
+            'count': deleted_conversations
+        })
+        logger.info(f"  ✓ Deleted {deleted_conversations} AI conversation messages")
+
+    # 19. Delete crisis data (verbatim crisis text + escalation records).
+    # Previously excluded from deletion entirely. crisis_tasks and dashboard
+    # alerts are keyed by user_id; crisis_alerts likewise.
+    _delete_filtered('crisis_tasks', 'user_id')
+    _delete_filtered('crisis_alerts', 'user_id')
+    _delete_filtered('dashboard_alerts', 'user_id')
+
+    # 22. Delete additional user-keyed collections that survived a "complete"
+    # GDPR Art. 17 deletion: generated insight text (insights_routes.py),
+    # OAuth provider tokens, live refresh-token sessions and WebAuthn
+    # credentials/challenges. These were never covered by the original
+    # deletion flow.
+    _delete_filtered('insights', 'user_id')
+    _delete_filtered('oauth_tokens', 'user_id')
+    _delete_filtered('refresh_sessions', 'user_id')
+    _delete_filtered('webauthn_credentials', 'user_id')
+
+    # Further collections found missing from account-wide erasure: HRV/
+    # breathing biofeedback sessions (Art. 9 special-category health data),
+    # generated ambient-audio tracks, and the referral program's invitation/
+    # history/redemption trail (referral_invitations also carries a third
+    # party's invitee_email, but the row itself is keyed to this user as the
+    # referrer and must go on this user's own erasure request).
+    _delete_filtered('breathing_sessions', 'user_id')
+    _delete_filtered('ai_generated_tracks', 'user_id')
+    _delete_filtered('referral_invitations', 'referrer_id')
+    _delete_filtered('referral_history', 'referrer_id')
+    _delete_filtered('reward_redemptions', 'user_id')
+
+    # webauthn_challenges and user_devices are keyed by document ID == user_id
+    # (not a filterable field), same pattern as subscriptions/cbt_progress
+    # below. user_rewards (XP/level/badges — rewards_routes.py/
+    # rewards_helper.py), gratitude_challenges (users_routes.py — already had
+    # its own standalone delete endpoint but was never invoked from
+    # account-wide erasure), integrations (integration_routes.py), and
+    # user_challenges (challenges_routes.py) are all doc-ID==user_id too and
+    # were previously missing entirely from account deletion.
+    for _doc_collection in (
+        'webauthn_challenges', 'user_devices', 'user_rewards',
+        'gratitude_challenges', 'integrations', 'user_challenges',
+    ):
+        _doc_ref = db.collection(_doc_collection).document(user_id)
+        if _doc_ref.get().exists:
+            _doc_ref.delete()
+            deletion_summary['deletedCollections'].append({'collection': _doc_collection, 'count': 1})
+            logger.info(f"  ✓ Deleted {_doc_collection}")
+
+    # 23. Delete health integration data (Art. 9 special-category data).
+    # integration_routes.py uses TWO inconsistent schemas for this collection:
+    # (a) health_data/{user_id}/{provider}/{auto_id} — a subcollection per
+    #     provider under a document keyed by user_id, and
+    # (b) top-level health_data docs carrying a plain 'user_id' field.
+    # Both must be purged; Firestore does not cascade-delete subcollections
+    # when their parent document is deleted, so provider subcollections are
+    # enumerated and cleared explicitly.
+    try:
+        health_parent_ref = db.collection('health_data').document(user_id)
+        for provider_collection in health_parent_ref.collections():
+            deleted_provider_docs = _delete_collection(provider_collection, batch_size=50)
+            if deleted_provider_docs:
+                deletion_summary['deletedCollections'].append({
+                    'collection': f'health_data/{provider_collection.id}',
+                    'count': deleted_provider_docs
+                })
+        if health_parent_ref.get().exists:
+            health_parent_ref.delete()
+    except Exception as health_err:
+        logger.warning(f"  ⚠️  Failed to delete health_data subcollections for user {user_id[:8]}: {health_err}")
+    _delete_filtered('health_data', 'user_id')
+
+    # 20. Delete User Profile (LAST, unconditionally — must not depend on any
+    # prior collection having had data)
+    db.collection('users').document(user_id).delete()
+    logger.info("  ✓ Deleted user profile")
+
+    # 21. Delete Firebase Auth Account
+    try:
+        if auth is not None:
+            auth.delete_user(user_id)
+            logger.info("  ✓ Deleted Firebase Auth account")
+    except Exception as auth_error:
+        logger.error(f"  ⚠️  Failed to delete Firebase Auth: {auth_error}")
+
+    # Log audit event
+    audit_log('account_permanently_deleted', user_id, deletion_summary)
+
+    logger.warning(f"✅ PERMANENT deletion completed for user {user_id[:8]}")
+
+    return deletion_summary
 
 
 def _delete_collection(collection_ref, batch_size: int = 50) -> int:

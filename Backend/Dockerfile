@@ -1,3 +1,11 @@
+# NOTE: the live Render deployment (see /render.yaml, runtime: python) uses
+# Render's native Python buildpack and does NOT build or run this file — its
+# non-root user, HEALTHCHECK, and image-size hardening currently apply to no
+# running deployment. This Dockerfile is for local docker-compose or a future
+# containerized deploy target (k8s/README.md). If Render is ever switched to
+# `runtime: docker`, this becomes the actual production image and this note
+# should be removed.
+#
 # Multi-stage build for production-ready image
 FROM python:3.11-slim as builder
 
@@ -21,10 +29,19 @@ COPY requirements.txt .
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install torch separately (CPU-only to reduce size)
-RUN pip install --no-cache-dir torch==2.5.1+cpu torchvision==0.20.1+cpu --index-url https://download.pytorch.org/whl/cpu
+# NOTE: torch is intentionally NOT installed here. requirements.txt excludes
+# transformers/sentence-transformers specifically because they pull in torch
+# (~700 MB RSS) which doesn't fit the 512 MB Render Starter budget — see the
+# comment there. crisis_nlp.py / mood_nlp_service.py already import torch
+# behind a try/except ImportError and fall back to keyword/sklearn-based
+# detection when it's absent (TRANSFORMERS_AVAILABLE=False), so installing
+# bare torch with no transformers would only pay its full import RAM cost,
+# in every gunicorn worker, for a feature that stays permanently disabled
+# anyway. If a future plan upgrade re-enables semantic BERT detection,
+# reinstate transformers+sentence-transformers in requirements.txt (torch
+# comes in as their dependency) rather than installing torch standalone.
 
-# Install all other dependencies from requirements
+# Install all dependencies from requirements
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Production stage
@@ -61,5 +78,8 @@ EXPOSE 5001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:5001/health || exit 1
 
-# Use gunicorn for production
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "4", "--worker-class", "gthread", "--threads", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "main:app"]
+# Use gunicorn for production. gunicorn_config.py is the SINGLE source of truth
+# for worker/thread/timeout config AND the post_worker_init hook that starts the
+# background services (crisis queue, schedulers) per worker. The previous inline
+# args bypassed the config file, so those hooks never ran under Docker.
+CMD ["gunicorn", "-c", "gunicorn_config.py", "main:app"]

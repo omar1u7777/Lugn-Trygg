@@ -456,10 +456,17 @@ def check_escalation():
 def _escalate_crisis(user_id: str, assessment) -> None:
     """
     Escalate a critical/high-risk crisis detection.
-    Persists an alert document and notifies the care team via email.
+
+    Persists an alert document for the admin/audit trail AND enqueues the
+    same durable /crisis_tasks escalation used by the chat, streaming-chat,
+    WebSocket monitor, and mood-log crisis paths (SMS/email/push via
+    CrisisEscalationService, with retries and exhaustion telemetry). This
+    endpoint previously had its own standalone raw-smtplib email path gated
+    on SMTP_USER/SMTP_PASSWORD — env vars that render.yaml/RUNBOOK.md never
+    provision — making it a silent no-op in production regardless of
+    Twilio/SendGrid being configured correctly for every other crisis surface.
     """
     try:
-        import os
         alert_doc = {
             'user_id': user_id,
             'risk_level': assessment.overall_risk_level,
@@ -473,104 +480,24 @@ def _escalate_crisis(user_id: str, assessment) -> None:
         db.collection('crisis_alerts').add(alert_doc)
         logger.info(f"Crisis alert persisted for user {user_id[:8]}...")
 
-        # Notify care team via email (SendGrid / SMTP)
-        care_email = os.environ.get('CARE_TEAM_EMAIL')
-        if care_email:
-            _send_escalation_email(care_email, user_id, assessment)
-
-        # Notify user's emergency contacts if available
-        user_doc = db.collection('users').document(user_id).get()
-        if user_doc.exists:
-            user_data = user_doc.to_dict() or {}
-            emergency_contacts = user_data.get('emergency_contacts', [])
-            for contact in emergency_contacts:
-                contact_email = contact.get('email')
-                if contact_email:
-                    _send_emergency_contact_notification(contact_email, contact.get('name', ''))
+        from ..services.crisis_escalation import CrisisAlert
+        from ..services.crisis_task_queue import CrisisQueueUnavailableError, enqueue_crisis_escalation
+        durable_alert = CrisisAlert(
+            user_id=user_id,
+            risk_level=assessment.overall_risk_level,
+            risk_score=assessment.risk_score,
+            detected_indicators=[ind.swedish_description for ind in assessment.active_indicators],
+            text_snippet='',
+            timestamp=datetime.now(UTC),
+            requires_immediate_action=assessment.overall_risk_level == 'critical',
+        )
+        try:
+            enqueue_crisis_escalation(durable_alert)
+        except CrisisQueueUnavailableError:
+            logger.critical(
+                "🚨 /assess crisis escalation could not be queued for "
+                "user=%s. REQUIRES MANUAL REVIEW.", user_id,
+            )
 
     except Exception as e:
         logger.error(f"Failed to escalate crisis for user {user_id[:8]}...: {e}")
-
-
-def _send_escalation_email(care_email: str, user_id: str, assessment) -> None:
-    """Send crisis escalation email to care team."""
-    try:
-        import os
-        import smtplib
-        from email.mime.text import MIMEText
-
-        smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
-        smtp_port = int(os.environ.get('SMTP_PORT', '587'))
-        smtp_user = os.environ.get('SMTP_USER', '')
-        smtp_pass = os.environ.get('SMTP_PASSWORD', '')
-        from_email = os.environ.get('FROM_EMAIL', smtp_user)
-
-        if not smtp_user or not smtp_pass:
-            logger.warning("SMTP credentials not configured — skipping escalation email")
-            return
-
-        subject = f"🚨 Krisvarning — Risknivå: {assessment.overall_risk_level}"
-        body = (
-            f"En användare har triggat en krisvarning.\n\n"
-            f"Användar-ID: {user_id[:8]}...\n"
-            f"Risknivå: {assessment.overall_risk_level}\n"
-            f"Riskpoäng: {assessment.risk_score:.2f}\n"
-            f"Aktiva indikatorer: {len(assessment.active_indicators)}\n\n"
-            f"Logga in på adminpanelen för att granska ärendet."
-        )
-
-        msg = MIMEText(body, 'plain', 'utf-8')
-        msg['Subject'] = subject
-        msg['From'] = from_email
-        msg['To'] = care_email
-
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(from_email, [care_email], msg.as_string())
-
-        logger.info(f"Escalation email sent to {care_email}")
-
-    except Exception as e:
-        logger.error(f"Failed to send escalation email: {e}")
-
-
-def _send_emergency_contact_notification(email: str, name: str) -> None:
-    """Notify an emergency contact that their person may need support."""
-    try:
-        import os
-        import smtplib
-        from email.mime.text import MIMEText
-
-        smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
-        smtp_port = int(os.environ.get('SMTP_PORT', '587'))
-        smtp_user = os.environ.get('SMTP_USER', '')
-        smtp_pass = os.environ.get('SMTP_PASSWORD', '')
-        from_email = os.environ.get('FROM_EMAIL', smtp_user)
-
-        if not smtp_user or not smtp_pass:
-            return
-
-        subject = "Lugn & Trygg — Din kontakt kan behöva stöd"
-        body = (
-            f"Hej {name},\n\n"
-            f"Du har angetts som nödkontakt i appen Lugn & Trygg.\n"
-            f"Vår system har identifierat att personen du bryr dig om kan behöva stöd just nu.\n\n"
-            f"Vänligen kontakta personen och vid akut fara, ring 112 eller Självmordslinjen 90101.\n\n"
-            f"Med vänliga hälsningar,\nLugn & Trygg-teamet"
-        )
-
-        msg = MIMEText(body, 'plain', 'utf-8')
-        msg['Subject'] = subject
-        msg['From'] = from_email
-        msg['To'] = email
-
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(from_email, [email], msg.as_string())
-
-        logger.info("Emergency contact notification sent to %s***", str(name)[:3])
-
-    except Exception as e:
-        logger.error("Failed to notify emergency contact: %s", str(e).replace('\n', '').replace('\r', '')[:200])

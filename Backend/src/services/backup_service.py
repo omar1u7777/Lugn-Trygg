@@ -136,10 +136,22 @@ class BackupService:
         )
 
     def _run_scheduler(self):
-        """Run the backup scheduler"""
+        """Run the backup scheduler.
+
+        Leader election via a Firestore TTL lease: with multiple Gunicorn
+        workers, only the current lease holder evaluates due backup jobs —
+        sibling workers yield each cycle. If the leader process dies, the
+        lease expires (180 s) and another worker takes over automatically.
+        """
+        from src.services.distributed_lock import FirestoreLeaseLock
+        scheduler_lease = FirestoreLeaseLock('backup_scheduler', ttl_seconds=180)
+
         while self.is_running:
             try:
-                schedule.run_pending()
+                if scheduler_lease.acquire():
+                    schedule.run_pending()
+                else:
+                    logger.debug("Backup scheduler lease held by another worker; yielding")
                 time.sleep(60)  # Check every minute
             except Exception as e:
                 logger.error(f"Backup scheduler error: {e}")

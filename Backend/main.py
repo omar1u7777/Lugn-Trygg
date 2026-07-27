@@ -5,7 +5,9 @@ Production-ready Flask application with comprehensive security and monitoring
 
 import logging
 import os
+import re
 import sys
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -30,27 +32,19 @@ if backend_dir not in sys.path:
 load_dotenv()
 configure_hf_cache()
 
-# Try to use new pydantic-settings, fallback to old config
+# Pydantic-settings is the SOLE source of configuration truth. There is no
+# legacy os.getenv fallback: a missing dependency or invalid environment is a
+# fatal bootstrap error in every environment, so config drift cannot occur.
 try:
     from src.config.settings import get_settings
     settings = get_settings()
-    USE_PYDANTIC_SETTINGS = True
 except ImportError as e:
-    # Module not installed — acceptable in dev, fatal in production
-    if os.getenv('FLASK_ENV') == 'production':
-        print(f'FATAL [B7]: pydantic-settings not available in production: {e}', file=sys.stderr)
-        sys.exit(1)
-    USE_PYDANTIC_SETTINGS = False
-    logger = logging.getLogger(__name__)
-    logger.warning('[B7] pydantic-settings not available; falling back to legacy config: %s', e)
+    print(f'FATAL [B7]: pydantic-settings is required but not importable: {e}', file=sys.stderr)
+    sys.exit(1)
 except (ValueError, TypeError) as e:
     # Pydantic ValidationError surfaces as ValueError — missing/invalid env var
-    if os.getenv('FLASK_ENV') == 'production':
-        print(f'FATAL [B7]: Configuration validation failed in production: {e}', file=sys.stderr)
-        sys.exit(1)
-    USE_PYDANTIC_SETTINGS = False
-    logger = logging.getLogger(__name__)
-    logger.warning('[B7] Settings validation failed; falling back to legacy config: %s', e)
+    print(f'FATAL [B7]: Configuration validation failed: {e}', file=sys.stderr)
+    sys.exit(1)
 
 # Configure structured logging (2026 standard)
 USE_STRUCTURED_LOGGING = os.getenv('USE_STRUCTURED_LOGGING', 'true').lower() == 'true'
@@ -106,32 +100,18 @@ if os.getenv('FLASK_ENV', '').lower() == 'production':
 # CRITICAL: Disable automatic OPTIONS handling so we can set CORS headers manually
 app.config['CORS_AUTOMATIC_OPTIONS'] = False
 
-# Configuration - 2026 compliant with pydantic-settings
-if USE_PYDANTIC_SETTINGS:
-    # Use new pydantic-settings (2026 standard)
-    app.config['SECRET_KEY'] = settings.jwt_secret_key
-    app.config['JWT_SECRET_KEY'] = settings.jwt_secret_key
-    app.config['JWT_TOKEN_LOCATION'] = ['headers']
-    app.config['JWT_HEADER_NAME'] = 'Authorization'
-    app.config['JWT_HEADER_TYPE'] = 'Bearer'
-    app.config['DEBUG'] = settings.flask_debug
-    app.config['TESTING'] = os.getenv('FLASK_TESTING', 'False').lower() == 'true'
-    logger.info("✅ Using pydantic-settings for configuration (2026 standard)")
-else:
-    # Fallback to old config (backward compatibility)
-    jwt_secret = os.getenv('JWT_SECRET_KEY')
-    if not jwt_secret:
-        logger.error("JWT_SECRET_KEY environment variable is not set. Application cannot start securely.")
-        sys.exit(1)
-    app.config['SECRET_KEY'] = jwt_secret
-    app.config['JWT_SECRET_KEY'] = jwt_secret
-    app.config['JWT_TOKEN_LOCATION'] = ['headers']
-    app.config['JWT_HEADER_NAME'] = 'Authorization'
-    app.config['JWT_HEADER_TYPE'] = 'Bearer'
-    app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-    app.config['TESTING'] = os.getenv('FLASK_TESTING', 'False').lower() == 'true'
-    app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', str(16 * 1024 * 1024)))  # 16MB default
-    logger.warning("⚠️ Using legacy configuration (consider migrating to pydantic-settings)")
+# Configuration — pydantic-settings only (single source of truth)
+app.config['SECRET_KEY'] = settings.jwt_secret_key
+app.config['JWT_SECRET_KEY'] = settings.jwt_secret_key
+app.config['JWT_TOKEN_LOCATION'] = ['headers']
+app.config['JWT_HEADER_NAME'] = 'Authorization'
+app.config['JWT_HEADER_TYPE'] = 'Bearer'
+app.config['DEBUG'] = settings.flask_debug
+app.config['TESTING'] = os.getenv('FLASK_TESTING', 'False').lower() == 'true'
+# Request body size cap — previously only set on the legacy config path,
+# leaving production (pydantic path) with NO cap. Validated in Settings.
+app.config['MAX_CONTENT_LENGTH'] = settings.max_content_length
+logger.info("✅ Configuration loaded from pydantic-settings (single source of truth)")
 
 # Flask-JWT-Extended: JWTManager not initialized here — we use custom AuthService.jwt_required
 # The flask-jwt-extended package is kept for test mocking compatibility only
@@ -159,34 +139,60 @@ def _anonymize_ip(ip_address: str) -> str:
     return "masked"
 
 def _get_cors_origins_list():
-    """Get CORS origins list - called at runtime to ensure .env is loaded"""
-    if USE_PYDANTIC_SETTINGS:
-        return settings.cors_allowed_origins_list
-    else:
-        cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:5173,https://lugn-trygg.vercel.app,https://*.vercel.app')
-        return [origin.strip() for origin in cors_origins.split(',') if origin.strip()]
+    """Get CORS origins list from validated settings (single source of truth)."""
+    return settings.cors_allowed_origins_list
 
 def is_origin_allowed(origin: str) -> bool:
-    """Check if the origin is allowed"""
+    """Check if the origin is allowed.
+
+    Security: this used to accept any origin whose host merely CONTAINED the
+    substring 'lugn-trygg' under a '*.vercel.app' wildcard — so an
+    attacker-registrable host like 'https://evil-lugn-trygg-x.vercel.app'
+    passed and could read authenticated, credentialed responses. That hole is
+    closed: only EXACT allowlist entries are honored, plus (opt-in) Vercel
+    preview URLs matched by an ANCHORED regex against the project's exact
+    team/project slug from VERCEL_PREVIEW_PREFIX.
+    """
+    if not origin:
+        return False
+
     cors_origins_list = _get_cors_origins_list()
     is_production = os.getenv('FLASK_ENV', 'production') == 'production'
 
+    # 1. Exact allowlist match (the only production path by default).
     if origin in cors_origins_list:
         return True
 
-    # Only allow specific Vercel preview deployments matching our project
-    for allowed in cors_origins_list:
-        if '*' in allowed:
-            # Convert wildcard pattern to suffix match (e.g. https://*.vercel.app)
-            suffix = allowed.split('*')[-1]  # e.g. '.vercel.app'
-            prefix = allowed.split('*')[0]   # e.g. 'https://'
-            if origin.startswith(prefix) and origin.endswith(suffix):
-                # Extra safety: only allow lugn-trygg project deployments
-                domain = origin.replace(prefix, '').replace(suffix, '')
-                if 'lugn-trygg' in domain.lower() or 'lugntrygg' in domain.lower():
-                    return True
+    # 2. Vercel preview deployments — opt-in and precisely pinned.
+    #
+    #    SECURITY: matching on VERCEL_PREVIEW_PREFIX alone (e.g. 'lugn-trygg')
+    #    is a prefix-only check. Vercel lets ANYONE deploy a project literally
+    #    named 'lugn-trygg-evil', whose preview URL
+    #    'https://lugn-trygg-evil-<hash>.vercel.app' still starts with the
+    #    configured prefix and would match. Vercel TEAM SLUGS, unlike project
+    #    names, are globally unique and cannot be claimed by another tenant —
+    #    so requiring the exact trailing team slug as well closes that gap.
+    #    Set BOTH VERCEL_PROJECT_SLUG and VERCEL_TEAM_SLUG for the hardened
+    #    check (recommended). VERCEL_PREVIEW_PREFIX alone still works for
+    #    backward compatibility but only anchors the prefix, not the team.
+    project_slug = os.getenv('VERCEL_PROJECT_SLUG', '').strip()
+    team_slug = os.getenv('VERCEL_TEAM_SLUG', '').strip()
+    if project_slug and team_slug:
+        pattern = re.compile(
+            r'^https://' + re.escape(project_slug) + r'-[a-z0-9]+-' + re.escape(team_slug) + r'\.vercel\.app$'
+        )
+        if pattern.match(origin):
+            return True
+    else:
+        preview_prefix = os.getenv('VERCEL_PREVIEW_PREFIX', '').strip()
+        if preview_prefix:
+            pattern = re.compile(
+                r'^https://' + re.escape(preview_prefix) + r'(-[a-z0-9]+)+\.vercel\.app$'
+            )
+            if pattern.match(origin):
+                return True
 
-    # Only allow localhost/LAN origins in non-production environments
+    # 3. Localhost/LAN — non-production only.
     if not is_production:
         if (origin.startswith('http://localhost:') or
                 origin.startswith('http://127.0.0.1:') or
@@ -289,9 +295,11 @@ if os.getenv('FLASK_ENV', 'development').lower() == 'production' and _storage_ur
 # was built without it (missing line in requirements.txt or failed pip install).
 try:
     from flask_socketio import SocketIO as _SocketIO
+    # No '*.vercel.app' wildcard: Socket.IO must not trust arbitrary
+    # attacker-registrable *.vercel.app hosts. Exact origins only.
     _socketio_cors = os.getenv(
         'CORS_ALLOWED_ORIGINS',
-        'http://localhost:3000,http://localhost:5173,https://lugn-trygg.vercel.app,https://*.vercel.app'
+        'http://localhost:3000,http://localhost:5173,https://lugn-trygg.vercel.app'
     ).split(',')
     socketio = _SocketIO(
         app,
@@ -333,7 +341,6 @@ try:
     # sql_injection_protection removed - not used in main.py (Firestore is NoSQL)
     # Routes
     from src.routes.admin_routes import admin_bp
-    from src.routes.advanced_mood_routes import advanced_mood_bp
     from src.routes.ai_helpers_routes import ai_helpers_bp
     from src.routes.ai_music_routes import ai_music_bp
     from src.routes.ai_routes import ai_bp
@@ -355,9 +362,7 @@ try:
     from src.routes.leaderboard_routes import leaderboard_bp
     from src.routes.memory_routes import memory_bp
     from src.routes.metrics_routes import metrics_bp
-    from src.routes.mood_analytics_routes import mood_analytics_bp
-    from src.routes.mood_routes import mood_bp
-    from src.routes.mood_stats_routes import mood_stats_bp
+    from src.routes.mood_gateway import register_mood_gateway
     from src.routes.multimedia_memory_routes import multimedia_memory_bp
     from src.routes.notifications_routes import notifications_bp
     from src.routes.onboarding_routes import onboarding_bp
@@ -377,15 +382,22 @@ try:
     # Initialize Firebase
     initialize_firebase()
 
+    # Eagerly construct the audit service so a missing/invalid
+    # HIPAA_ENCRYPTION_KEY in production aborts BOOT, not just the first audit
+    # call. AuditService.__init__ raises RuntimeError in production without a
+    # valid key; get_audit_service() lazily constructs it on first use, and
+    # every existing call site (audit_log()) catches ALL exceptions as
+    # non-fatal — so without this eager call the app previously started fine
+    # and only silently stopped auditing (login/crisis/breach events) on the
+    # first log attempt. This call is intentionally NOT wrapped in try/except:
+    # the whole app-init block already fails startup on any exception here.
+    from src.services.audit_service import get_audit_service
+    get_audit_service()
+
     # Initialize monitoring service
     try:
         from src.services.monitoring_service import init_monitoring_service
-        # 2026-Compliant: Use new settings or fallback to old config
-        if USE_PYDANTIC_SETTINGS:
-            monitoring_service_instance = init_monitoring_service(settings)
-        else:
-            from src.config import config
-            monitoring_service_instance = init_monitoring_service(config)
+        monitoring_service_instance = init_monitoring_service(settings)
         logger.info("✅ Monitoring service initialized")
     except Exception as e:
         logger.warning(f"⚠️ Monitoring service initialization failed (non-critical): {e}")
@@ -394,7 +406,7 @@ try:
     init_security_headers(app)
     init_validation_middleware(app)
 
-    csrf_secret = settings.jwt_secret_key if USE_PYDANTIC_SETTINGS else os.getenv('JWT_SECRET_KEY')
+    csrf_secret = settings.jwt_secret_key
     if not csrf_secret:
         logger.critical("CSRF secret source missing (JWT secret unavailable). Refusing startup.")
         raise RuntimeError("Missing CSRF secret source")
@@ -521,22 +533,11 @@ try:
         logger.error(f"❌ Failed to register security_bp: {e}")
 
     try:
-        app.register_blueprint(mood_bp, url_prefix='/api/v1/mood')
-        logger.info("✅ Registered mood_bp")
+        # Entire mood domain (mood, mood-stats, mood-analytics, advanced-mood)
+        # registers through the gateway — single source of prefix + auth policy.
+        register_mood_gateway(app)
     except Exception as e:
-        logger.error(f"❌ Failed to register mood_bp: {e}")
-
-    try:
-        app.register_blueprint(mood_stats_bp, url_prefix='/api/v1/mood-stats')
-        logger.info("✅ Registered mood_stats_bp")
-    except Exception as e:
-        logger.error(f"❌ Failed to register mood_stats_bp: {e}")
-
-    try:
-        app.register_blueprint(mood_analytics_bp, url_prefix='/api/v1/mood-analytics')
-        logger.info("✅ Registered mood_analytics_bp")
-    except Exception as e:
-        logger.error(f"❌ Failed to register mood_analytics_bp: {e}")
+        logger.error(f"❌ Failed to register mood gateway: {e}")
 
     try:
         app.register_blueprint(memory_bp, url_prefix='/api/v1/memory')
@@ -642,7 +643,11 @@ try:
 
     try:
         app.register_blueprint(challenges_bp, url_prefix='/api/v1/challenges')
-        init_challenges_defaults()
+        # Seeding does Firestore RPCs — must NOT run in the Gunicorn arbiter
+        # (fork-safety). Workers seed via post_worker_init under a distributed
+        # periodic claim; only dev/waitress entrypoints seed inline here.
+        if os.getenv('GUNICORN_MANAGED', '').lower() != 'true':
+            init_challenges_defaults()
         logger.info("✅ Registered challenges_bp")
     except Exception as e:
         logger.error(f"❌ Failed to register challenges_bp: {e}")
@@ -730,12 +735,6 @@ try:
         logger.error(f"❌ Failed to register multimedia_memory_bp: {e}")
 
     try:
-        app.register_blueprint(advanced_mood_bp, url_prefix='/api/v1/advanced-mood')
-        logger.info("✅ Registered advanced_mood_bp")
-    except Exception as e:
-        logger.error(f"❌ Failed to register advanced_mood_bp: {e}")
-
-    try:
         app.register_blueprint(biofeedback_ws_bp, url_prefix='/api/v1/biofeedback')
         logger.info("✅ Registered biofeedback_ws_bp")
         # [B2] Wire up Socket.IO event handlers now that both the blueprint and
@@ -749,6 +748,20 @@ try:
             logger.warning("⚠️ [B2] SocketIO not available — biofeedback WebSocket handlers NOT registered")
     except Exception as e:
         logger.error(f"❌ Failed to register biofeedback_ws_bp: {e}")
+
+    try:
+        # The real-time crisis monitor (src/services/crisis_monitor.py) defines
+        # its handlers via register_handlers() but nothing ever called it, so
+        # the /crisis-monitor namespace was unreachable dead code. Wire it up
+        # the same way as the biofeedback namespace above.
+        if _SOCKETIO_INITIALIZED and socketio is not None:
+            from src.services.crisis_monitor import get_crisis_monitor
+            get_crisis_monitor(socketio).register_handlers()
+            logger.info("✅ WebSocket crisis monitor handlers registered on /crisis-monitor namespace")
+        else:
+            logger.warning("⚠️ SocketIO not available — crisis monitor WebSocket handlers NOT registered")
+    except Exception as e:
+        logger.error(f"❌ Failed to register crisis monitor WebSocket handlers: {e}")
 
     try:
         app.register_blueprint(ai_helpers_bp, url_prefix='/api/v1/ai-helpers')
@@ -822,39 +835,68 @@ try:
     @app.route('/health')
     @limiter.exempt
     def health_check():
-        """Health check endpoint - no versioning for compatibility"""
+        """Health check endpoint - no versioning for compatibility.
+
+        Contract (Render probes this path):
+        - Dependency probes are CACHED for 30s so health checks never add
+          per-probe Firestore/Redis load.
+        - Returns HTTP 503 when Firestore is unreachable — the service cannot
+          serve any meaningful request without its datastore, and a 200 here
+          previously made the health check unable to ever fail.
+        - Redis-down is reported as status 'degraded' in the payload but still
+          returns 200: restarting the instance cannot fix an external Redis
+          outage, so it must not trigger a restart loop.
+        """
+        now_ts = time.time()
+        cache = app.extensions.setdefault('_health_probe_cache', {})
+        if cache.get('expires', 0) <= now_ts:
+            probe: dict[str, str] = {}
+            # Check Firebase connectivity
+            try:
+                from src.firebase_config import db as health_db
+                if health_db:
+                    # Quick collection list to verify connectivity
+                    health_db.collection('users').limit(1).get()
+                    probe['firebase'] = 'connected'
+                else:
+                    probe['firebase'] = 'unavailable'
+            except Exception:
+                probe['firebase'] = 'error'
+
+            # Check Redis connectivity
+            try:
+                from src.redis_config import redis_client
+                if redis_client:
+                    redis_client.ping()
+                    probe['redis'] = 'connected'
+                else:
+                    probe['redis'] = 'unavailable'
+            except Exception:
+                probe['redis'] = 'unavailable'
+
+            cache['probe'] = probe
+            cache['expires'] = now_ts + 30
+
+        probe = cache['probe']
+        firebase_down = probe.get('firebase') != 'connected'
+        redis_down = probe.get('redis') != 'connected'
+
         health_data: dict[str, Any] = {
-            'status': 'healthy',
+            'status': 'degraded' if (firebase_down or redis_down) else 'healthy',
             'timestamp': datetime.now(UTC).isoformat(),
             'version': '2.0.0',
+            # Deployed commit SHA so the running version is verifiable at a
+            # glance (Render sets RENDER_GIT_COMMIT; other platforms via
+            # GIT_COMMIT / SOURCE_VERSION).
+            'commit': (os.getenv('RENDER_GIT_COMMIT')
+                       or os.getenv('GIT_COMMIT')
+                       or os.getenv('SOURCE_VERSION')
+                       or 'unknown')[:12],
             'api_version': 'v1',
-            'environment': settings.flask_env if USE_PYDANTIC_SETTINGS else os.getenv('FLASK_ENV', 'development'),
+            'environment': settings.flask_env,
+            'firebase': probe.get('firebase'),
+            'redis': probe.get('redis'),
         }
-
-        # Check Firebase connectivity
-        try:
-            from src.firebase_config import db as health_db
-            if health_db:
-                # Quick collection list to verify connectivity
-                health_db.collection('users').limit(1).get()
-                health_data['firebase'] = 'connected'
-            else:
-                health_data['firebase'] = 'unavailable'
-                health_data['status'] = 'degraded'
-        except Exception:
-            health_data['firebase'] = 'error'
-            health_data['status'] = 'degraded'
-
-        # Check Redis connectivity
-        try:
-            from src.redis_config import redis_client
-            if redis_client:
-                redis_client.ping()
-                health_data['redis'] = 'connected'
-            else:
-                health_data['redis'] = 'unavailable'
-        except Exception:
-            health_data['redis'] = 'unavailable'
 
         # Add correlation IDs if available
         if hasattr(g, 'request_id'):
@@ -862,7 +904,7 @@ try:
         if hasattr(g, 'trace_id'):
             health_data['trace_id'] = g.trace_id
 
-        return jsonify(health_data)
+        return jsonify(health_data), (503 if firebase_down else 200)
 
     # Root endpoint (2026 compliant)
     @app.route('/')
@@ -942,9 +984,14 @@ try:
         })
         response.status_code = 429
         response.headers['Retry-After'] = str(retry_after)
-        # Explicitly add CORS headers so frontend can read 429 responses
+        # Explicitly add CORS headers so a legitimate frontend can read 429
+        # responses — but only for an allow-listed origin. Reflecting Origin
+        # unconditionally here (as this used to) let ANY site do a
+        # credentialed fetch() and read this response once it tripped the
+        # rate limit, bypassing the allow-list every other CORS path in this
+        # file enforces.
         origin = request.headers.get('Origin', '')
-        if origin:
+        if origin and is_origin_allowed(origin):
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response
@@ -993,22 +1040,15 @@ try:
             'message': 'Ett oväntat fel inträffade'
         }), 500
 
-    # Start background services
-    if not app.config['TESTING']:
-        try:
-            # Temporarily disabled - services need proper initialization
-            # start_key_rotation()
-            # backup_service.start_scheduler()
-            # monitoring_service.start_monitoring()
-
-            # Enable proactive insights scheduler for daily insight generation
-            from src.services.insight_scheduler import start_proactive_insights
-            start_proactive_insights()
-            logger.info("✅ Insight notification scheduler started")
-
-            logger.info("✅ Background services initialization completed")
-        except Exception as e:
-            logger.error(f"Failed to start background services: {e}")
+    # Start background services — but ONLY for non-Gunicorn entrypoints
+    # (python main.py dev server, waitress). Under Gunicorn this module is
+    # imported in the ARBITER (preload_app=True); threads started here would
+    # never exist in the forked workers, so each worker starts its own
+    # services via the post_worker_init hook → run_worker_bootstrap().
+    # Test environments are suppressed inside start_background_services().
+    from src.services.background_services import is_gunicorn_managed, start_background_services
+    if not is_gunicorn_managed():
+        start_background_services(context='inline')
 
     logger.info("🚀 Lugn & Trygg backend started successfully")
     logger.info(f"📊 Environment: {os.getenv('FLASK_ENV', 'development')}")

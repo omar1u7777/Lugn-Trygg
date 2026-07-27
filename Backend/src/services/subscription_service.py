@@ -8,8 +8,22 @@ from typing import Any, Literal
 
 from ..config.subscription_config import load_subscription_plans
 from ..firebase_config import db
+from ..utils.telemetry import telemetry
 
 logger = logging.getLogger(__name__)
+
+
+def _run_quota_transaction(database: Any, fn: Any) -> Any:
+    """Run `fn(transaction)` inside a real Firestore transaction.
+
+    Single seam for the atomic quota read-modify-write. Uses the documented
+    google.cloud.firestore transactional decorator; kept as one function so the
+    test harness can drive it with a fake transaction (see conftest).
+    """
+    from google.cloud import firestore as gcf
+    transaction = database.transaction()
+    return gcf.transactional(fn)(transaction)
+
 
 UsageType = Literal["mood_logs", "chat_messages"]
 
@@ -272,6 +286,9 @@ class SubscriptionService:
 
         def _consume_in_transaction(transaction: Any) -> dict[str, Any]:
             snapshot = usage_ref.get(transaction=transaction)
+            # Firestore transactional reads may return a list of snapshots.
+            if isinstance(snapshot, list):
+                snapshot = snapshot[0] if snapshot else None
             data = snapshot.to_dict() if snapshot and snapshot.exists else None
 
             if not data or data.get("date") != today:
@@ -298,32 +315,54 @@ class SubscriptionService:
         try:
             if db is None:
                 raise RuntimeError("Firestore database client is not initialized")
-            return db.run_in_transaction(_consume_in_transaction)
+            # Use the REAL Firestore transactional API. The previous
+            # `db.run_in_transaction(...)` does not exist on
+            # google.cloud.firestore.Client (it is a legacy ndb/App Engine
+            # method) — in production it raised AttributeError on EVERY call,
+            # so the atomic path never ran and every quota check silently used
+            # the racy non-transactional fallback below (two concurrent chats
+            # could both pass the limit check). This restores true atomicity.
+            return _run_quota_transaction(db, _consume_in_transaction)
         except SubscriptionLimitError:
             raise
         except Exception as exc:
+            # BUG FIX: this used to fall back to a plain non-transactional
+            # read-check-write, reintroducing the exact race the transaction
+            # exists to close — and it does so systematically, not just as a
+            # rare edge case: @gcf.transactional already retries internally
+            # (default 5 attempts) before raising, so reaching this branch
+            # means real sustained write contention or a genuine Firestore
+            # issue. Under concurrent load, EVERY simultaneous request racing
+            # for the same user hits this same contention, ALL fail the same
+            # way, and ALL would have raced through the same non-transactional
+            # fallback together — reproducing the exact "two requests both
+            # pass the limit check" bug this transaction was built to fix.
+            # Fail open (don't block the user on an infra hiccup) but WITHOUT
+            # writing — an unguarded write is worse than no write. Surface it
+            # as an operator-actionable telemetry critical instead of staying
+            # silent, since sustained occurrences mean the transactional path
+            # is unhealthy and needs investigation, not a permanent workaround.
             logger.warning("Transaction failed for quota consumption: %s", exc)
-            # Fallback to non-transactional for resilience
+            telemetry.critical(
+                "quota_transaction_failed",
+                "Firestore transaction for quota consumption failed; failing "
+                "open without a non-transactional write to avoid reintroducing "
+                "the race the transaction closes.",
+                user_id=user_id, usage_type=usage_type, error=str(exc),
+            )
             try:
                 snapshot = usage_ref.get()
                 data = snapshot.to_dict() if snapshot and snapshot.exists else None
                 if not data or data.get("date") != today:
                     data = {"date": today, "mood_logs": 0, "chat_messages": 0}
-                current_value = int(data.get(usage_type, 0))
-                if current_value >= limit_value:
-                    raise SubscriptionLimitError(usage_type, limit_value)
-                data[usage_type] = current_value + 1
-                usage_ref.set(data, merge=False)
                 return {
                     "date": data.get("date", today),
                     "mood_logs": int(data.get("mood_logs", 0)),
                     "chat_messages": int(data.get("chat_messages", 0)),
                     "limit": limit_value,
                 }
-            except SubscriptionLimitError:
-                raise
-            except Exception as fallback_exc:
-                logger.warning("Fallback quota write failed: %s", fallback_exc)
+            except Exception as read_exc:
+                logger.warning("Fallback quota read failed: %s", read_exc)
                 return {"date": today, "mood_logs": 0, "chat_messages": 0, "limit": limit_value}
 
     @classmethod
