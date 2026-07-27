@@ -15,7 +15,7 @@ firebase-admin==7.1.0
 python-dotenv==1.2.2
 
 # Crisis Escalation Services
-twilio==9.10.4
+twilio==9.10.9
 sendgrid==6.11.0
 
 # HTTP & Requests
@@ -28,7 +28,7 @@ cryptography==49.0.0
 bleach==6.4.0
 
 # Caching & Rate Limiting
-redis==7.1.0
+redis==8.0.1
 
 # Server
 waitress==3.0.2
@@ -37,7 +37,7 @@ waitress==3.0.2
 openai==1.58.1
 
 # AI & ML - Google Cloud (pinned, minimal)
-google-cloud-speech==2.38.0
+google-cloud-speech==2.40.0
 google-cloud-language==2.20.0
 google-cloud-storage==3.13.0
 
@@ -64,7 +64,7 @@ joblib==1.5.3
 
 # Vector Database & Semantic Search (optional - has fallback)
 # Note: package was renamed from pinecone-client to pinecone in 2024
-pinecone==5.0.1
+pinecone==9.1.0
 
 # Audio Analysis (optional - has fallback)
 # librosa / soundfile EXCLUDED: pulls in numba + llvmlite (~150 MB extra).
@@ -97,7 +97,7 @@ apispec==6.9.0
 flasgger==0.9.7.1
 
 # Monitoring & Logging
-prometheus-client==0.24.1
+prometheus-client==0.26.0
 sentry-sdk[flask]==2.52.0
 structlog==25.5.0
 python-json-logger==4.0.0
@@ -124,7 +124,7 @@ psutil==7.2.2
 schedule==1.2.2
 
 # Production Server
-gunicorn==23.0.0
+gunicorn==26.0.0
 gevent==24.11.1
 flask-socketio==5.3.7      # [B2] WebSocket biofeedback — required, not optional
 
