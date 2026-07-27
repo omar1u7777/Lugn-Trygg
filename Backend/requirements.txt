@@ -15,7 +15,7 @@ firebase-admin==7.1.0
 python-dotenv==1.2.2
 
 # Crisis Escalation Services
-twilio==9.10.4
+twilio==9.10.9
 sendgrid==6.11.0
 
 # HTTP & Requests
