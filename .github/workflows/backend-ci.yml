@@ -118,7 +118,7 @@ jobs:
           pip-audit -r Backend/requirements.txt --strict
 
       - name: Trivy filesystem scan (BLOCKING on CRITICAL)
-        uses: aquasecurity/trivy-action@v0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: 'fs'
           scan-ref: './Backend'
