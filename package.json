@@ -36,7 +36,7 @@
     "clsx": "^2.1.1",
     "core-js": "^3.47.0",
     "crypto-js": "^4.2.0",
-    "date-fns": "^3.6.0",
+    "date-fns": "^4.4.0",
     "esbuild": "^0.28.1",
     "firebase": "^12.16.0",
     "framer-motion": "^10.16.16",
