@@ -67,7 +67,7 @@ jobs:
           echo "Build artifact verified: dist/index.html exists"
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         if: always() && env.CODECOV_TOKEN != ''
         continue-on-error: true
         with:
