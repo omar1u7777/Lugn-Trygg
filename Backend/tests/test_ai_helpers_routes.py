@@ -27,6 +27,10 @@ class TestAnalyzeText:
     """Tests for POST /api/ai-helpers/analyze-text"""
 
     def test_analyze_text_success(self, client, auth_headers, mock_ai_service):
+        """The response must follow the standard APIResponse envelope
+        ({success, message, data}) like every other route — a raw unwrapped
+        dict previously shipped here and broke frontend clients expecting
+        response.data/response.success."""
         resp = client.post(
             f"{BASE}/analyze-text",
             json={"text": "I feel wonderful today, everything is great!"},
@@ -34,7 +38,8 @@ class TestAnalyzeText:
         )
         assert resp.status_code == 200
         data = resp.get_json()
-        assert "sentiment" in data
+        assert data["success"] is True
+        assert "sentiment" in data["data"]
 
     def test_analyze_text_missing_text(self, client, auth_headers, mock_ai_service):
         resp = client.post(
@@ -76,6 +81,9 @@ class TestAnalyzeText:
             headers=auth_headers,
         )
         assert resp.status_code == 500
+        data = resp.get_json()
+        assert data["success"] is False
+        assert data["error"] == "AI_SERVICE_ERROR"
 
     def test_analyze_text_options(self, client):
         resp = client.options(f"{BASE}/analyze-text")

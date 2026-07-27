@@ -26,7 +26,7 @@ from ..firebase_config import db
 STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', '')
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
-from ..services.rate_limiting import rate_limit_by_endpoint
+from ..services.rate_limiting import rate_limit_by_endpoint, rate_limiter
 from ..services.subscription_service import SubscriptionService
 from ..utils.input_sanitization import sanitize_text
 from ..utils.response_utils import APIResponse
@@ -274,6 +274,10 @@ def stripe_webhook():
                     db.collection("users").document(user_id).update({  # type: ignore
                         "subscription": subscription_data
                     })
+                    # Invalidate the cached rate-limit tier immediately —
+                    # without this, a just-upgraded user keeps free-tier
+                    # limits for up to TIER_CACHE_TTL (10 min).
+                    rate_limiter.invalidate_user_tier(user_id)
 
                     logger.info(f"✅ Subscription activated for user: {user_id} with plan: {plan}")
 
@@ -306,6 +310,7 @@ def stripe_webhook():
                         "subscription.status": "past_due",
                         "subscription.updated_at": datetime.now(UTC).isoformat()
                     })
+                    rate_limiter.invalidate_user_tier(user_id)
                     audit_log("PAYMENT_FAILED", user_id, {"subscriptionId": subscription_id})
                     logger.warning(f"⚠️ Subscription marked past_due for user: {user_id}")
                     break
@@ -497,6 +502,7 @@ def cancel_subscription(user_id: str):
             "subscription.status": "canceling",
             "subscription.updated_at": datetime.now(UTC).isoformat()
         })
+        rate_limiter.invalidate_user_tier(user_id)
 
         audit_log("SUBSCRIPTION_CANCEL_INITIATED", user_id, {"subscriptionId": stripe_subscription_id})
         logger.info(f"✅ Subscription cancellation initiated for user: {user_id}")

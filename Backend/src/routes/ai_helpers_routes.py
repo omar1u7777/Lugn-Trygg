@@ -1,10 +1,11 @@
 """AI helpers routes — text sentiment analysis endpoint."""
 import logging
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, g, request
 
 from src.services.ai_service import ai_services
 from src.services.auth_service import AuthService
+from src.utils.response_utils import APIResponse
 
 ai_helpers_bp = Blueprint("ai_helpers", __name__)
 logger = logging.getLogger(__name__)
@@ -20,15 +21,15 @@ def analyze_text():
     text = body.get("text")
 
     if not text:
-        return jsonify({"error": "text is required"}), 400
+        return APIResponse.bad_request("text is required")
     if not isinstance(text, str) or not text.strip():
-        return jsonify({"error": "text must be a non-empty string"}), 400
+        return APIResponse.bad_request("text must be a non-empty string")
     if len(text) > _MAX_TEXT_LEN:
-        return jsonify({"error": f"text exceeds maximum length of {_MAX_TEXT_LEN} characters"}), 400
+        return APIResponse.bad_request(f"text exceeds maximum length of {_MAX_TEXT_LEN} characters")
 
     try:
         result = ai_services.analyze_sentiment(text.strip())
-        return jsonify(result), 200
+        return APIResponse.success(result, "Text analyzed successfully")
     except Exception:
         logger.exception("analyze_text: sentiment analysis failed for user %s", getattr(g, "user_id", "unknown"))
-        return jsonify({"error": "AI service error"}), 500
+        return APIResponse.error("AI service error", "AI_SERVICE_ERROR", 500)

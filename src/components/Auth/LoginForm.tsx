@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { ArrowRightStartOnRectangleIcon } from '@heroicons/react/24/outline';
 import { logger } from '../../utils/logger';
 import { loginUser, api } from "../../api/index";
+import { isTwoFactorRequired, verifyTwoFactor } from "../../api/auth";
 import { API_ENDPOINTS } from "../../api/constants";
 import { useAuth } from "../../contexts/AuthContext";
 import { loadFirebaseAuthBundle } from "../../services/lazyFirebase";
@@ -81,6 +82,10 @@ const LoginForm = () => {
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ email?: string; password?: string }>({});
+  // 2FA gate: set when the account requires a second factor. Holds the
+  // short-lived pending token that verifyTwoFactor exchanges for a session.
+  const [pending2FA, setPending2FA] = useState<{ pendingToken: string; email: string } | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
   const forgotPasswordButtonRef = useRef<HTMLButtonElement>(null);
   
   const { login } = useAuth();
@@ -139,6 +144,15 @@ const LoginForm = () => {
     try {
       logger.debug('LOGIN - Calling loginUser API...');
       const data = await loginUser(email, password);
+
+      // 2FA-enabled account: no session yet. Switch to the code-entry step.
+      if (isTwoFactorRequired(data)) {
+        logger.debug('LOGIN - 2FA required, awaiting code');
+        setPending2FA({ pendingToken: data.pendingToken, email: data.user.email || email });
+        announceToScreenReader("Ange din tvåfaktorskod", "polite");
+        return;
+      }
+
       logger.debug('LOGIN - Success', { userId: data.userId });
       login(data.accessToken, {
         user_id: data.userId,
@@ -149,6 +163,29 @@ const LoginForm = () => {
       announceToScreenReader(MESSAGES.LOGIN_SUCCESS, "polite");
     } catch (err: unknown) {
       logger.error('LOGIN - Failed:', err);
+      const errorMessage = extractErrorMessage(err);
+      setError(errorMessage);
+      announceToScreenReader(`${MESSAGES.LOGIN_FAILED}: ${errorMessage}`, "assertive");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pending2FA || loading) return;
+    setLoading(true);
+    setError("");
+    try {
+      const data = await verifyTwoFactor(pending2FA.pendingToken, twoFactorCode.trim());
+      login(data.accessToken, {
+        user_id: data.userId,
+        email: data.user?.email || pending2FA.email,
+        name: data.user?.name,
+        createdAt: data.user?.createdAt,
+      });
+      announceToScreenReader(MESSAGES.LOGIN_SUCCESS, "polite");
+    } catch (err: unknown) {
       const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
       announceToScreenReader(`${MESSAGES.LOGIN_FAILED}: ${errorMessage}`, "assertive");
@@ -240,6 +277,45 @@ const LoginForm = () => {
           </Alert>
         )}
 
+        {pending2FA ? (
+          <LoadingSpinner isLoading={loading} message="Verifierar...">
+            <form
+              onSubmit={handleVerify2FA}
+              className="flex flex-col gap-4 sm:gap-5 md:gap-6"
+              role="form"
+              aria-label="Tvåfaktorsautentisering"
+            >
+              <Typography variant="body2" className="text-slate-600 dark:text-slate-300">
+                {t('loginForm.twoFactorPrompt', 'Ange den 6-siffriga koden från din autentiseringsapp.')}
+              </Typography>
+              <Input
+                label={t('loginForm.twoFactorCodeLabel', '🔐 Verifieringskod')}
+                id="twoFactorCode"
+                data-testid="login-2fa-input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={twoFactorCode}
+                onChange={(e) => setTwoFactorCode(e.target.value)}
+                placeholder="123456"
+                required
+                disabled={loading}
+              />
+              <Button type="submit" disabled={loading || twoFactorCode.trim().length < 6} fullWidth>
+                {t('loginForm.verifyButton', 'Verifiera')}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => { setPending2FA(null); setTwoFactorCode(""); setError(""); }}
+                disabled={loading}
+                fullWidth
+              >
+                {t('common.cancel', 'Avbryt')}
+              </Button>
+            </form>
+          </LoadingSpinner>
+        ) : (
         <LoadingSpinner isLoading={loading} message="Loggar in...">
           <form
             onSubmit={handleSubmit}
@@ -307,6 +383,7 @@ const LoginForm = () => {
             </Button>
           </form>
         </LoadingSpinner>
+        )}
 
         <Divider className="my-6 sm:my-8">
           <Typography variant="body2" color="text.secondary" fontWeight="medium">

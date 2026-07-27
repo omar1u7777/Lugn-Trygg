@@ -23,13 +23,18 @@ class BreachNotificationService:
     """Service for handling HIPAA breach notifications"""
 
     def __init__(self):
-        # HIPAA breach notification requirements
+        # HIPAA breach notification requirements (retained for US-context reports)
         self.hipaa_notification_threshold = 500  # Notify if 500+ individuals affected
         self.notification_deadlines = {
             'covered_entity': 60,  # days to notify affected individuals
             'hhs': 60,  # days to notify HHS
             'media': 60  # days for media notification if 500+ affected
         }
+        # GDPR Art. 33/34 — the governing regime for this EU product.
+        # Art. 33: notify the supervisory authority (IMY) within 72 HOURS.
+        # Art. 34: notify affected data subjects without undue delay when the
+        # breach is likely to result in a high risk to their rights.
+        self.gdpr_authority_deadline_hours = 72
 
     def detect_potential_breach(self, incident_details: dict[str, Any]) -> dict[str, Any]:
         """
@@ -114,9 +119,29 @@ class BreachNotificationService:
 
         return False
 
+    # Special-category clinical/crisis data (GDPR Art. 9). A breach exposing
+    # even ONE user's mental-health or treatment record is exactly the
+    # highest-risk case Art. 34 subject notification exists for — severity
+    # must not depend solely on affected_users for this data class.
+    HIGH_SENSITIVITY_DATA_TYPES = frozenset({
+        'mental_health_records', 'medical_data', 'treatment_history',
+    })
+
     def _calculate_severity(self, affected_users: int, data_types: list[str]) -> str:
-        """Calculate breach severity level"""
-        if affected_users >= 500:
+        """Calculate breach severity level.
+
+        BUG FIX: this previously ignored `data_types` entirely, so a breach of
+        one user's suicidal-ideation/treatment record was always scored LOW
+        (affected_users=1 never reaches the 50/500 thresholds below), which
+        meant high_risk in _schedule_notifications could never be true for
+        that data class and Art. 34 subject notification was silently never
+        triggered — exactly the scenario this app's own hardening effort
+        (see _schedule_notifications' case-sensitivity fix) claimed to close.
+        """
+        involves_high_sensitivity_data = any(
+            dt in self.HIGH_SENSITIVITY_DATA_TYPES for dt in data_types
+        )
+        if affected_users >= 500 or involves_high_sensitivity_data:
             return 'HIGH'
         elif affected_users >= 50:
             return 'MEDIUM'
@@ -162,42 +187,111 @@ class BreachNotificationService:
             logger.error(f"Failed to initiate breach response: {str(e)}")
 
     def _schedule_notifications(self, breach_record: dict[str, Any]):
-        """Schedule breach notifications according to HIPAA requirements"""
+        """Schedule breach notifications under GDPR Art. 33/34 and DELIVER the
+        immediate on-call alert.
+
+        GDPR governs here: the supervisory authority (IMY) must be notified
+        within 72 hours, and affected data subjects without undue delay when the
+        breach is high risk. Unlike the previous version — which only wrote
+        PENDING rows nobody ever actioned — this raises a telemetry CRITICAL
+        (paging on-call/DPO immediately) and emails the DPO inbox, then records
+        whether that delivery succeeded so an undelivered notification is
+        visible rather than silently pending.
+        """
         breach_id = breach_record['breach_id']
-        affected_users = breach_record['assessment'].get('affected_users', 0)
+        assessment = breach_record.get('assessment', {})
+        affected_users = assessment.get('affected_users', 0)
+        severity = assessment.get('severity', 'unknown')
+        now = datetime.now(UTC)
 
-        notifications = []
+        from datetime import timedelta
+        authority_deadline = now + timedelta(hours=self.gdpr_authority_deadline_hours)
+        # BUG FIX: _calculate_severity() (see :122-129) returns UPPERCASE
+        # 'HIGH'/'MEDIUM'/'LOW'. A lowercase comparison here NEVER matched, so
+        # high_risk collapsed to depending solely on affected_users >= 500 —
+        # a breach of highly sensitive special-category data (e.g. one user's
+        # suicidal-ideation record) never triggered Art. 34 subject
+        # notification regardless of severity.
+        high_risk = severity.upper() in ('HIGH', 'CRITICAL') or affected_users >= self.hipaa_notification_threshold
 
-        # Always notify affected individuals within 60 days
-        notifications.append({
-            'type': 'affected_individuals',
-            'deadline_days': self.notification_deadlines['covered_entity'],
-            'status': 'PENDING',
-            'description': f'Notify {affected_users} affected individuals'
-        })
-
-        # Notify HHS within 60 days
-        notifications.append({
-            'type': 'hhs',
-            'deadline_days': self.notification_deadlines['hhs'],
-            'status': 'PENDING',
-            'description': 'Notify Department of Health and Human Services'
-        })
-
-        # Notify media if 500+ individuals affected
-        if affected_users >= self.hipaa_notification_threshold:
-            notifications.append({
-                'type': 'media',
-                'deadline_days': self.notification_deadlines['media'],
+        notifications = [
+            {
+                'type': 'supervisory_authority_imy',
+                'regime': 'GDPR Art. 33',
+                'deadline_hours': self.gdpr_authority_deadline_hours,
+                'deadline_at': authority_deadline.isoformat(),
                 'status': 'PENDING',
-                'description': 'Notify media outlets'
+                'description': 'Notify supervisory authority (IMY) within 72 hours',
+            }
+        ]
+        if high_risk:
+            notifications.append({
+                'type': 'affected_data_subjects',
+                'regime': 'GDPR Art. 34',
+                'deadline_hours': None,  # "without undue delay"
+                'status': 'PENDING',
+                'description': f'Notify {affected_users} affected data subjects (high risk) without undue delay',
             })
 
-        # Update breach record with notifications
+        # 1. IMMEDIATE on-call/DPO alert — the actionable delivery. A breach is
+        #    always an operator-critical event; telemetry.critical forwards it to
+        #    Sentry (level fatal) where the on-call alert rule pages a human.
+        delivered = False
+        try:
+            from src.utils.telemetry import telemetry
+            telemetry.critical(
+                "data_breach_detected",
+                "GDPR-reportable data breach recorded — 72h authority clock started",
+                breach_id=breach_id,
+                severity=severity,
+                affected_users=affected_users,
+                high_risk=high_risk,
+                authority_deadline=authority_deadline.isoformat(),
+            )
+            delivered = self._send_dpo_email(breach_id, severity, affected_users, authority_deadline, high_risk) or delivered
+        except Exception as alert_err:
+            logger.exception("Breach on-call alert delivery failed: %s", alert_err)
+
+        # 2. Persist the schedule and the delivery outcome so an undelivered
+        #    alert is visible, not silently "PENDING".
         _db.collection('breach_notifications').document(breach_id).update({
             'scheduled_notifications': notifications,
-            'updated_at': datetime.now(UTC).isoformat()
+            'gdpr_authority_deadline_at': authority_deadline.isoformat(),
+            'high_risk': high_risk,
+            'oncall_alert_delivered': delivered,
+            'updated_at': now.isoformat()
         })
+
+    def _send_dpo_email(self, breach_id: str, severity: str, affected_users: int,
+                        authority_deadline, high_risk: bool) -> bool:
+        """Email the DPO / breach on-call inbox. Returns True on confirmed send.
+
+        Requires BREACH_NOTIFICATION_EMAIL (the monitored DPO inbox). Uses the
+        existing email service; if neither is configured, returns False so the
+        record shows the alert was NOT delivered (telemetry critical still fired).
+        """
+        import os
+        recipient = os.getenv('BREACH_NOTIFICATION_EMAIL') or os.getenv('CARE_TEAM_EMAIL')
+        if not recipient:
+            logger.error("No BREACH_NOTIFICATION_EMAIL configured — DPO email NOT sent for breach %s", breach_id)
+            return False
+        try:
+            from .email_service import email_service
+            subject = f"[BREACH] {severity.upper()} data breach {breach_id} — GDPR 72h clock started"
+            body = (
+                f"A GDPR-reportable data breach has been recorded.\n\n"
+                f"Breach ID: {breach_id}\n"
+                f"Severity: {severity}\n"
+                f"Affected data subjects: {affected_users}\n"
+                f"High risk (Art. 34 subject notification required): {high_risk}\n"
+                f"Supervisory authority (IMY) deadline: {authority_deadline.isoformat()} (72h)\n\n"
+                f"ACTION REQUIRED: assess and, if confirmed, notify IMY within 72 hours."
+            )
+            sent = email_service.send_plain_email(recipient, subject, body)
+            return bool(sent)
+        except Exception as email_err:
+            logger.exception("DPO breach email failed for %s: %s", breach_id, email_err)
+            return False
 
     def get_breach_history(self, limit: int = 50) -> list[dict[str, Any]]:
         """Get breach notification history"""

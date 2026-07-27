@@ -317,6 +317,96 @@ class TestChatStream:
         text = resp.get_data(as_text=True)
         assert "Stream interrupted" in text
 
+    @patch("src.routes.chatbot_routes.db")
+    @patch("src.routes.chatbot_routes.SubscriptionService")
+    @patch("src.services.ai_service.ai_services")
+    def test_chat_stream_pre_stream_crisis_enqueues_even_if_stream_never_flags_it(
+        self, mock_ai, mock_sub, mock_db, client
+    ):
+        """DURABILITY FIX: the crisis assessment now runs on user_message
+        BEFORE streaming starts, so escalation is enqueued even when the AI
+        stream itself yields no 'crisis' flag at all (e.g. it crashes
+        immediately) — the pre-stream check no longer depends on the stream
+        completing."""
+        _mock_db_chain(mock_db)
+
+        # The AI stream produces ZERO crisis-flagged chunks — under the OLD
+        # implementation this meant no escalation would ever be attempted.
+        def _stream():
+            yield _make_stream_chunk("Ett vanligt svar utan krisflagga")
+            yield _make_stream_chunk("", done=True)
+
+        mock_ai.generate_therapeutic_conversation_stream.return_value = _stream()
+        mock_sub.get_plan_context.return_value = {"limits": {}}
+        mock_sub.consume_quota.return_value = None
+
+        high_risk_assessment = Mock()
+        high_risk_assessment.overall_risk_level = "high"
+        high_risk_assessment.risk_score = 0.85
+        indicator = Mock()
+        indicator.swedish_description = "uttryckt hopplöshet"
+        high_risk_assessment.active_indicators = [indicator]
+
+        with patch(
+            "src.services.crisis_intervention.crisis_intervention_service.assess_text_crisis_risk",
+            return_value=high_risk_assessment,
+        ), patch(
+            "src.services.crisis_task_queue.enqueue_crisis_escalation",
+            return_value="task-pre-stream-1",
+        ) as mock_enqueue:
+            resp = client.post(
+                f"{BASE}/chat/stream", json={"message": "Jag orkar inte mer"}
+            )
+
+        assert resp.status_code == 200
+        mock_enqueue.assert_called_once()
+        enqueued_alert = mock_enqueue.call_args.args[0]
+        assert enqueued_alert.risk_level == "high"
+
+    @patch("src.routes.chatbot_routes.db")
+    @patch("src.routes.chatbot_routes.SubscriptionService")
+    @patch("src.services.ai_service.ai_services")
+    def test_chat_stream_pre_stream_crisis_survives_stream_crash(
+        self, mock_ai, mock_sub, mock_db, client
+    ):
+        """The exact durability scenario the fix targets: the AI stream
+        crashes immediately (simulating a worker recycle/OOM mid-stream), yet
+        the crisis escalation must already be durably enqueued because it ran
+        BEFORE the stream (and thus before the crash) even began."""
+        _mock_db_chain(mock_db)
+
+        class BrokenStream:
+            def __iter__(self):
+                raise RuntimeError("simulated worker crash mid-stream")
+                yield ""  # noqa: B901
+
+        mock_ai.generate_therapeutic_conversation_stream.return_value = BrokenStream()
+        mock_sub.get_plan_context.return_value = {"limits": {}}
+        mock_sub.consume_quota.return_value = None
+
+        critical_assessment = Mock()
+        critical_assessment.overall_risk_level = "critical"
+        critical_assessment.risk_score = 0.95
+        critical_assessment.active_indicators = []
+
+        with patch(
+            "src.services.crisis_intervention.crisis_intervention_service.assess_text_crisis_risk",
+            return_value=critical_assessment,
+        ), patch(
+            "src.services.crisis_task_queue.enqueue_crisis_escalation",
+            return_value="task-pre-stream-2",
+        ) as mock_enqueue:
+            resp = client.post(
+                f"{BASE}/chat/stream", json={"message": "Jag vill inte leva längre"}
+            )
+
+        # The endpoint still returns 200 with an interrupted-stream message
+        # (existing crash-resilience behavior)...
+        assert resp.status_code == 200
+        # ...but critically, the escalation was NOT lost.
+        mock_enqueue.assert_called_once()
+        assert mock_enqueue.call_args.args[0].risk_level == "critical"
+
     def test_chat_stream_options(self, client):
         resp = client.options(f"{BASE}/chat/stream")
         assert resp.status_code == 204
@@ -1804,7 +1894,10 @@ class TestDirectRouteMissingUserId:
             "/", method="POST", data=json.dumps({"message": "Hej"}), content_type="application/json"
         ):
             g.user_id = None
-            resp = chat_with_ai.__wrapped__.__wrapped__()
+            # chat_with_ai is wrapped by jwt_required → rate_limit → require_consent
+            # → handler. Unwrap all three decorator layers to reach the handler's
+            # own defensive missing-user_id branch (returns 400).
+            resp = chat_with_ai.__wrapped__.__wrapped__.__wrapped__()
         assert resp[1] == 400
 
     def test_chat_stream_missing_user_id(self, app):
@@ -1812,7 +1905,8 @@ class TestDirectRouteMissingUserId:
             "/", method="POST", data=json.dumps({"message": "Hej"}), content_type="application/json"
         ):
             g.user_id = None
-            resp = chat_stream.__wrapped__.__wrapped__()
+            # jwt_required -> rate_limit -> require_consent -> handler
+            resp = chat_stream.__wrapped__.__wrapped__.__wrapped__()
         assert resp[1] == 400
 
     def test_close_chat_session_missing_user_id(self, app):
@@ -1834,7 +1928,8 @@ class TestDirectRouteMissingUserId:
             "/", method="POST", data=json.dumps({}), content_type="application/json"
         ):
             g.user_id = None
-            resp = analyze_mood_patterns.__wrapped__.__wrapped__()
+            # jwt_required -> rate_limit -> require_consent -> handler
+            resp = analyze_mood_patterns.__wrapped__.__wrapped__.__wrapped__()
         assert resp[1] == 400
 
     def test_start_exercise_missing_user_id(self, app):

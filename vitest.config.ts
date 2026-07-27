@@ -19,7 +19,10 @@ export default defineConfig({
       "**/node_modules/**",
       "**/tests/e2e/**",
       "**/*.e2e.spec.ts",
-      "**/*.e2e.spec.tsx"
+      "**/*.e2e.spec.tsx",
+      // Transient git worktrees created by isolated agents contain full test
+      // copies; without this they get collected twice and pollute results.
+      "**/.claude/**"
     ],
     // Only run component and unit tests
     include: [

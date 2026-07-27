@@ -150,6 +150,69 @@ class ChatRAGService:
 
         return None
 
+    def prewarm_embeddings(self, texts: list[str]) -> None:
+        """Embed many texts in ONE batched API call and populate the cache.
+
+        PERFORMANCE: retrieval embeds every candidate document (up to ~100 per
+        chat message across moods/journal/goals/strategies/conversations). Doing
+        that one-at-a-time meant ~100 sequential Azure round-trips per message.
+        The embeddings API accepts a LIST, so we batch all cache misses into a
+        single request; the subsequent per-document embed_text() calls then hit
+        the cache. Failure here is non-fatal — callers fall back to per-text
+        embedding exactly as before.
+        """
+        if not self.embedding_client or not texts:
+            return
+
+        # Deduplicate + keep only cache misses, preserving order.
+        pending: list[str] = []
+        seen: set[str] = set()
+        for text in texts:
+            if not text or not text.strip():
+                continue
+            cache_key = hashlib.md5(text.encode()).hexdigest()[:16]
+            if cache_key in self._embedding_cache or cache_key in seen:
+                continue
+            seen.add(cache_key)
+            pending.append(text)
+
+        if not pending:
+            return
+
+        # Chunk to stay well inside per-request input limits.
+        BATCH = 64
+        for start in range(0, len(pending), BATCH):
+            chunk = pending[start:start + BATCH]
+            try:
+                response = self.embedding_client.embeddings.create(
+                    input=chunk,
+                    model=self._embedding_deployment,
+                )
+                # Response items carry .index mapping back to the input order.
+                for item in response.data:
+                    idx = getattr(item, 'index', None)
+                    if idx is None or idx >= len(chunk):
+                        continue
+                    key = hashlib.md5(chunk[idx].encode()).hexdigest()[:16]
+                    self._embedding_cache[key] = np.array(item.embedding, dtype=np.float32)
+                    self._cache_misses += 1
+            except Exception as e:
+                # Non-fatal: the per-text path still works for THIS chunk,
+                # just slower. Using `continue` (not `return`) so one bad
+                # chunk doesn't abandon every remaining chunk — with >64
+                # pending texts a single transient blip on chunk 1 would
+                # otherwise silently revert the ENTIRE call back to one
+                # request per document, quietly undoing the whole batching
+                # optimization for the rest of the message.
+                logger.warning(f"RAG: Batched embedding failed for one chunk ({len(chunk)} texts): {e}")
+                continue
+
+        # Keep the cache bounded (same policy as embed_text).
+        if len(self._embedding_cache) > self._max_cache_size:
+            overflow = len(self._embedding_cache) - self._max_cache_size
+            for key in list(self._embedding_cache.keys())[:overflow + 100]:
+                self._embedding_cache.pop(key, None)
+
     def retrieve_context(
         self,
         query: str,
@@ -231,6 +294,14 @@ class ChatRAGService:
                 .limit(50)\
                 .get()
 
+            mood_docs = list(mood_docs)
+            # ONE batched embedding call for all candidates; the per-doc
+            # embed_text() below then resolves from cache.
+            self.prewarm_embeddings([
+                f"{(d.to_dict() or {}).get('mood_label', '')} {(d.to_dict() or {}).get('note', '')}"
+                for d in mood_docs
+            ])
+
             for doc in mood_docs:
                 data = doc.to_dict()
                 mood_text = f"{data.get('mood_label', '')} {data.get('note', '')}"
@@ -271,6 +342,12 @@ class ChatRAGService:
                 .limit(30)\
                 .get()
 
+            journal_docs = list(journal_docs)
+            self.prewarm_embeddings([
+                f"{(d.to_dict() or {}).get('title', '')} {(d.to_dict() or {}).get('content', '')}"
+                for d in journal_docs
+            ])
+
             for doc in journal_docs:
                 data = doc.to_dict()
                 entry_text = f"{data.get('title', '')} {data.get('content', '')}"
@@ -308,6 +385,12 @@ class ChatRAGService:
                 .where('status', 'in', ['active', 'in_progress'])\
                 .limit(20)\
                 .get()
+
+            goals_docs = list(goals_docs)
+            self.prewarm_embeddings([
+                f"{(d.to_dict() or {}).get('title', '')} {(d.to_dict() or {}).get('description', '')}"
+                for d in goals_docs
+            ])
 
             for doc in goals_docs:
                 data = doc.to_dict()
@@ -348,6 +431,12 @@ class ChatRAGService:
                 .order_by('effectiveness_rating', direction='DESCENDING')\
                 .limit(15)\
                 .get()
+
+            strategies_docs = list(strategies_docs)
+            self.prewarm_embeddings([
+                f"{(d.to_dict() or {}).get('name', '')} {(d.to_dict() or {}).get('description', '')}"
+                for d in strategies_docs
+            ])
 
             for doc in strategies_docs:
                 data = doc.to_dict()
@@ -397,6 +486,12 @@ class ChatRAGService:
                 if session_id not in session_messages:
                     session_messages[session_id] = []
                 session_messages[session_id].append(data)
+
+            # ONE batched embedding call for every session thread.
+            self.prewarm_embeddings([
+                ' '.join([m.get('content', '') for m in msgs])
+                for msgs in session_messages.values()
+            ])
 
             # Find most relevant conversation threads
             for session_id, messages in session_messages.items():

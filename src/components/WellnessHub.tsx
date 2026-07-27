@@ -21,6 +21,8 @@ import { useTranslation } from 'react-i18next';
 import RelaxingSounds from './RelaxingSounds';
 import WellnessGoalsOnboarding from './Wellness/WellnessGoalsOnboarding';
 import useAuth from '../hooks/useAuth';
+import { useWellnessTimer } from '../hooks/useWellnessTimer';
+import { useAudioPlayback } from '../hooks/useAudioPlayback';
 import { getMoods, saveMeditationSession, getMeditationSessions, getWellnessGoals } from '../api/api';
 import { getWellnessGoalIcon } from '../constants/wellnessGoals';
 import { Button } from './ui/tailwind'; // Keep compatible
@@ -264,28 +266,29 @@ const WellnessHub: React.FC = () => {
   // Meditation Playback State
   const [selectedMeditation, setSelectedMeditation] = useState<MeditationOption | null>(null);
   const [isMeditationActive, setIsMeditationActive] = useState(false);
-  const [meditationTimeLeft, setMeditationTimeLeft] = useState(0);
   const [meditationStartTime, setMeditationStartTime] = useState<Date | null>(null);
   const [isPaused, setIsPaused] = useState(false);
-  const meditationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pausedDurationMsRef = useRef<number>(0);
   const pauseStartTimeRef = useRef<Date | null>(null);
   const completeMeditationRef = useRef<() => Promise<void>>();
   const isSavingMeditationRef = useRef(false);
   const selectedMeditationRef = useRef<MeditationOption | null>(null);
-  const meditationAudioRef = useRef<HTMLAudioElement | null>(null);
   const sleepSectionRef = useRef<HTMLElement | null>(null);
+  // Countdown + audio lifecycles are owned by dedicated hooks (single interval
+  // per hook, cleanup on unmount) instead of hand-rolled refs.
+  const meditationTimer = useWellnessTimer({ onComplete: () => { void completeMeditationRef.current?.(); } });
+  const meditationAudio = useAudioPlayback();
 
   // UI State
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [activeBreathingExercise, setActiveBreathingExercise] = useState<MeditationOption | null>(null);
   const [selectedSleepStory, setSelectedSleepStory] = useState<MeditationOption | null>(null);
   const [sleepStoryPlaying, setSleepStoryPlaying] = useState(false);
-  const [sleepStoryTimeLeft, setSleepStoryTimeLeft] = useState(0);
-  const sleepStoryAudioRef = useRef<HTMLAudioElement | null>(null);
-  const sleepStoryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sleepStorySaveRef = useRef<(() => void) | null>(null);
   const selectedSleepStoryRef = useRef<MeditationOption | null>(null);
+  const stopSleepStoryRef = useRef<((shouldSave?: boolean) => void) | null>(null);
+  const sleepStoryTimer = useWellnessTimer({ onComplete: () => stopSleepStoryRef.current?.(true) });
+  const sleepStoryAudio = useAudioPlayback();
 
   // ----------------------------------------------------------------------
   // Data Fetching
@@ -366,7 +369,19 @@ const WellnessHub: React.FC = () => {
       abortControllerRef.current?.abort();
     };
   }, [fetchWellnessData]);
-  useEffect(() => { return () => { if (selectedMeditationRef.current && !isSavingMeditationRef.current && completeMeditationRef.current) { if (pauseStartTimeRef.current) { pausedDurationMsRef.current += new Date().getTime() - pauseStartTimeRef.current.getTime(); pauseStartTimeRef.current = null; } completeMeditationRef.current(); } if (meditationTimerRef.current) clearInterval(meditationTimerRef.current); if (meditationAudioRef.current) { meditationAudioRef.current.pause(); meditationAudioRef.current = null; } }; }, []);
+  // Save an in-progress meditation on unmount. Interval + audio teardown is
+  // handled by the timer/audio hooks' own cleanup.
+  useEffect(() => {
+    return () => {
+      if (selectedMeditationRef.current && !isSavingMeditationRef.current && completeMeditationRef.current) {
+        if (pauseStartTimeRef.current) {
+          pausedDurationMsRef.current += new Date().getTime() - pauseStartTimeRef.current.getTime();
+          pauseStartTimeRef.current = null;
+        }
+        completeMeditationRef.current();
+      }
+    };
+  }, []);
 
   // ----------------------------------------------------------------------
   // Timer Logic
@@ -378,7 +393,7 @@ const WellnessHub: React.FC = () => {
     isSavingMeditationRef.current = true;
 
     // Clear timer immediately to prevent stopMeditation from double-saving
-    if (meditationTimerRef.current) clearInterval(meditationTimerRef.current);
+    meditationTimer.pause();
 
     const med = selectedMeditation;
     const startTime = meditationStartTime;
@@ -415,14 +430,10 @@ const WellnessHub: React.FC = () => {
   completeMeditationRef.current = completeMeditation;
 
   const resetMeditationState = () => {
-    if (meditationTimerRef.current) clearInterval(meditationTimerRef.current);
-    if (meditationAudioRef.current) {
-      meditationAudioRef.current.pause();
-      meditationAudioRef.current = null;
-    }
+    meditationTimer.stop();
+    meditationAudio.stop();
     setIsMeditationActive(false);
     setSelectedMeditation(null);
-    setMeditationTimeLeft(0);
     setMeditationStartTime(null);
     setIsPaused(false);
     pausedDurationMsRef.current = 0;
@@ -438,7 +449,7 @@ const WellnessHub: React.FC = () => {
       const pausedMs = pausedDurationMsRef.current;
 
       // Clear timer immediately to prevent race with completeMeditation
-      if (meditationTimerRef.current) clearInterval(meditationTimerRef.current);
+      meditationTimer.pause();
 
       const rawElapsedMs = new Date().getTime() - startTime.getTime();
       const activeDurationMs = Math.max(0, rawElapsedMs - pausedMs);
@@ -466,35 +477,18 @@ const WellnessHub: React.FC = () => {
     isSavingMeditationRef.current = false;
     setSelectedMeditation(meditation);
     setIsMeditationActive(true);
-    setMeditationTimeLeft(meditation.duration * 60);
     setMeditationStartTime(new Date());
     setIsPaused(false);
     pausedDurationMsRef.current = 0;
     pauseStartTimeRef.current = null;
-    if (meditationTimerRef.current) clearInterval(meditationTimerRef.current);
 
-    // Play guided meditation audio
+    // Play guided meditation audio (play() replaces any current audio)
     const audioUrl = MEDITATION_AUDIO_URLS[meditation.id];
     if (audioUrl) {
-      if (meditationAudioRef.current) {
-        meditationAudioRef.current.pause();
-      }
-      const audio = new Audio(audioUrl);
-      audio.volume = 0.6;
-      audio.preload = 'auto';
-      audio.loop = true;
-      meditationAudioRef.current = audio;
-      audio.play()?.catch((e) => {
-        logger.error('Meditation audio playback failed:', e);
-      });
+      meditationAudio.play(audioUrl, { loop: true, volume: 0.6 });
     }
 
-    meditationTimerRef.current = setInterval(() => {
-      setMeditationTimeLeft(prev => {
-        if (prev <= 1) { completeMeditationRef.current?.(); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
+    meditationTimer.start(meditation.duration * 60);
   };
 
   const togglePause = () => {
@@ -505,21 +499,12 @@ const WellnessHub: React.FC = () => {
       }
       pauseStartTimeRef.current = null;
       setIsPaused(false);
-      if (meditationAudioRef.current) {
-        meditationAudioRef.current.play()?.catch((e) => logger.error('Audio resume failed:', e));
-      }
-      meditationTimerRef.current = setInterval(() => {
-        setMeditationTimeLeft(prev => {
-          if (prev <= 1) { completeMeditationRef.current?.(); return 0; }
-          return prev - 1;
-        });
-      }, 1000);
+      meditationAudio.resume();
+      meditationTimer.resume();
     } else {
       // Pause
-      if (meditationTimerRef.current) clearInterval(meditationTimerRef.current);
-      if (meditationAudioRef.current) {
-        meditationAudioRef.current.pause();
-      }
+      meditationTimer.pause();
+      meditationAudio.pause();
       pauseStartTimeRef.current = new Date();
       setIsPaused(true);
     }
@@ -537,18 +522,14 @@ const WellnessHub: React.FC = () => {
     if (shouldSave && sleepStorySaveRef.current) {
       sleepStorySaveRef.current();
     }
-    if (sleepStoryAudioRef.current) {
-      sleepStoryAudioRef.current.pause();
-      sleepStoryAudioRef.current = null;
-    }
-    if (sleepStoryTimerRef.current) {
-      clearInterval(sleepStoryTimerRef.current);
-      sleepStoryTimerRef.current = null;
-    }
+    sleepStoryAudio.stop();
+    sleepStoryTimer.stop();
     setSleepStoryPlaying(false);
-    setSleepStoryTimeLeft(0);
     setSelectedSleepStory(null);
-  }, []);
+  }, [sleepStoryAudio, sleepStoryTimer]);
+
+  // Timer onComplete fires from inside the hook — keep the latest closure.
+  stopSleepStoryRef.current = stopSleepStory;
 
   const playSleepStory = useCallback((story: MeditationOption) => {
     stopSleepStory(true);
@@ -558,53 +539,30 @@ const WellnessHub: React.FC = () => {
       return;
     }
 
-    const audio = new Audio(url);
-    audio.volume = 0.6;
-    audio.preload = 'auto';
-    sleepStoryAudioRef.current = audio;
-
     setSelectedSleepStory(story);
-    setSleepStoryTimeLeft(story.duration * 60);
     setSleepStoryPlaying(true);
 
-    audio.addEventListener('error', () => {
-      logger.error('Sleep story playback failed: Audio load error for', story.id);
-      stopSleepStory();
+    sleepStoryAudio.play(url, {
+      volume: 0.6,
+      onEnded: () => {
+        logger.info('Sleep story ended naturally:', story.id);
+        stopSleepStoryRef.current?.(true);
+      },
+      onError: () => {
+        logger.error('Sleep story playback failed: Audio load error for', story.id);
+        stopSleepStoryRef.current?.();
+      },
     });
 
-    audio.addEventListener('ended', () => {
-      logger.info('Sleep story ended naturally:', story.id);
-      stopSleepStory(true);
-    });
-
-    audio.play()?.catch((e) => {
-      logger.error('Sleep story playback failed:', e);
-      stopSleepStory();
-    });
-
-    sleepStoryTimerRef.current = setInterval(() => {
-      setSleepStoryTimeLeft((prev) => {
-        if (prev <= 1) {
-          stopSleepStory(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }, [stopSleepStory]);
+    sleepStoryTimer.start(story.duration * 60);
+  }, [stopSleepStory, sleepStoryAudio, sleepStoryTimer]);
 
   useEffect(() => {
     return () => {
-      // Save in-progress sessions on unmount
+      // Save in-progress sessions on unmount; audio + timer teardown is
+      // handled by the hooks' own cleanup.
       if (selectedSleepStoryRef.current && sleepStorySaveRef.current) {
         sleepStorySaveRef.current();
-      }
-      if (sleepStoryAudioRef.current) {
-        sleepStoryAudioRef.current.pause();
-        sleepStoryAudioRef.current = null;
-      }
-      if (sleepStoryTimerRef.current) {
-        clearInterval(sleepStoryTimerRef.current);
       }
     };
   }, []);
@@ -614,7 +572,7 @@ const WellnessHub: React.FC = () => {
   sleepStorySaveRef.current = () => {
     if (!selectedSleepStory || !user?.user_id) return;
     const story = selectedSleepStory;
-    const elapsedSeconds = story.duration * 60 - sleepStoryTimeLeft;
+    const elapsedSeconds = story.duration * 60 - sleepStoryTimer.timeLeft;
     if (elapsedSeconds < 60) return;
     const durationMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
     saveMeditationSession({
@@ -863,12 +821,12 @@ const WellnessHub: React.FC = () => {
               </div>
 
               <div className="text-5xl font-mono text-center font-bold text-primary-600 dark:text-primary-400 mb-4 tracking-wider">
-                {formatTime(meditationTimeLeft)}
+                {formatTime(meditationTimer.timeLeft)}
               </div>
 
               {/* Progress bar (Fix 7) */}
               <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-8">
-                <div className="h-full bg-primary-500 rounded-full transition-all duration-1000" style={{ width: `${((selectedMeditation.duration * 60 - meditationTimeLeft) / (selectedMeditation.duration * 60)) * 100}%` }} />
+                <div className="h-full bg-primary-500 rounded-full transition-all duration-1000" style={{ width: `${((selectedMeditation.duration * 60 - meditationTimer.timeLeft) / (selectedMeditation.duration * 60)) * 100}%` }} />
               </div>
 
               <div className="flex justify-center gap-6">
@@ -1087,30 +1045,21 @@ const WellnessHub: React.FC = () => {
             </div>
 
             <div className="text-5xl font-mono text-center font-bold text-indigo-600 dark:text-indigo-400 mb-8 tracking-wider">
-              {formatTime(sleepStoryTimeLeft)}
+              {formatTime(sleepStoryTimer.timeLeft)}
             </div>
 
             <div className="flex justify-center gap-6">
               <button
                 onClick={() => {
-                  if (sleepStoryAudioRef.current) {
-                    if (sleepStoryPlaying) {
-                      sleepStoryAudioRef.current.pause();
-                      if (sleepStoryTimerRef.current) {
-                        clearInterval(sleepStoryTimerRef.current);
-                        sleepStoryTimerRef.current = null;
-                      }
-                      setSleepStoryPlaying(false);
-                    } else {
-                      sleepStoryAudioRef.current.play()?.catch(e => logger.error('Resume failed:', e));
-                      sleepStoryTimerRef.current = setInterval(() => {
-                        setSleepStoryTimeLeft((prev) => {
-                          if (prev <= 1) { stopSleepStory(); return 0; }
-                          return prev - 1;
-                        });
-                      }, 1000);
-                      setSleepStoryPlaying(true);
-                    }
+                  if (!selectedSleepStory) return;
+                  if (sleepStoryPlaying) {
+                    sleepStoryAudio.pause();
+                    sleepStoryTimer.pause();
+                    setSleepStoryPlaying(false);
+                  } else {
+                    sleepStoryAudio.resume();
+                    sleepStoryTimer.resume();
+                    setSleepStoryPlaying(true);
                   }
                 }}
                 aria-label={sleepStoryPlaying ? t('wellnessHub.pauseMeditation') : t('wellnessHub.resumeMeditation')}

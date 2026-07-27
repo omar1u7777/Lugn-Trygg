@@ -265,36 +265,71 @@ class ConsentService:
             'missing_consents': missing_consents
         }
 
-    def require_consent(self, consent_types: list[str]):
+    def require_consent(self, consent_types: list[str], strict: bool = False):
         """
-        Decorator to require specific consents for route access
+        Decorator enforcing that the caller has not WITHDRAWN the given consents
+        before processing their data (GDPR right to withdraw).
 
-        Args:
-            consent_types: List of consent types required
+        Semantics (chosen to be enforceable without a data backfill):
+        - Explicitly WITHDRAWN consent  → 403 (the actionable enforcement).
+        - strict=True: also 403 when consent was never recorded.
+        - strict=False (default): a missing record is allowed so pre-existing
+          accounts are not locked out; the frontend consent flow prompts them.
+        - Consent check raises (Firestore down, etc.) → FAIL OPEN + telemetry,
+          so an infra blip can never block every AI/voice request.
+
+        Order: place BELOW @jwt_required so g.user_id is populated.
         """
+        from functools import wraps
+
         def decorator(f):
+            @wraps(f)
             def wrapper(*args, **kwargs):
                 from flask import g, jsonify, request
+
+                # CORS preflight must never be consent-gated.
+                if request.method == 'OPTIONS':
+                    return f(*args, **kwargs)
 
                 user_id = getattr(g, 'user_id', None)
                 if not user_id:
                     return jsonify({'error': 'Authentication required'}), 401
 
-                # Check all required consents
                 for consent_type in consent_types:
-                    consent_status = self.check_consent(user_id, consent_type)
-                    if not consent_status.get('has_consent', False):
-                        # Audit failed access attempt
+                    try:
+                        consent_status = self.check_consent(user_id, consent_type)
+                    except Exception as consent_err:
+                        # Never let a consent-store outage take down the feature.
+                        from src.utils.telemetry import telemetry
+                        telemetry.degraded(
+                            feature="consent_enforcement",
+                            reason="consent_check_error",
+                            consent_type=consent_type,
+                            error=str(consent_err),
+                        )
+                        continue
+
+                    withdrawn = bool(consent_status.get('withdrawn', False))
+                    has_consent = bool(consent_status.get('has_consent', False))
+                    has_record = consent_status.get('granted_at') is not None or withdrawn
+
+                    # Block on explicit withdrawal always; on absent record only
+                    # in strict mode.
+                    should_block = withdrawn or (strict and not has_consent)
+                    if not has_record and not strict:
+                        should_block = False
+
+                    if should_block:
                         audit_service.log_event(
                             'FEATURE_ACCESS_DENIED',
                             user_id,
                             {
                                 'feature': f.__name__,
                                 'missing_consent': consent_type,
+                                'withdrawn': withdrawn,
                                 'endpoint': request.endpoint
                             }
                         )
-
                         return jsonify({
                             'error': 'Consent required',
                             'message': f'Access to this feature requires {consent_type} consent',
@@ -303,7 +338,6 @@ class ConsentService:
                         }), 403
 
                 return f(*args, **kwargs)
-            wrapper.__name__ = f.__name__
             return wrapper
         return decorator
 

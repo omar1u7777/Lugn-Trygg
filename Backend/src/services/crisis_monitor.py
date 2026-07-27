@@ -79,7 +79,22 @@ class CrisisMonitorWebSocket:
             message = data.get('message')
 
             if session_id and message:
-                asyncio.create_task(self._process_message(session_id, message))
+                # Flask-SocketIO's async_mode='threading' runs this handler in
+                # a plain OS thread with no running asyncio event loop, so
+                # asyncio.create_task() here would raise "no running event
+                # loop" immediately and _process_message (which contains all
+                # crisis detection/escalation) would never execute. Run it to
+                # completion via a dedicated loop instead — the same pattern
+                # crisis_task_queue.py uses to call async escalation code from
+                # a sync worker thread. Nested awaits/create_task calls further
+                # down the stack (e.g. _trigger_immediate_intervention) are
+                # fine because a loop is running for the duration of this call.
+                loop = asyncio.new_event_loop()
+                try:
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(self._process_message(session_id, message))
+                finally:
+                    loop.close()
 
         @self.socketio.on('disconnect', namespace='/crisis-monitor')
         def handle_disconnect():
@@ -273,9 +288,26 @@ class CrisisMonitorWebSocket:
         }
 
     async def _escalate_crisis(self, session: SessionContext, risk):
-        """Escalate crisis to backend services."""
+        """Escalate crisis detected over the WebSocket biofeedback/session
+        monitor to the durable crisis queue.
+
+        Previously called escalation_service.escalate(alert) directly and
+        discarded the result — the exact loss mode the durable
+        /crisis_tasks queue was built to eliminate (a worker recycle mid-call
+        loses the alert with no retry and no telemetry.critical) was still
+        live on this second path. Routed through enqueue_crisis_escalation()
+        now so this path gets the same at-least-once delivery, exponential
+        backoff and exhausted-retry alerting as the /chat and /chat/stream
+        entry points.
+        """
         try:
-            from .crisis_escalation import CrisisAlert, get_crisis_escalation_service
+            from datetime import UTC
+
+            from .crisis_escalation import CrisisAlert
+            from .crisis_task_queue import (
+                CrisisQueueUnavailableError,
+                enqueue_crisis_escalation,
+            )
 
             alert = CrisisAlert(
                 user_id=session.user_id,
@@ -283,12 +315,17 @@ class CrisisMonitorWebSocket:
                 risk_score=risk.semantic_score,
                 detected_indicators=risk.semantic_indicators,
                 text_snippet=session.messages[-1]['content'][:200] if session.messages else "",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(UTC),
                 requires_immediate_action=risk.risk_level == 'critical'
             )
 
-            escalation_service = get_crisis_escalation_service()
-            await escalation_service.escalate(alert)
+            try:
+                enqueue_crisis_escalation(alert)
+            except CrisisQueueUnavailableError:
+                logger.critical(
+                    "🚨 WebSocket crisis escalation could not be queued for user=%s. "
+                    "REQUIRES MANUAL REVIEW.", session.user_id,
+                )
 
         except Exception as e:
             logger.error(f"Crisis escalation failed: {e}")

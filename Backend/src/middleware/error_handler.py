@@ -17,7 +17,15 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 class CircuitBreaker:
-    """Circuit breaker for external service calls"""
+    """Circuit breaker for external service calls.
+
+    HALF_OPEN admits exactly ONE exploratory probe at a time (single-probe
+    token). Without the token, N concurrent threads observing the OPEN→
+    HALF_OPEN transition would all blast into the recovering dependency
+    simultaneously (thundering herd) and instantly re-trip the breaker.
+    The probe itself executes OUTSIDE the lock — holding a mutex across an
+    external network call would serialize every caller behind slow I/O.
+    """
 
     def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 60,
                  expected_exception: type[Exception] = Exception):
@@ -30,6 +38,8 @@ class CircuitBreaker:
         self.state = 'CLOSED'  # CLOSED, OPEN, HALF_OPEN
 
         self._lock = threading.Lock()
+        # Single-probe token: True while a HALF_OPEN trial call is in flight.
+        self._half_open_probe_active = False
 
     def call(self, func: Callable, *args, **kwargs):
         """Execute function with circuit breaker protection"""
@@ -41,13 +51,29 @@ class CircuitBreaker:
                 else:
                     raise CircuitBreakerOpenException("Circuit breaker is OPEN")
 
+            if self.state == 'HALF_OPEN':
+                if self._half_open_probe_active:
+                    # A sibling thread already holds the probe token — reject
+                    # instead of stampeding the recovering dependency.
+                    raise CircuitBreakerOpenException(
+                        "Circuit breaker is HALF_OPEN and a recovery probe is already in flight"
+                    )
+                self._half_open_probe_active = True
+
         try:
             result = func(*args, **kwargs)
-            self._on_success()
-            return result
         except self.expected_exception:
             self._on_failure()
             raise
+        except BaseException:
+            # Unexpected exception type: not counted as a dependency failure,
+            # but the probe token MUST be released or the breaker deadlocks.
+            with self._lock:
+                self._half_open_probe_active = False
+            raise
+        else:
+            self._on_success()
+            return result
 
     def _should_attempt_reset(self) -> bool:
         """Check if enough time has passed to attempt reset"""
@@ -60,6 +86,7 @@ class CircuitBreaker:
     def _on_success(self):
         """Handle successful call"""
         with self._lock:
+            self._half_open_probe_active = False
             if self.state == 'HALF_OPEN':
                 self.state = 'CLOSED'
                 logger.info("Circuit breaker reset to CLOSED state")
@@ -68,10 +95,17 @@ class CircuitBreaker:
     def _on_failure(self):
         """Handle failed call"""
         with self._lock:
+            self._half_open_probe_active = False
             self.failure_count += 1
             self.last_failure_time = time.time()
 
-            if self.failure_count >= self.failure_threshold:
+            if self.state == 'HALF_OPEN':
+                # Failed recovery probe → re-open immediately; do not wait for
+                # the failure threshold to accumulate against a known-bad
+                # dependency.
+                self.state = 'OPEN'
+                logger.warning("Circuit breaker re-opened after failed HALF_OPEN probe")
+            elif self.failure_count >= self.failure_threshold:
                 self.state = 'OPEN'
                 logger.warning(f"Circuit breaker opened after {self.failure_count} failures")
 
@@ -96,9 +130,28 @@ class ErrorHandler:
             'authentication': 5,
         }
 
-        # Start background monitoring
-        self._monitoring_thread = threading.Thread(target=self._monitor_errors, daemon=True)
-        self._monitoring_thread.start()
+        # Monitoring thread is started LAZILY on first handled error rather
+        # than at import time. Under multi-worker Gunicorn an import-time
+        # thread multiplies by worker count for processes that may never
+        # record an error; lazy start keeps idle workers thread-free.
+        self._monitoring_thread: threading.Thread | None = None
+        self._monitor_start_lock = threading.Lock()
+
+    def _ensure_monitoring_started(self) -> None:
+        """Start the per-process error-pattern monitor exactly once, on demand.
+
+        NOTE: this monitor inspects THIS process's in-memory error history, so
+        it intentionally runs per-process (a distributed lock would blind all
+        but one worker to their own errors).
+        """
+        if self._monitoring_thread is not None:
+            return
+        with self._monitor_start_lock:
+            if self._monitoring_thread is None:
+                self._monitoring_thread = threading.Thread(
+                    target=self._monitor_errors, name="error-monitor", daemon=True
+                )
+                self._monitoring_thread.start()
 
     @staticmethod
     def _sanitize_context(context: dict[str, Any] | None) -> dict[str, Any]:
@@ -160,6 +213,8 @@ class ErrorHandler:
         error_type = type(error).__name__
         error_message = str(error)
         timestamp = datetime.now(UTC)
+
+        self._ensure_monitoring_started()
 
         # Create error record
         safe_context = self._sanitize_context(context)

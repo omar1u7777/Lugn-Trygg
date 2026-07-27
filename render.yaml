@@ -1,6 +1,15 @@
 services:
   - type: web
     name: lugn-trygg-backend
+    # `runtime: python` = Render's native Python buildpack. This service does
+    # NOT build or run Backend/Dockerfile — Render's own build/runtime
+    # environment governs the actual container (its own user/permissions,
+    # its own healthcheck mechanism via healthCheckPath below). The
+    # Dockerfile's non-root user, HEALTHCHECK directive, and multi-stage
+    # image-size hardening have no effect on THIS deployment; the Dockerfile
+    # exists for a separate consumer (e.g. local docker-compose or a future
+    # k8s deployment — see k8s/README.md), not for what runs in production
+    # today. If that ever changes, switch this to `runtime: docker`.
     runtime: python
     plan: starter
     region: frankfurt
@@ -14,7 +23,11 @@ services:
     startCommand: gunicorn -c gunicorn_config.py main:app
     healthCheckPath: /health
 
-    autoDeploy: true
+    # Deploy on GREEN CI, not on every push. Render's "After CI Checks Pass"
+    # option must also be enabled in the dashboard (it reads GitHub check
+    # status); combined with branch protection on master this makes deploys
+    # deploy-on-green instead of deploy-on-push. See RUNBOOK.md.
+    autoDeploy: false
 
     envVars:
       - key: FLASK_ENV
@@ -67,7 +80,66 @@ services:
         value: lugn-trygg-web
       - key: PORT
         sync: false
+      # Reduced from 2 to the conservative value gunicorn_config.py's own
+      # sizing guidance recommends for the 512 MB Starter plan. 2 workers was
+      # never load-tested on this tier; with preload_app=True, 2 processes'
+      # combined RSS (firebase-admin, numpy/pandas/scikit-learn/scipy, openai,
+      # sentry-sdk, cryptography, etc., each degrading from copy-on-write via
+      # CPython refcounting) risks OOM kills — an abrupt, mid-request failure
+      # mode, worse for a crisis-support service than 1 worker's brief,
+      # graceful capacity dip during a max_requests recycle. Raise back to 2
+      # only after confirming real memory headroom on this plan; see
+      # RUNBOOK.md and gunicorn_config.py for the full tradeoff.
       - key: GUNICORN_WORKERS
-        value: "2"
+        value: "1"
+      # SSE chat streams are I/O-bound and hold a thread up to 120s. With only
+      # 2 threads/worker the whole service had 4 request slots and a few chat
+      # users starved /health into a restart loop. 8 threads/worker (even with
+      # 1 worker) still gives 8 concurrent slots — double that broken config.
       - key: GUNICORN_THREADS
-        value: "2"
+        value: "8"
+      # Twilio / SendGrid / care-team inbox: REQUIRED for crisis escalation to
+      # reach a human. escalate() now hard-fails (telemetry CRITICAL) when none
+      # is configured, so these MUST be set in the Render dashboard before the
+      # crisis path is trusted. Provisioned here as sync:false secret slots.
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SENDGRID_FROM_EMAIL
+        sync: false
+      - key: CARE_TEAM_EMAIL
+        sync: false
+      # DPO / breach on-call inbox — where GDPR Art. 33 breach alerts are sent.
+      - key: BREACH_NOTIFICATION_EMAIL
+        sync: false
+      # Resend email transport (referrals, password reset, breach alerts).
+      - key: RESEND_API_KEY
+        sync: false
+      # Optional: pin Vercel PREVIEW CORS. Prefer setting BOTH of these (Vercel
+      # team slugs are globally unique, so this cannot be spoofed by another
+      # tenant's similarly-named project — see main.py:is_origin_allowed).
+      - key: VERCEL_PROJECT_SLUG
+        sync: false
+      - key: VERCEL_TEAM_SLUG
+        sync: false
+      # Legacy single-var fallback (prefix-only match, weaker) — only used if
+      # the two vars above are not both set.
+      - key: VERCEL_PREVIEW_PREFIX
+        sync: false
+      # Prometheus multi-worker metrics aggregation directory (see gunicorn_config).
+      # gunicorn_config.py creates this directory at boot — see RUNBOOK.md §8.
+      - key: PROMETHEUS_MULTIPROC_DIR
+        value: /tmp/prometheus_multiproc
+      # REQUIRED in production — src/config/settings.py's validate_production_settings
+      # raises and the app calls sys.exit(1) at boot without these. See RUNBOOK.md §8.
+      - key: WEBAUTHN_RP_ID
+        sync: false
+      - key: WEBAUTHN_ORIGIN
+        sync: false
+      - key: FRONTEND_URL
+        sync: false

@@ -440,32 +440,50 @@ class TestAuthServiceLockout:
 
     @patch("src.services.auth_service._db")
     def test_record_failed_attempt_new_entry(self, mock_db):
+        """Uses the REAL google.cloud.firestore.transactional decorator (not
+        monkeypatched to identity) against _FakeFirestoreTransaction, which
+        satisfies its actual contract — proving the atomic path genuinely
+        executes and writes attempt_count=1, not just that the call
+        'doesn't raise'."""
+        from tests.conftest import _FakeFirestoreTransaction
+
         from src.services.auth_service import AuthService
         doc = MagicMock()
         doc.exists = False
         mock_db.collection.return_value.document.return_value.get.return_value = doc
 
-        txn = MagicMock()
+        txn = _FakeFirestoreTransaction()
         mock_db.transaction.return_value = txn
 
-        with patch("google.cloud.firestore.transactional") as mock_transactional:
-            mock_transactional.side_effect = lambda fn: fn
-            AuthService.record_failed_attempt("test@test.com")
+        AuthService.record_failed_attempt("test@test.com")
+
+        assert len(txn.writes) == 1
+        payload = txn.writes[0][1]
+        assert payload["attempt_count"] == 1
+        assert payload["lockout_until"] is None
 
     @patch("src.services.auth_service._db")
     def test_record_failed_attempt_exceeds_max(self, mock_db):
+        """Same real-transactional-contract proof for the lockout-triggering
+        path: attempt_count must actually increment to 11 and set a
+        lockout_until timestamp, not merely 'not raise'."""
+        from tests.conftest import _FakeFirestoreTransaction
+
         from src.services.auth_service import AuthService
         doc = MagicMock()
         doc.exists = True
         doc.to_dict.return_value = {"attempt_count": 10}
         mock_db.collection.return_value.document.return_value.get.return_value = doc
 
-        txn = MagicMock()
+        txn = _FakeFirestoreTransaction()
         mock_db.transaction.return_value = txn
 
-        with patch("google.cloud.firestore.transactional") as mock_transactional:
-            mock_transactional.side_effect = lambda fn: fn
-            AuthService.record_failed_attempt("test@test.com")
+        AuthService.record_failed_attempt("test@test.com")
+
+        assert len(txn.writes) == 1
+        payload = txn.writes[0][1]
+        assert payload["attempt_count"] == 11
+        assert payload["lockout_until"] is not None
 
     @patch("src.services.auth_service._db")
     def test_record_failed_attempt_exception(self, mock_db):
@@ -2369,30 +2387,42 @@ class TestRotateRefreshTokenEdgeCases:
 class TestRecordFailedAttemptTiers:
 
     def test_lockout_second_tier(self):
+        """Uses the REAL firestore.transactional decorator against
+        _FakeFirestoreTransaction (not a monkeypatched identity + bare
+        MagicMock transaction), and asserts the actual computed attempt_count
+        and lockout_until — not just that the call completes."""
+        from tests.conftest import _FakeFirestoreTransaction
+
         mock_db = MagicMock()
-        mock_txn = MagicMock()
-        mock_db.transaction.return_value = mock_txn
+        txn = _FakeFirestoreTransaction()
+        mock_db.transaction.return_value = txn
         snapshot = MagicMock(exists=True)
         snapshot.to_dict.return_value = {"attempt_count": 9, "email_hash": "h"}
         mock_db.collection.return_value.document.return_value.get.return_value = snapshot
-        mock_firestore = MagicMock()
-        mock_firestore.transactional = lambda fn: fn
         with patch("src.services.auth_service._db", mock_db):
-            with patch.dict("sys.modules", {"google.cloud.firestore": mock_firestore, "google.cloud": MagicMock(firestore=mock_firestore)}):
-                AuthService.record_failed_attempt("x@x.com")
+            AuthService.record_failed_attempt("x@x.com")
+
+        assert len(txn.writes) == 1
+        payload = txn.writes[0][1]
+        assert payload["attempt_count"] == 10
+        assert payload["lockout_until"] is not None
 
     def test_lockout_third_tier(self):
+        from tests.conftest import _FakeFirestoreTransaction
+
         mock_db = MagicMock()
-        mock_txn = MagicMock()
-        mock_db.transaction.return_value = mock_txn
+        txn = _FakeFirestoreTransaction()
+        mock_db.transaction.return_value = txn
         snapshot = MagicMock(exists=True)
         snapshot.to_dict.return_value = {"attempt_count": 14, "email_hash": "h"}
         mock_db.collection.return_value.document.return_value.get.return_value = snapshot
-        mock_firestore = MagicMock()
-        mock_firestore.transactional = lambda fn: fn
         with patch("src.services.auth_service._db", mock_db):
-            with patch.dict("sys.modules", {"google.cloud.firestore": mock_firestore, "google.cloud": MagicMock(firestore=mock_firestore)}):
-                AuthService.record_failed_attempt("x@x.com")
+            AuthService.record_failed_attempt("x@x.com")
+
+        assert len(txn.writes) == 1
+        payload = txn.writes[0][1]
+        assert payload["attempt_count"] == 15
+        assert payload["lockout_until"] is not None
 
 
 # ── auth_service.py: verify_password_reset_token branches (lines 960, 971) ──
@@ -3104,21 +3134,27 @@ class TestVerifyPasswordResetTokenSuccess:
 class TestRecordFailedAttemptFirstTier:
 
     def test_first_tier_lockout(self):
-        """Line 866: attempt_count >= MAX and < MAX*2 -> first lockout tier"""
+        """Line 866: attempt_count >= MAX and < MAX*2 -> first lockout tier.
+        Uses the REAL firestore.transactional decorator + _FakeFirestoreTransaction
+        and asserts the actual written attempt_count/lockout_until."""
+        from tests.conftest import _FakeFirestoreTransaction
+
         from src.config import MAX_FAILED_LOGIN_ATTEMPTS
         mock_db = MagicMock()
-        mock_txn = MagicMock()
-        mock_db.transaction.return_value = mock_txn
+        txn = _FakeFirestoreTransaction()
+        mock_db.transaction.return_value = txn
         # attempt_count will be data["attempt_count"]+1 = MAX (first tier)
         snapshot = MagicMock(exists=True)
         snapshot.to_dict.return_value = {"attempt_count": MAX_FAILED_LOGIN_ATTEMPTS - 1, "email_hash": "h"}
         mock_db.collection.return_value.document.return_value.get.return_value = snapshot
 
-        mock_firestore = MagicMock()
-        mock_firestore.transactional = lambda fn: fn
         with patch("src.services.auth_service._db", mock_db):
-            with patch.dict("sys.modules", {"google.cloud.firestore": mock_firestore, "google.cloud": MagicMock(firestore=mock_firestore)}):
-                AuthService.record_failed_attempt("x@x.com")
+            AuthService.record_failed_attempt("x@x.com")
+
+        assert len(txn.writes) == 1
+        payload = txn.writes[0][1]
+        assert payload["attempt_count"] == MAX_FAILED_LOGIN_ATTEMPTS
+        assert payload["lockout_until"] is not None
 
 
 # ── auth_service.py: reset_failed_attempts success (line 903) ──

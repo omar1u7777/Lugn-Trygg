@@ -366,8 +366,13 @@ def warmup_firestore():
         logger.warning(f"🔥 Firestore warmup skipped: {e}")
 
 
-# CRITICAL: Warmup Firestore on module load to reduce first-request latency
-warmup_firestore()
+# Warmup Firestore on module load to reduce first-request latency — but ONLY
+# outside Gunicorn: under preload_app=True this module imports in the ARBITER,
+# and issuing a gRPC RPC pre-fork taints the channel for every forked worker
+# (gRPC is not fork-safe → intermittent worker hangs). Under Gunicorn each
+# worker warms up its own channel via post_worker_init instead.
+if os.getenv("GUNICORN_MANAGED", "").lower() != "true":
+    warmup_firestore()
 
 
 def safe_firestore_operation(operation_func, *args, **kwargs):

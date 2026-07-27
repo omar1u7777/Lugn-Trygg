@@ -14,6 +14,7 @@ import {
   deleteAllUserData,
 } from '../utils/encryptionService';
 import { trackEvent } from '../services/analytics';
+import { tokenStorage, secureStorage, purgeUserScopedStorage } from '../utils/secureStorage';
 import { ArrowDownTrayIcon, EyeSlashIcon, LockClosedIcon, TrashIcon, ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
 
@@ -115,7 +116,11 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
       logger.debug('✅ Data deletion completed successfully');
       trackEvent('data_deleted', { userId });
       
-      // Clear auth state and redirect
+      // Clear auth state through the storage abstraction so in-memory tokens,
+      // encrypted user profile, per-user caches AND legacy raw keys all go.
+      tokenStorage.clearTokens();
+      secureStorage.removeItem('user');
+      purgeUserScopedStorage();
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       

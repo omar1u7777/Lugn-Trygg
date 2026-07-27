@@ -106,6 +106,17 @@ class VectorStore:
             logger.error(f"Failed to initialize Pinecone: {e}")
             self.use_pinecone = False
 
+    @property
+    def retrieval_enabled(self) -> bool:
+        """True only when a REAL embedding model is loaded.
+
+        Without it, embed_text returns a zero vector, so every similarity is
+        meaningless and retrieval/indexing is pure waste (~71 Firestore reads +
+        1 write per chat message for zero possible useful results). Callers use
+        this to skip the RAG pipeline entirely.
+        """
+        return self.embedding_model is not None
+
     def embed_text(self, text: str) -> list[float]:
         """Generate embedding for text."""
         if self.embedding_model is None:
@@ -218,7 +229,23 @@ class RAGService:
     def __init__(self):
         logger.info("🧠 Initializing RAG Service...")
         self.vector_store = VectorStore()
+        if not self.vector_store.retrieval_enabled:
+            # One clear signal at startup instead of silent per-message waste.
+            from src.utils.telemetry import telemetry
+            telemetry.degraded(
+                feature="rag_retrieval",
+                reason="no_embedding_model",
+                consequence="RAG retrieval/indexing disabled; chat runs without vector memory",
+            )
+            logger.warning(
+                "⚠️ RAG retrieval DISABLED (no embedding model) — indexing and "
+                "retrieval are short-circuited to avoid ~71 wasted Firestore reads/message."
+            )
         logger.info("✅ RAG Service initialized")
+
+    @property
+    def enabled(self) -> bool:
+        return self.vector_store.retrieval_enabled
 
     def index_conversation(self, user_id: str, conversation_id: str,
                           messages: list[dict], outcome: str = "neutral"):
@@ -231,6 +258,10 @@ class RAGService:
             messages: List of message dicts with role and content
             outcome: 'positive', 'neutral', 'negative', 'crisis'
         """
+        # No embedding model → indexing produces zero-vectors that can never be
+        # retrieved. Skip the write entirely.
+        if not self.enabled:
+            return
         try:
             # Concatenate user messages for embedding
             user_messages = [m['content'] for m in messages if m.get('role') == 'user']
@@ -276,6 +307,8 @@ class RAGService:
             context: When/where this strategy was used
             effectiveness: 0.0 to 1.0 rating of how well it worked
         """
+        if not self.enabled:
+            return
         try:
             embedding = self.vector_store.embed_text(f"{strategy} {context}")
 
@@ -299,6 +332,12 @@ class RAGService:
 
     def index_goal_progress(self, user_id: str, goal: str, progress: str):
         """Index treatment goal and progress."""
+        # No embedding model → this would write a zero-vector doc that can
+        # never be meaningfully retrieved (same waste the other three
+        # index_*/generate_augmented_prompt guards remove). Currently unused
+        # by any caller, but guarded so it can't regress the moment it is wired up.
+        if not self.enabled:
+            return
         try:
             embedding = self.vector_store.embed_text(goal)
 
@@ -389,6 +428,11 @@ class RAGService:
         This is the main RAG function - it personalizes the AI's response
         by adding user-specific context to the system prompt.
         """
+        # No embedding model → retrieval returns nothing useful but still costs
+        # ~71 Firestore reads. Return the base prompt unchanged.
+        if not self.enabled:
+            return base_system_prompt
+
         # Retrieve context
         context = self.retrieve_context(user_id, current_message)
 
