@@ -28,7 +28,7 @@ cryptography==49.0.0
 bleach==6.4.0
 
 # Caching & Rate Limiting
-redis==7.1.0
+redis==8.0.1
 
 # Server
 waitress==3.0.2
