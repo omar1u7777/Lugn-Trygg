@@ -67,7 +67,7 @@ jobs:
           echo "Build artifact verified: dist/index.html exists"
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         if: always() && env.CODECOV_TOKEN != ''
         continue-on-error: true
         with:
@@ -116,7 +116,7 @@ jobs:
           sarif_file: 'trivy-frontend.sarif'
 
       - name: Gitleaks secret scan
-        uses: gitleaks/gitleaks-action@v2.3.7
+        uses: gitleaks/gitleaks-action@v3.0.0
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
