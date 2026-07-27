@@ -37,7 +37,7 @@ waitress==3.0.2
 openai==1.58.1
 
 # AI & ML - Google Cloud (pinned, minimal)
-google-cloud-speech==2.38.0
+google-cloud-speech==2.40.0
 google-cloud-language==2.20.0
 google-cloud-storage==3.13.0
 
