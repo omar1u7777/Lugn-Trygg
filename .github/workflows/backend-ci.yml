@@ -25,10 +25,10 @@ jobs:
         working-directory: ./Backend
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -59,7 +59,7 @@ jobs:
         run: pytest --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=45 --tb=short -q
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: backend-coverage
@@ -68,7 +68,7 @@ jobs:
           retention-days: 7
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         if: always() && env.CODECOV_TOKEN != ''
         continue-on-error: true
         with:
@@ -87,12 +87,12 @@ jobs:
       actions: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -105,7 +105,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Bandit report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: bandit-report
@@ -118,7 +118,7 @@ jobs:
           pip-audit -r Backend/requirements.txt --strict
 
       - name: Trivy filesystem scan (BLOCKING on CRITICAL)
-        uses: aquasecurity/trivy-action@v0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: 'fs'
           scan-ref: './Backend'
@@ -136,7 +136,7 @@ jobs:
           sarif_file: 'trivy-backend.sarif'
 
       - name: Gitleaks secret scan (BLOCKING)
-        uses: gitleaks/gitleaks-action@v2.3.7
+        uses: gitleaks/gitleaks-action@v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -168,10 +168,10 @@ jobs:
         working-directory: ./Backend
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -230,7 +230,7 @@ jobs:
         run: python tests/e2e_live_test.py
 
       - name: Upload production-like server log
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: backend-waitress-log
