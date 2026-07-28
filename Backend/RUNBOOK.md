@@ -340,3 +340,26 @@ curl -H "Authorization: Bearer $RENDER_API_KEY" \
   first Prometheus metric). No operator action needed as long as deploys go
   through `gunicorn -c gunicorn_config.py main:app` exactly as `render.yaml`
   specifies — don't bypass this entrypoint.
+
+## 9. Known deferred tech debt
+
+### 9a. React Router v6 → v7 (Dependabot #233, #234) — deliberately not done
+
+Two open Dependabot alerts on `react-router-dom`/`react-router` (currently
+pinned at `^6.30.3`), both requiring a v7 migration to fix, not a patch bump:
+
+- **#233** (moderate, open redirect → XSS, `react-router-dom`): **no fix
+  released upstream yet** at any version — migrating to v7 today would not
+  even resolve this one.
+- **#234** (moderate, arbitrary constructor injection via `deserializeErrors()`
+  during SSR hydration, `react-router`): only reachable through React Router's
+  data-router SSR hydration path. This app is a pure Vite SPA — no
+  server-side rendering, no data-router loaders — so this code path is not
+  exercised in production regardless of version.
+
+Decision: defer. Both are Moderate severity, neither is confirmed practically
+exploitable in this app's actual deployment, and #233 can't be fixed by
+upgrading anyway. Revisit as a dedicated migration (package rename
+`react-router-dom` → `react-router`, import updates, full routing regression
+test) once #233 has an upstream fix, rather than folding it into routine
+dependency maintenance.
