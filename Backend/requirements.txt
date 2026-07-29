@@ -112,7 +112,7 @@ python-dateutil==2.9.0.post0
 pytz==2025.2
 
 # Two-Factor Authentication
-pyotp==2.9.0
+pyotp==2.10.0
 qrcode[pil]==8.0
 webauthn==2.7.0
 pyOpenSSL==26.3.0
