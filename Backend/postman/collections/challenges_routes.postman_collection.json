@@ -1,0 +1,822 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Challenges API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "e7f2a9c4-3d6b-4a81-9f5c-2b7e4d8a1c93",
+    "description": "E2E test collection for team-based wellness challenges routes (src/routes/challenges_routes.py). Covers list/get challenges, join/leave/contribute (negative paths only are executed live), per-user challenge lookup with ownership check, and the maintenance cleanup endpoint. Requests that would write real progress/membership into the shared, production community challenges (visible to real other app users) are kept in a dedicated 'Not Executed For Safety' folder and are NOT run in the live audit."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    },
+    {
+      "key": "challengeId",
+      "value": ""
+    },
+    {
+      "key": "challengeCategory",
+      "value": ""
+    },
+    {
+      "key": "secondChallengeId",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-challenges_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Challenges Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  const responseData = body.data || body;",
+                  "  if (responseData.accessToken) pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  if (responseData.user && responseData.user.id) pm.collectionVariables.set('userId', responseData.user.id);",
+                  "  else if (responseData.userId) pm.collectionVariables.set('userId', responseData.userId);",
+                  "  console.log('Registered new user, will login next for tokens');",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-challenges_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 or 429 (rate limited)', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || (responseData.user && responseData.user.id) || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Read Challenges",
+      "item": [
+        {
+          "name": "GET /challenges - List active challenges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('List challenges returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data || body;",
+                  "",
+                  "  pm.test('Response has challenges array', () => {",
+                  "    pm.expect(data.challenges).to.be.an('array');",
+                  "  });",
+                  "",
+                  "  const list = data.challenges || [];",
+                  "  if (list.length > 0) {",
+                  "    pm.collectionVariables.set('challengeId', list[0].id);",
+                  "    pm.collectionVariables.set('challengeCategory', list[0].category || 'mood');",
+                  "    console.log('Captured challengeId=' + list[0].id + ' category=' + list[0].category);",
+                  "  } else {",
+                  "    // Fallback to a known seeded default so later requests still have a valid id",
+                  "    pm.collectionVariables.set('challengeId', 'mood-marathon-weekly');",
+                  "    pm.collectionVariables.set('challengeCategory', 'mood');",
+                  "    console.log('No active challenges returned; falling back to default seeded challenge id');",
+                  "  }",
+                  "  if (list.length > 1) {",
+                  "    pm.collectionVariables.set('secondChallengeId', list[1].id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /challenges/{{challengeId}} - Get challenge by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/{{challengeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "{{challengeId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Get challenge by id returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data || body;",
+                  "  pm.test('Challenge object has expected shape', () => {",
+                  "    pm.expect(data.challenge).to.be.an('object');",
+                  "    pm.expect(data.challenge.id).to.eql(pm.collectionVariables.get('challengeId'));",
+                  "    pm.expect(data.challenge).to.have.property('goal');",
+                  "    pm.expect(data.challenge).to.have.property('members');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /challenges/<unknown-id> - 404 for unknown challenge",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/nonexistent-challenge-e2e-test-xyz",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "nonexistent-challenge-e2e-test-xyz"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unknown challenge id returns 404', () => {",
+                  "  pm.expect(pm.response.code).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /challenges - No auth",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// PUBLIC_CHALLENGES_GET env flag controls whether auth is required for GET;",
+                  "// accept either behavior but the response must not be a server error.",
+                  "pm.test('No-auth list returns 200 (public) or 401 (auth required), not 5xx', () => {",
+                  "  pm.expect([200, 401]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Join Challenge - Negative Paths",
+      "item": [
+        {
+          "name": "POST /challenges/{{challengeId}}/join - No auth",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/{{challengeId}}/join",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "{{challengeId}}", "join"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"E2E Challenges Tester\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Join without auth returns 401', () => {",
+                  "  pm.expect(pm.response.code).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /challenges/<unknown-id>/join - Nonexistent challenge",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/nonexistent-challenge-e2e-test-xyz/join",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "nonexistent-challenge-e2e-test-xyz", "join"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"E2E Challenges Tester\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// This does not write anywhere - the transaction reads the doc, finds it",
+                  "// missing, and raises a 404 before any transaction.set/update call.",
+                  "pm.test('Join nonexistent challenge returns 404', () => {",
+                  "  pm.expect(pm.response.code).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Contribute - Negative Paths",
+      "item": [
+        {
+          "name": "POST /challenges/{{challengeId}}/contribute - No auth",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/{{challengeId}}/contribute",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "{{challengeId}}", "contribute"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"mood\",\n  \"amount\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Contribute without auth returns 401', () => {",
+                  "  pm.expect(pm.response.code).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /challenges/{{challengeId}}/contribute - Invalid type",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/{{challengeId}}/contribute",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "{{challengeId}}", "contribute"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"invalid_type_xyz\",\n  \"amount\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Type validation happens before any Firestore read/write - safe, no state change.",
+                  "pm.test('Invalid contribution type returns 400', () => {",
+                  "  pm.expect(pm.response.code).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /challenges/{{challengeId}}/contribute - Not a member",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/{{challengeId}}/contribute",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "{{challengeId}}", "contribute"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"mood\",\n  \"amount\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Our test user was never joined to this challenge (join happy-path is",
+                  "// intentionally skipped for safety), so the membership check must reject",
+                  "// this before any Firestore write happens.",
+                  "pm.test('Contribute as non-member returns 400', () => {",
+                  "  pm.expect(pm.response.code).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /challenges/<unknown-id>/contribute - Nonexistent challenge",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/nonexistent-challenge-e2e-test-xyz/contribute",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "nonexistent-challenge-e2e-test-xyz", "contribute"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"mood\",\n  \"amount\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Contribute to nonexistent challenge returns 404', () => {",
+                  "  pm.expect(pm.response.code).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. User Challenges",
+      "item": [
+        {
+          "name": "GET /challenges/user/{{userId}} - Get own challenges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/user/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "user", "{{userId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Get own user challenges returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data || body;",
+                  "  pm.test('Response has challenges array', () => {",
+                  "    pm.expect(data.challenges).to.be.an('array');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /challenges/user/<other-user-id> - Forbidden",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/user/some-other-users-fake-id-e2e",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "user", "some-other-users-fake-id-e2e"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Requesting another user\\'s challenges returns 403', () => {",
+                  "  pm.expect(pm.response.code).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /challenges/user/{{userId}} - No auth",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/user/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "user", "{{userId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get user challenges without auth returns 401', () => {",
+                  "  pm.expect(pm.response.code).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Maintenance",
+      "item": [
+        {
+          "name": "POST /challenges/maintenance/cleanup - Trigger cleanup",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/maintenance/cleanup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "maintenance", "cleanup"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// NOTE: this route only requires a valid JWT - there is no admin/role",
+                  "// check, so any authenticated user can trigger this ops maintenance task.",
+                  "// It is idempotent and safe (only flips already-expired challenges to",
+                  "// active=false, the same work every GET already performs inline).",
+                  "pm.test('Maintenance cleanup returns 200', () => {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /challenges/maintenance/cleanup - No auth",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/maintenance/cleanup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "maintenance", "cleanup"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Maintenance cleanup without auth returns 401', () => {",
+                  "  pm.expect(pm.response.code).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Not Executed For Safety (Reference Only)",
+      "description": "Requests in this folder are intentionally NOT run in the live audit. The four default challenges seeded on this backend (mood-marathon-weekly, meditation-masters, journal-journey, streak-warriors) are shared, production, cross-user community challenges - their members[] list, team_size and current_progress are visible to and shared with real other app users. join/contribute happy paths perform a real Firestore write against that shared document (adding a member, incrementing progress, and potentially flipping a shared challenge's completed=true), and leave() unconditionally calls challenge_ref.update() on the same shared doc even as a no-op. These are kept here as reference for a human to run deliberately against a disposable/test challenge id.",
+      "item": [
+        {
+          "name": "[SKIPPED] POST /challenges/{{challengeId}}/join - Join real shared community challenge",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/{{challengeId}}/join",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "{{challengeId}}", "join"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"E2E Challenges Tester\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Not executed in the automated run. Would add this test user to the",
+                  "// members[] array of a real, shared production challenge (visible to",
+                  "// real other users) and increment team_size. Skipped for safety."
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[SKIPPED] POST /challenges/{{challengeId}}/join - Join again (already joined)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/{{challengeId}}/join",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "{{challengeId}}", "join"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"E2E Challenges Tester\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Depends on the real join above having already run. Would assert 400",
+                  "// 'Already joined this challenge'. Skipped for safety (depends on a",
+                  "// skipped request)."
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[SKIPPED] POST /challenges/{{challengeId}}/contribute - Valid contribution to real shared challenge",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/{{challengeId}}/contribute",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "{{challengeId}}", "contribute"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"{{challengeCategory}}\",\n  \"amount\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Not executed. Would increment current_progress on a real shared",
+                  "// community challenge and could flip completed=true for the whole",
+                  "// team if it pushed progress past goal. Skipped for safety."
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[SKIPPED] POST /challenges/{{challengeId}}/contribute - Wrong category (requires real join)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/{{challengeId}}/contribute",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "{{challengeId}}", "contribute"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"journal\",\n  \"amount\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The category-mismatch branch is only reachable once the user is a",
+                  "// real member (see contribute_to_challenge: membership is checked",
+                  "// before category), so this requires the skipped real join above.",
+                  "// Skipped for safety."
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[SKIPPED] POST /challenges/{{challengeId}}/leave - Leave challenge",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/{{challengeId}}/leave",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "{{challengeId}}", "leave"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// leave_challenge() unconditionally calls challenge_ref.update() on the",
+                  "// real shared challenge document (re-persisting members/team_size) even",
+                  "// when the caller was never a member, so it always writes to the shared",
+                  "// resource. Skipped for safety - pair with the skipped join above if a",
+                  "// human runs this deliberately."
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,674 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - AI Routes API (Story & Forecast)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "d3f6a1b2-8c4e-4a7d-9f21-5e6b8c1a2f70",
+    "description": "E2E audit collection for src/routes/ai_routes.py: POST /api/v1/ai/story, POST /api/v1/ai/forecast, GET /api/v1/ai/stories, GET /api/v1/ai/forecasts. Uses a dedicated e2e-ai_routes test account, chains the JWT via collection variables, and covers success + negative paths (no auth, invalid body)."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://lugn-trygg-backend.onrender.com" },
+    { "key": "accessToken", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "testEmail", "value": "" },
+    { "key": "testPassword", "value": "AuditP@ss2026x!" },
+    { "key": "testUuid", "value": "" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate a unique suffix for this run if not already set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "if (!pm.collectionVariables.get('testEmail')) {",
+          "  pm.collectionVariables.set('testEmail', 'e2e-ai_routes-' + pm.collectionVariables.get('testUuid') + '@test.lugntrygg.se');",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "auth", "register" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E AI Routes Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "// 201 = created, 409 = already exists (re-run), 429 = shared rate limit across concurrent audit agents",
+                  "pm.test('Register returns 201, 409 or 429', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  console.log('Registered new user ' + pm.collectionVariables.get('testEmail'));",
+                  "} else if (status === 409) {",
+                  "  console.log('User already existed, proceeding to login');",
+                  "} else if (status === 429) {",
+                  "  console.log('Rate limited on register, will rely on login (may fail if user was never created)');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "auth", "login" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 (or 429 if rate limited)', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken || '');",
+                  "  pm.collectionVariables.set('userId', responseData.userId || (responseData.user && responseData.user.id) || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. AI - Story Generation",
+      "item": [
+        {
+          "name": "POST /ai/story - Generate story (sv locale)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/story",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "story" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"locale\": \"sv\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "// 200 = success, 403 = account not on premium/trial plan (valid gating, not a bug),",
+                  "// 429 = shared rate limit. A brand new account should get a 14-day trial so 200 is expected.",
+                  "pm.test('Story returns 200 or 403 (premium gate) or 429', () => {",
+                  "  pm.expect([200, 403, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Story response has expected fields', () => {",
+                  "    pm.expect(responseData.story).to.be.a('string');",
+                  "    pm.expect(responseData.story.length).to.be.above(0);",
+                  "    pm.expect(responseData.locale).to.eql('sv');",
+                  "    pm.expect(responseData).to.have.property('aiGenerated');",
+                  "    pm.expect(responseData).to.have.property('generatedAt');",
+                  "  });",
+                  "} else if (status === 403) {",
+                  "  pm.test('Premium-required error has expected shape', () => {",
+                  "    pm.expect(body.error || body.errorCode).to.exist;",
+                  "  });",
+                  "}",
+                  "console.log('Story (sv) status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/story - Generate story (en locale)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/story",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "story" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"locale\": \"en\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Story (en) returns 200 or 403 (premium gate) or 429', () => {",
+                  "  pm.expect([200, 403, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Story locale echoes en', () => {",
+                  "    pm.expect(responseData.locale).to.eql('en');",
+                  "  });",
+                  "}",
+                  "console.log('Story (en) status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/story - Invalid locale falls back to sv",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/story",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "story" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"locale\": \"xx-not-a-locale\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Invalid locale returns 200 or 403 (premium gate) or 429', () => {",
+                  "  pm.expect([200, 403, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Unknown locale falls back to sv', () => {",
+                  "    pm.expect(responseData.locale).to.eql('sv');",
+                  "  });",
+                  "}",
+                  "console.log('Story (invalid locale) status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /ai/stories - Story history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/stories",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "stories" ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Story history returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Story history has stories array', () => {",
+                  "  pm.expect(responseData.stories).to.be.an('array');",
+                  "});",
+                  "",
+                  "console.log('Stories in history: ' + (responseData.stories || []).length);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. AI - Mood Forecast",
+      "item": [
+        {
+          "name": "POST /ai/forecast - Generate forecast (default days)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/forecast",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "forecast" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"days_ahead\": 7,\n  \"use_sklearn\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Forecast returns 200 or 403 (premium gate) or 429', () => {",
+                  "  pm.expect([200, 403, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Forecast response has expected fields', () => {",
+                  "    pm.expect(responseData.forecast).to.exist;",
+                  "    pm.expect(responseData.forecastPeriodDays).to.eql(7);",
+                  "    pm.expect(responseData).to.have.property('dataPointsUsed');",
+                  "    pm.expect(responseData).to.have.property('generatedAt');",
+                  "  });",
+                  "}",
+                  "console.log('Forecast status=' + status + ' dataPointsUsed=' + (responseData && responseData.dataPointsUsed));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/forecast - days_ahead clamped high (100 -> 30)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/forecast",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "forecast" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"days_ahead\": 100\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Forecast (days=100) returns 200 or 403 (premium gate) or 429', () => {",
+                  "  pm.expect([200, 403, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('days_ahead is clamped to 30', () => {",
+                  "    pm.expect(responseData.forecastPeriodDays).to.eql(30);",
+                  "  });",
+                  "}",
+                  "console.log('Forecast (days=100) status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/forecast - days_ahead clamped low (-5 -> 1)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/forecast",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "forecast" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"days_ahead\": -5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Forecast (days=-5) returns 200 or 403 (premium gate) or 429', () => {",
+                  "  pm.expect([200, 403, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('days_ahead is clamped to 1', () => {",
+                  "    pm.expect(responseData.forecastPeriodDays).to.eql(1);",
+                  "  });",
+                  "}",
+                  "console.log('Forecast (days=-5) status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /ai/forecasts - Forecast history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/forecasts",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "forecasts" ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Forecast history returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Forecast history has forecasts array', () => {",
+                  "  pm.expect(responseData.forecasts).to.be.an('array');",
+                  "});",
+                  "",
+                  "console.log('Forecasts in history: ' + (responseData.forecasts || []).length);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Negative Tests",
+      "item": [
+        {
+          "name": "OPTIONS /ai/story - CORS preflight (expect 204)",
+          "request": {
+            "method": "OPTIONS",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/story",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "story" ]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('OPTIONS preflight returns 204', () => {",
+                  "  pm.expect(status).to.eql(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/story - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/story",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "story" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"locale\": \"sv\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/forecast - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/forecast",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "forecast" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"days_ahead\": 7\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /ai/stories - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/stories",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "stories" ]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /ai/forecasts - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/forecasts",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "forecasts" ]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/story - Invalid body (array, expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/story",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "story" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[1, 2, 3]"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Non-dict JSON body returns 400', () => {",
+                  "  pm.expect([400, 422]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/forecast - Invalid body (array, expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/forecast",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "ai", "forecast" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[1, 2, 3]"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Non-dict JSON body returns 400', () => {",
+                  "  pm.expect([400, 422]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
