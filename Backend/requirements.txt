@@ -99,7 +99,7 @@ flasgger==0.9.7.1
 # Monitoring & Logging
 prometheus-client==0.26.0
 sentry-sdk[flask]==2.52.0
-structlog==25.5.0
+structlog==26.1.0
 python-json-logger==4.0.0
 
 # Health Data Integration
