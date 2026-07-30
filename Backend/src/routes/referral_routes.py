@@ -286,7 +286,10 @@ def complete_referral():
 def get_leaderboard():
     """Get top referrers leaderboard"""
     try:
-        limit = int(request.args.get("limit", 10))
+        try:
+            limit = int(request.args.get("limit", 10))
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("limit must be an integer")
         limit = min(limit, 100)  # Max 100 results
 
         # Query top referrers by successful_referrals

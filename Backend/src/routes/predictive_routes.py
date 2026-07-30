@@ -106,7 +106,10 @@ def get_mood_predictions():
         if not user_id:
             return APIResponse.unauthorized("Authentication required")
 
-        days_ahead = int(request.args.get('days', 7))
+        try:
+            days_ahead = int(request.args.get('days', 7))
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("days must be an integer")
 
         # Validate days parameter
         if days_ahead < 1 or days_ahead > 30:

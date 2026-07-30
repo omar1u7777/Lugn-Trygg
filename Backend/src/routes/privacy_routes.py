@@ -962,7 +962,10 @@ def get_breach_history():
         if not user_doc.exists or user_doc.to_dict().get('role') != 'admin':
             return APIResponse.forbidden("Admin privileges required")
 
-        limit = min(int(request.args.get('limit', 50)), 100)  # Cap at 100
+        try:
+            limit = min(int(request.args.get('limit', 50)), 100)  # Cap at 100
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("limit must be an integer")
 
         if breach_notification_service is None:
             return APIResponse.error("Breach notification service unavailable", "SERVICE_UNAVAILABLE", 503)

@@ -326,7 +326,10 @@ def get_messages(room_id: str):
 
         # Get last_message_id for incremental updates
         last_message_id = request.args.get('after')
-        limit = min(int(request.args.get('limit', 20)), 50)  # Cap at 50
+        try:
+            limit = min(int(request.args.get('limit', 20)), 50)  # Cap at 50
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("limit must be an integer")
         session_id = request.args.get('session_id')
 
         if not session_id:
