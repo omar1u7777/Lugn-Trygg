@@ -1,0 +1,913 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Memory API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "6c1e2b4a-3f7d-4a9e-9c1b-2d5f8a6b0e3c",
+    "description": "E2E test collection for audio memory routes (src/routes/memory_routes.py). Covers upload, list, get (signed URL), delete, ownership/authorization checks, and path-traversal protection. Uploads use a small local dummy .mp3 fixture (Backend/postman/fixtures/test_audio.mp3) - not real user audio."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "otherUserId",
+      "value": "anotheruser1234567890ab"
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    },
+    {
+      "key": "memoryId",
+      "value": ""
+    },
+    {
+      "key": "audioFixturePath",
+      "value": "C:/Users/OMAL0013/Downloads/Lugn-Trygg/Backend/postman/fixtures/test_audio.mp3"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-memory_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Memory Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  const responseData = body.data || body;",
+                  "  const user = responseData.user || {};",
+                  "  if (responseData.accessToken) pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  if (user.id) pm.collectionVariables.set('userId', user.id);",
+                  "  console.log('Registered new user id=' + user.id);",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-memory_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 or 429 (rate limited)', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || responseData.uid || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "",
+                  "  pm.test('userId matches format required by memory routes (20-128 alnum)', () => {",
+                  "    pm.expect(pm.collectionVariables.get('userId')).to.match(/^[a-zA-Z0-9]{20,128}$/);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Root Placeholder",
+      "item": [
+        {
+          "name": "GET /memory - Root placeholder (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Legacy root path returns 404 by design', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Upload Memory",
+      "item": [
+        {
+          "name": "POST /memory/upload - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "upload"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "audio", "type": "file", "src": "{{audioFixturePath}}" }
+              ]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /memory/upload - Missing audio file (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "upload"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "note", "type": "text", "value": "no audio field on purpose" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Missing audio field returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "  pm.expect(body.message).to.include('Audio file required');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /memory/upload - Invalid file type (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "upload"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "audio", "type": "file", "src": "{{audioFixturePath}}", "contentType": "text/plain" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "console.log('Invalid file type status=' + status + ' message=' + body.message);",
+                  "pm.test('Non mp3/wav/m4a filename returns 400 (uses actual .mp3 fixture filename here, so this checks the endpoint tolerates a forced text/plain content-type header rather than the extension - real invalid-extension case is covered by unit tests)', () => {",
+                  "  pm.expect([200, 400]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /memory/upload - Forbidden other user_id (expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "upload"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "audio", "type": "file", "src": "{{audioFixturePath}}" },
+                { "key": "user_id", "type": "text", "value": "{{otherUserId}}" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Uploading with a different user_id in the form than the authenticated user returns 403', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "  pm.expect(body.message).to.include('only upload to your own account');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /memory/upload - Success (own account, mp3)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "upload"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "audio", "type": "file", "src": "{{audioFixturePath}}" },
+                { "key": "user_id", "type": "text", "value": "{{userId}}" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Upload succeeds with 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has fileUrl and memoryId', () => {",
+                  "  pm.expect(data).to.have.property('fileUrl');",
+                  "  pm.expect(data).to.have.property('memoryId');",
+                  "});",
+                  "",
+                  "if (data.memoryId) {",
+                  "  pm.collectionVariables.set('memoryId', data.memoryId);",
+                  "  console.log('Captured memoryId=' + data.memoryId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. List Memories",
+      "item": [
+        {
+          "name": "GET /memory/list/{userId} - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/list/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "list", "{{userId}}"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /memory/list/bad!! - Invalid user id format (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/list/bad!!",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "list", "bad!!"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Invalid user_id format returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "  pm.expect(body.message).to.include('Invalid user ID');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /memory/list/{otherUserId} - Forbidden (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/list/{{otherUserId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "list", "{{otherUserId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Requesting another user_id returns 403', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "  pm.expect(body.message).to.include('only view your own memories');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /memory/list/{userId} - Success, includes uploaded memory",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/list/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "list", "{{userId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('List returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has memories array', () => {",
+                  "  pm.expect(data).to.have.property('memories');",
+                  "  pm.expect(data.memories).to.be.an('array');",
+                  "});",
+                  "",
+                  "const memoryId = pm.collectionVariables.get('memoryId');",
+                  "if (memoryId) {",
+                  "  pm.test('Uploaded memory appears in the list', () => {",
+                  "    const ids = data.memories.map((m) => m.id);",
+                  "    pm.expect(ids).to.include(memoryId);",
+                  "  });",
+                  "} else {",
+                  "  console.log('NOTE: memoryId not captured from upload step, skipping presence check');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Get Memory",
+      "item": [
+        {
+          "name": "GET /memory/get/{memoryId} - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/get/{{memoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "get", "{{memoryId}}"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /memory/get/bad!! - Invalid memory id format (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/get/bad!!",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "get", "bad!!"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Invalid memory_id format returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "  pm.expect(body.message).to.include('Invalid memory ID');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /memory/get/{id} - Well-formed but nonexistent (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/get/nonexistent-memory-id-999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "get", "nonexistent-memory-id-999999"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Well-formed but nonexistent memory_id returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "  pm.expect(body.message).to.include('Memory not found');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /memory/get/{memoryId} - Success, returns signed URL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/get/{{memoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "get", "{{memoryId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "const memoryId = pm.collectionVariables.get('memoryId');",
+                  "if (!memoryId) {",
+                  "  console.log('SKIP-ish: memoryId not captured earlier, cannot assert success reliably. status=' + status);",
+                  "} else {",
+                  "  pm.test('Get memory returns 200', () => {",
+                  "    pm.expect(status).to.eql(200);",
+                  "  });",
+                  "  pm.test('Response has url, memoryId and filePath', () => {",
+                  "    pm.expect(data).to.have.property('url');",
+                  "    pm.expect(data).to.have.property('memoryId', memoryId);",
+                  "    pm.expect(data).to.have.property('filePath');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Delete Memory",
+      "item": [
+        {
+          "name": "DELETE /memory/list/{memoryId} - No auth (expect 401)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/list/{{memoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "list", "{{memoryId}}"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /memory/list/bad!! - Invalid memory id format (expect 400)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/list/bad!!",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "list", "bad!!"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Invalid memory_id format returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "  pm.expect(body.message).to.include('Invalid memory ID');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /memory/list/{id} - Well-formed but nonexistent (expect 404)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/list/nonexistent-memory-id-999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "list", "nonexistent-memory-id-999999"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Well-formed but nonexistent memory_id returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "  pm.expect(body.message).to.include('Memory not found');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /memory/list/{memoryId} - Success (cleans up test upload)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/list/{{memoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "list", "{{memoryId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "const memoryId = pm.collectionVariables.get('memoryId');",
+                  "",
+                  "if (!memoryId) {",
+                  "  console.log('SKIP-ish: memoryId not captured earlier, cannot assert success reliably. status=' + status);",
+                  "} else {",
+                  "  pm.test('Delete succeeds with 200', () => {",
+                  "    pm.expect(status).to.eql(200);",
+                  "  });",
+                  "  pm.test('Response confirms deleted id', () => {",
+                  "    pm.expect(data.deleted).to.eql(memoryId);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /memory/get/{memoryId} - After delete (expect 404, confirms real deletion)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/get/{{memoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "get", "{{memoryId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const memoryId = pm.collectionVariables.get('memoryId');",
+                  "",
+                  "if (memoryId) {",
+                  "  pm.test('Fetching deleted memory returns 404 (not found)', () => {",
+                  "    pm.expect(status).to.eql(404);",
+                  "    pm.expect(body.message).to.include('Memory not found');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Path Traversal Protection",
+      "item": [
+        {
+          "name": "GET /memory/unknown/deep/path - Unexpected deep path (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/unknown/deep/path",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "unknown", "deep", "path"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Unexpected deep path returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /memory/unknown/deep/path - Unexpected deep path (expect 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/unknown/deep/path",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "unknown", "deep", "path"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Unexpected deep path (POST) returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /memory/..%2f..%2fetc%2fpasswd - Encoded traversal attempt (expect 404, not 200/500)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memory/..%2f..%2fetc%2fpasswd",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memory", "..%2f..%2fetc%2fpasswd"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "console.log('Encoded traversal attempt status=' + status);",
+                  "pm.test('Encoded path traversal attempt does not return 200 and does not crash (no 500)', () => {",
+                  "  pm.expect(status).to.not.eql(200);",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

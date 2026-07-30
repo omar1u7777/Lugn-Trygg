@@ -1,0 +1,1099 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Mood Routes API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "6f2a8b4e-9c1d-4a7f-b3e6-2d5c9a1f8e40",
+    "description": "E2E test collection covering all routes in src/routes/mood_routes.py (registered under /api/v1/mood): mood logging (text/audio), text sentiment analysis, mood history retrieval/filtering, single-entry get/update/delete, recent/today/streaks/weekly-analysis, and the sklearn-based predictive forecast. All free-text mood/note fields use neutral, benign content ('Feeling okay today, went for a walk') to avoid triggering real crisis-detection alerts (which send real emails). Mood scores used are always >= 7 (well above the <=3 crisis threshold in log_mood())."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://lugn-trygg-backend.onrender.com" },
+    { "key": "accessToken", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "testEmail", "value": "" },
+    { "key": "testPassword", "value": "AuditP@ss2026x!" },
+    { "key": "testUuid", "value": "" },
+    { "key": "moodId", "value": "" },
+    { "key": "moodIdToDelete", "value": "" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "auth", "register" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-mood_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Mood Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  pm.collectionVariables.set('testEmail', 'e2e-mood_routes-' + pm.collectionVariables.get('testUuid') + '@test.lugntrygg.se');",
+                  "  console.log('Registered new mood_routes test user');",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "auth", "login" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-mood_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 or 429', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || (responseData.user && responseData.user.id) || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Mood Logging (write path)",
+      "item": [
+        {
+          "name": "POST /log - Log primary mood entry (JSON)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/log",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "log" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood_text\": \"Bra\",\n  \"note\": \"Feeling okay today, went for a walk\",\n  \"score\": 7,\n  \"valence\": 7,\n  \"arousal\": 5,\n  \"tags\": [\"walk\", \"outdoors\"],\n  \"context\": \"afternoon\",\n  \"timestamp\": \"2026-07-30T09:00:00Z\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Log mood returns 201 or 429 (daily quota)', () => {",
+                  "  pm.expect([201, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  pm.test('Response has moodEntry with id', () => {",
+                  "    pm.expect(responseData.moodEntry).to.exist;",
+                  "    pm.expect(responseData.moodEntry.id).to.be.a('string');",
+                  "  });",
+                  "  pm.collectionVariables.set('moodId', responseData.moodEntry.id);",
+                  "  console.log('Created moodId=' + responseData.moodEntry.id);",
+                  "} else {",
+                  "  console.log('Mood log quota reached (429) - acceptable, non-blocking for this run');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /log - Log second mood entry (for delete later)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/log",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "log" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood_text\": \"Glad\",\n  \"note\": \"Had a calm evening, listened to music\",\n  \"score\": 8,\n  \"tags\": [\"music\"],\n  \"context\": \"evening\",\n  \"timestamp\": \"2026-07-30T20:00:00Z\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Second log returns 201, 409 (dedup) or 429 (quota)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  pm.collectionVariables.set('moodIdToDelete', responseData.moodEntry.id);",
+                  "  console.log('Created moodIdToDelete=' + responseData.moodEntry.id);",
+                  "} else {",
+                  "  console.log('Second mood log not created (status=' + status + '), delete test will use a synthetic id');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /log - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/log",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "log" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood_text\": \"Bra\",\n  \"note\": \"Feeling fine\",\n  \"score\": 7\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /log - Empty body (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/log",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "log" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Empty body returns 400 (or 429 if quota already hit)', () => {",
+                  "  pm.expect([400, 429]).to.include(status);",
+                  "});",
+                  "pm.test('Empty body never 500s', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /analyze-text - Valid neutral text",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/analyze-text",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "analyze-text" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"I feel calm and relaxed after a walk in the park.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Analyze-text returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has sentiment field', () => {",
+                  "  pm.expect(responseData).to.have.property('sentiment');",
+                  "});",
+                  "",
+                  "console.log('Sentiment: ' + responseData.sentiment);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /analyze-text - Empty text (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/analyze-text",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "analyze-text" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Empty text returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /analyze-text - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/analyze-text",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "analyze-text" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"test\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Mood Retrieval",
+      "item": [
+        {
+          "name": "GET /test - Health check for mood routes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/test",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "test" ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Test route returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET / - List mood history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood" ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('List moods returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has moods array', () => {",
+                  "  pm.expect(body.moods).to.be.an('array');",
+                  "});",
+                  "",
+                  "console.log('Total moods returned: ' + (body.moods || []).length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET / - List with limit and sentiment filter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood?limit=5&sentiment=NEUTRAL",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood" ],
+              "query": [
+                { "key": "limit", "value": "5" },
+                { "key": "sentiment", "value": "NEUTRAL" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Filtered list returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Respects limit param', () => {",
+                  "  pm.expect(body.moods.length).to.be.at.most(5);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET / - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood" ]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /{{moodId}} - Get specific mood entry",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/{{moodId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "{{moodId}}" ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const moodId = pm.collectionVariables.get('moodId');",
+                  "if (!moodId) {",
+                  "  console.log('No moodId captured (previous log likely quota-limited) - skipping assertions');",
+                  "} else {",
+                  "  const status = pm.response.code;",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "",
+                  "  pm.test('Get mood returns 200', () => {",
+                  "    pm.expect(status).to.eql(200);",
+                  "  });",
+                  "",
+                  "  pm.test('Returned mood id matches requested id', () => {",
+                  "    pm.expect(responseData.mood.id).to.eql(moodId);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /{{mood_id}} - Invalid ID format (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/xyz",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "xyz" ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Invalid mood ID format returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /{{mood_id}} - Well-formed but nonexistent (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/nonexistent0000000001",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "nonexistent0000000001" ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Nonexistent mood id returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /recent - Recent moods (last 7 days)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/recent",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "recent" ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Recent moods returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Recent moods has array and period', () => {",
+                  "  pm.expect(responseData.moods).to.be.an('array');",
+                  "  pm.expect(responseData.period).to.eql('last7Days');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /today - Today's mood",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/today",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "today" ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Today mood returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has hasMoodToday boolean', () => {",
+                  "  pm.expect(responseData).to.have.property('hasMoodToday');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /streaks - Mood logging streaks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/streaks",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "streaks" ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Streaks returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Streaks has currentStreak and longestStreak', () => {",
+                  "  pm.expect(responseData).to.have.property('currentStreak');",
+                  "  pm.expect(responseData).to.have.property('longestStreak');",
+                  "});",
+                  "",
+                  "console.log('Current streak: ' + responseData.currentStreak);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /weekly-analysis - Weekly mood analysis",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/weekly-analysis",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "weekly-analysis" ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Weekly analysis returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Weekly analysis has totalMoods and trend', () => {",
+                  "  pm.expect(responseData).to.have.property('totalMoods');",
+                  "  pm.expect(responseData).to.have.property('trend');",
+                  "});",
+                  "",
+                  "console.log('Weekly analysis trend: ' + responseData.trend);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /predictive-forecast - Default 7-day forecast",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/predictive-forecast",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "predictive-forecast" ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Forecast returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Forecast has forecast/riskFactors/recommendations', () => {",
+                  "  pm.expect(responseData).to.have.property('forecast');",
+                  "  pm.expect(responseData).to.have.property('riskFactors');",
+                  "  pm.expect(responseData).to.have.property('recommendations');",
+                  "});",
+                  "",
+                  "pm.test('forecastPeriodDays defaults to 7', () => {",
+                  "  pm.expect(responseData.forecastPeriodDays).to.eql(7);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /predictive-forecast - days_ahead=14",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/predictive-forecast?days_ahead=14",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "predictive-forecast" ],
+              "query": [ { "key": "days_ahead", "value": "14" } ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Forecast with days_ahead=14 returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('forecastPeriodDays reflects requested value', () => {",
+                  "  pm.expect(responseData.forecastPeriodDays).to.eql(14);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OPTIONS /predictive-forecast - CORS preflight",
+          "request": {
+            "method": "OPTIONS",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/predictive-forecast",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "predictive-forecast" ]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('OPTIONS preflight returns 204', () => {",
+                  "  pm.expect(status).to.eql(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /predictive-forecast - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/predictive-forecast",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "predictive-forecast" ]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Mood Update & Delete",
+      "item": [
+        {
+          "name": "PUT /{{moodId}} - Update mood text",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/{{moodId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "{{moodId}}" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood_text\": \"Neutral, calm afternoon\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const moodId = pm.collectionVariables.get('moodId');",
+                  "if (!moodId) {",
+                  "  console.log('No moodId captured - skipping update assertions');",
+                  "} else {",
+                  "  const status = pm.response.code;",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "",
+                  "  pm.test('Update mood returns 200', () => {",
+                  "    pm.expect(status).to.eql(200);",
+                  "  });",
+                  "",
+                  "  pm.test('Updated mood_text reflects new value', () => {",
+                  "    pm.expect(responseData.mood.mood_text).to.eql('Neutral, calm afternoon');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /{{mood_id}} - Invalid ID format (expect 400)",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/xyz",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "xyz" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood_text\": \"test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Invalid mood ID format returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /{{mood_id}} - Well-formed but nonexistent (expect 404)",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/nonexistent0000000001",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "nonexistent0000000001" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood_text\": \"test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Nonexistent mood id returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /{{moodId}} - No update data (expect 400)",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/{{moodId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "{{moodId}}" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const moodId = pm.collectionVariables.get('moodId');",
+                  "const status = pm.response.code;",
+                  "if (!moodId) {",
+                  "  console.log('No moodId captured - request hit invalid-format branch, skipping assertion');",
+                  "} else {",
+                  "  pm.test('No update data returns 400', () => {",
+                  "    pm.expect(status).to.eql(400);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /{{moodIdToDelete}} - Delete second mood entry",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/{{moodIdToDelete}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "{{moodIdToDelete}}" ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const moodIdToDelete = pm.collectionVariables.get('moodIdToDelete');",
+                  "if (!moodIdToDelete) {",
+                  "  console.log('No moodIdToDelete captured (second log was quota/dedup-limited) - skipping delete assertions');",
+                  "} else {",
+                  "  const status = pm.response.code;",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "",
+                  "  pm.test('Delete mood returns 200', () => {",
+                  "    pm.expect(status).to.eql(200);",
+                  "  });",
+                  "",
+                  "  pm.test('Deleted id matches requested id', () => {",
+                  "    pm.expect(responseData.deleted).to.eql(moodIdToDelete);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /{{mood_id}} - Already-deleted/nonexistent (expect 404)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/nonexistent0000000002",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "nonexistent0000000002" ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Nonexistent mood id returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /{{mood_id}} - No auth (expect 401)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/nonexistent0000000003",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "mood", "nonexistent0000000003" ]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

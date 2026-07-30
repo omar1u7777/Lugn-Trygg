@@ -376,7 +376,65 @@
       ]
     },
     {
-      "name": "3. Contribute - Negative Paths",
+      "name": "3. Leave Challenge - Negative Paths",
+      "item": [
+        {
+          "name": "POST /challenges/{{challengeId}}/leave - No auth",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/{{challengeId}}/leave",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "{{challengeId}}", "leave"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Leave without auth returns 401', () => {",
+                  "  pm.expect(pm.response.code).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /challenges/<unknown-id>/leave - Nonexistent challenge",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/challenges/nonexistent-challenge-e2e-test-xyz/leave",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "challenges", "nonexistent-challenge-e2e-test-xyz", "leave"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// doc.exists is False for an unknown id, so the route returns 404",
+                  "// before it ever calls challenge_ref.update() - safe, no write happens.",
+                  "pm.test('Leave nonexistent challenge returns 404', () => {",
+                  "  pm.expect(pm.response.code).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Contribute - Negative Paths",
       "item": [
         {
           "name": "POST /challenges/{{challengeId}}/contribute - No auth",
@@ -510,7 +568,7 @@
       ]
     },
     {
-      "name": "4. User Challenges",
+      "name": "5. User Challenges",
       "item": [
         {
           "name": "GET /challenges/user/{{userId}} - Get own challenges",
@@ -601,7 +659,7 @@
       ]
     },
     {
-      "name": "5. Maintenance",
+      "name": "6. Maintenance",
       "item": [
         {
           "name": "POST /challenges/maintenance/cleanup - Trigger cleanup",
@@ -661,7 +719,7 @@
       ]
     },
     {
-      "name": "6. Not Executed For Safety (Reference Only)",
+      "name": "7. Not Executed For Safety (Reference Only)",
       "description": "Requests in this folder are intentionally NOT run in the live audit. The four default challenges seeded on this backend (mood-marathon-weekly, meditation-masters, journal-journey, streak-warriors) are shared, production, cross-user community challenges - their members[] list, team_size and current_progress are visible to and shared with real other app users. join/contribute happy paths perform a real Firestore write against that shared document (adding a member, incrementing progress, and potentially flipping a shared challenge's completed=true), and leave() unconditionally calls challenge_ref.update() on the same shared doc even as a no-op. These are kept here as reference for a human to run deliberately against a disposable/test challenge id.",
       "item": [
         {
