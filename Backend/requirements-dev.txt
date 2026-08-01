@@ -13,7 +13,7 @@ flake8==7.1.1
 black==26.5.1
 pylint==3.3.2
 mypy==1.13.0
-ruff==0.8.3
+ruff==0.16.0
 pre-commit==4.0.1
 bandit==1.8.2
 safety==3.7.0
