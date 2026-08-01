@@ -15,6 +15,11 @@ from ..services.rate_limiting import rate_limit_by_endpoint
 from ..utils.input_sanitization import sanitize_text
 from ..utils.response_utils import APIResponse
 
+try:
+    from google.cloud import firestore as gcfirestore  # For atomic reward claims
+except Exception:
+    gcfirestore = None  # type: ignore
+
 # Validation pattern for user IDs
 USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
 
@@ -157,11 +162,9 @@ def _get_db():
         return None
 
 
-def _get_user_rewards(user_id: str):
-    """Get user's rewards data"""
-    db = _get_db()
-
-    default_data = {
+def _default_rewards_data(user_id: str) -> dict:
+    """Build a fresh rewards profile for a user with no existing document."""
+    return {
         'user_id': user_id,
         'xp': 0,
         'level': 1,
@@ -172,16 +175,22 @@ def _get_user_rewards(user_id: str):
         'created_at': datetime.now(UTC).isoformat()
     }
 
+
+def _get_user_rewards(user_id: str):
+    """Get user's rewards data"""
+    db = _get_db()
+
     if db:
         doc = db.collection('user_rewards').document(user_id).get()
         if doc.exists:
             return doc.to_dict()
         else:
             # Create new rewards profile
+            default_data = _default_rewards_data(user_id)
             db.collection('user_rewards').document(user_id).set(default_data)
             return default_data
 
-    return default_data
+    return _default_rewards_data(user_id)
 
 
 def _calculate_level(xp: int) -> int:
@@ -358,81 +367,147 @@ def claim_reward():
         if not reward.get('available', True):
             return APIResponse.bad_request("This reward cannot be purchased")
 
-        db = _get_db()
-        rewards_data = _get_user_rewards(user_id)
-
-        # Check if user has enough XP
-        user_xp = rewards_data.get('xp', 0)
         cost = reward.get('cost', 0)
+        db = _get_db()
 
-        if user_xp < cost:
-            return APIResponse.error(
-                f"Not enough XP. Need {cost}, have {user_xp}",
-                "INSUFFICIENT_XP",
-                400,
-                {"needed": cost, "have": user_xp}
-            )
+        def _build_update(rewards_data: dict) -> dict:
+            """Validate XP/claim state against `rewards_data` and compute the
+            fields to persist. Raises ValueError('XP:<have>') or
+            ValueError('CLAIMED') on failure so the transactional and
+            fallback paths below share one validation path."""
+            user_xp = rewards_data.get('xp', 0)
+            if user_xp < cost:
+                raise ValueError(f"XP:{user_xp}")
 
-        # Check if already claimed (for one-time rewards)
-        claimed = rewards_data.get('claimed_rewards', [])
-        if reward_id in claimed and reward.get('type') != 'premium_time':
-            return APIResponse.bad_request("Already claimed this reward")
+            claimed = list(rewards_data.get('claimed_rewards', []))
+            if reward_id in claimed and reward.get('type') != 'premium_time':
+                raise ValueError("CLAIMED")
 
-        # Deduct XP and add reward
-        new_xp = user_xp - cost
-        claimed.append(reward_id)
+            new_xp = user_xp - cost
+            claimed.append(reward_id)
 
-        update_data = {
-            'xp': new_xp,
-            'claimed_rewards': claimed,
-            'last_claim': datetime.now(UTC).isoformat()
-        }
+            update_data = {
+                'xp': new_xp,
+                'claimed_rewards': claimed,
+                'last_claim': datetime.now(UTC).isoformat()
+            }
 
-        # Handle premium time rewards
-        if reward.get('type') == 'premium_time':
-            current_premium = rewards_data.get('premium_until')
-            if current_premium:
-                # Extend existing premium
-                premium_date = datetime.fromisoformat(current_premium)
-                if premium_date.tzinfo is None:
-                    premium_date = premium_date.replace(tzinfo=UTC)
-                if premium_date < datetime.now(UTC):
-                    premium_date = datetime.now(UTC)
-                new_premium = premium_date + timedelta(days=reward.get('value', 7))
-            else:
-                new_premium = datetime.now(UTC) + timedelta(days=reward.get('value', 7))
+            # Handle premium time rewards
+            if reward.get('type') == 'premium_time':
+                current_premium = rewards_data.get('premium_until')
+                if current_premium:
+                    # Extend existing premium
+                    premium_date = datetime.fromisoformat(current_premium)
+                    if premium_date.tzinfo is None:
+                        premium_date = premium_date.replace(tzinfo=UTC)
+                    if premium_date < datetime.now(UTC):
+                        premium_date = datetime.now(UTC)
+                    new_premium = premium_date + timedelta(days=reward.get('value', 7))
+                else:
+                    new_premium = datetime.now(UTC) + timedelta(days=reward.get('value', 7))
 
-            update_data['premium_until'] = new_premium.isoformat()
+                update_data['premium_until'] = new_premium.isoformat()
 
+            # Handle badge rewards
+            if reward.get('type') == 'badge':
+                badges = list(rewards_data.get('badges', []))
+                if reward.get('value') not in badges:
+                    badges.append(reward.get('value'))
+                    update_data['badges'] = badges
+
+            return update_data
+
+        def _subscription_sync_payload(end_date: str) -> dict:
             # SYNC: Also update the user's subscription in the users collection
             # so subscription_service.get_plan_context() recognises the premium status
+            return {
+                'subscription': {
+                    'plan': 'premium',
+                    'status': 'active',
+                    'source': 'xp_reward',
+                    'end_date': end_date,
+                    'updated_at': datetime.now(UTC).isoformat(),
+                }
+            }
+
+        # Read-check-deduct must be atomic: without a transaction, two
+        # concurrent claim requests can both read the same XP balance and
+        # both pass the sufficiency check, letting a user claim more rewards
+        # (including premium_time, which also grants a premium subscription)
+        # than their XP actually covers.
+        if db and gcfirestore is not None:
+            rewards_ref = db.collection('user_rewards').document(user_id)  # type: ignore
+            users_ref = db.collection('users').document(user_id)  # type: ignore
+
+            @gcfirestore.transactional
+            def _txn(transaction):
+                snapshot = transaction.get(rewards_ref)
+                if snapshot.exists:
+                    rewards_data = snapshot.to_dict() or {}
+                    doc_exists = True
+                else:
+                    rewards_data = _default_rewards_data(user_id)
+                    doc_exists = False
+
+                update_data = _build_update(rewards_data)
+
+                if doc_exists:
+                    transaction.update(rewards_ref, update_data)
+                else:
+                    transaction.set(rewards_ref, {**rewards_data, **update_data})
+
+                if update_data.get('premium_until'):
+                    transaction.set(
+                        users_ref,
+                        _subscription_sync_payload(update_data['premium_until']),
+                        merge=True
+                    )
+
+                return update_data
+
+            try:
+                update_data = _txn(db.transaction())  # type: ignore
+            except ValueError as ve:
+                msg = str(ve)
+                if msg == "CLAIMED":
+                    return APIResponse.bad_request("Already claimed this reward")
+                have = int(msg.split(":", 1)[1])
+                return APIResponse.error(
+                    f"Not enough XP. Need {cost}, have {have}",
+                    "INSUFFICIENT_XP",
+                    400,
+                    {"needed": cost, "have": have}
+                )
+        else:
+            rewards_data = _get_user_rewards(user_id) if db else _default_rewards_data(user_id)
+            try:
+                update_data = _build_update(rewards_data)
+            except ValueError as ve:
+                msg = str(ve)
+                if msg == "CLAIMED":
+                    return APIResponse.bad_request("Already claimed this reward")
+                have = int(msg.split(":", 1)[1])
+                return APIResponse.error(
+                    f"Not enough XP. Need {cost}, have {have}",
+                    "INSUFFICIENT_XP",
+                    400,
+                    {"needed": cost, "have": have}
+                )
+
             if db:
-                db.collection('users').document(user_id).set({  # type: ignore
-                    'subscription': {
-                        'plan': 'premium',
-                        'status': 'active',
-                        'source': 'xp_reward',
-                        'end_date': new_premium.isoformat(),
-                        'updated_at': datetime.now(UTC).isoformat(),
-                    }
-                }, merge=True)
-
-        # Handle badge rewards
-        if reward.get('type') == 'badge':
-            badges = rewards_data.get('badges', [])
-            if reward.get('value') not in badges:
-                badges.append(reward.get('value'))
-                update_data['badges'] = badges
-
-        if db:
-            db.collection('user_rewards').document(user_id).update(update_data)  # type: ignore
+                db.collection('user_rewards').document(user_id).update(update_data)  # type: ignore
+                if update_data.get('premium_until'):
+                    db.collection('users').document(user_id).set(  # type: ignore
+                        _subscription_sync_payload(update_data['premium_until']),
+                        merge=True
+                    )
 
         audit_log("REWARD_CLAIMED", user_id, {"rewardId": reward_id, "cost": cost})
 
         return APIResponse.success({
             "message": f"Successfully claimed {reward['title']}",
             "reward": reward,
-            "newXp": new_xp,
+            "newXp": update_data['xp'],
             "premiumUntil": update_data.get('premium_until')
         }, "Reward claimed successfully")
 
