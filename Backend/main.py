@@ -424,6 +424,13 @@ try:
         # JWT-protected and only summarises the caller's own data — CSRF exemption
         # here cannot be used to escalate privileges or modify others' state.
         '/api/v1/chatbot/session/close',
+        # Server-to-server Stripe webhook: never carries a browser session or
+        # CSRF cookie (Stripe's servers call this directly), so the global CSRF
+        # gate rejected every real webhook event with 403 before the route's
+        # own stripe-signature verification ever ran — subscription
+        # activations/cancellations/payment failures never actually applied.
+        # The signature check IS the auth for this endpoint, not CSRF.
+        '/api/v1/subscription/webhook',
     }
     csrf_middleware = init_csrf_middleware(app, secret=csrf_secret, exempt_paths=csrf_exempt_paths)
     app.extensions['csrf_middleware'] = csrf_middleware
