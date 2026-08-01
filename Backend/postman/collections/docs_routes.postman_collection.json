@@ -1,0 +1,361 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Docs Routes API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "d0c5b0e1-7f3a-4e6b-9a2c-1b3d5e7f9a02",
+    "description": "E2E test collection covering src/routes/docs_routes.py (API Documentation blueprint, mounted at /api/docs). All routes are public (no auth required) and read-only: Swagger UI, ReDoc UI, OpenAPI JSON/YAML spec, health check, and the dev-only test-auth page. Includes CORS preflight checks and a 404 negative-path test."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "base_url",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Allow an externally-supplied base_url (e.g. --env-var base_url=...) to override the default baseUrl.",
+          "if (pm.collectionVariables.get('base_url')) {",
+          "  pm.collectionVariables.set('baseUrl', pm.collectionVariables.get('base_url'));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Swagger UI",
+      "item": [
+        {
+          "name": "GET / (Swagger UI HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/docs/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "docs", ""]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is text/html', () => {",
+                  "  const ct = pm.response.headers.get('Content-Type') || '';",
+                  "  pm.expect(ct).to.include('text/html');",
+                  "});",
+                  "",
+                  "pm.test('Body contains Swagger UI markup', () => {",
+                  "  pm.expect(pm.response.text()).to.include('swagger-ui');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OPTIONS / (CORS preflight)",
+          "request": {
+            "method": "OPTIONS",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/docs/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "docs", ""]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OPTIONS preflight returns 204', () => {",
+                  "  pm.expect(pm.response.code).to.eql(204);",
+                  "});",
+                  "",
+                  "pm.test('Body is empty', () => {",
+                  "  pm.expect(pm.response.text()).to.eql('');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. ReDoc UI",
+      "item": [
+        {
+          "name": "GET /redoc (ReDoc HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/docs/redoc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "docs", "redoc"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Body contains ReDoc markup', () => {",
+                  "  pm.expect(pm.response.text()).to.include('redoc');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. OpenAPI Spec",
+      "item": [
+        {
+          "name": "GET /openapi.json",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/docs/openapi.json",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "docs", "openapi.json"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "  const ct = pm.response.headers.get('Content-Type') || '';",
+                  "  pm.expect(ct).to.include('application/json');",
+                  "});",
+                  "",
+                  "let body;",
+                  "pm.test('Response body parses as JSON', () => {",
+                  "  body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('object');",
+                  "});",
+                  "",
+                  "pm.test('Spec has openapi and info fields', () => {",
+                  "  pm.expect(body).to.have.property('openapi');",
+                  "  pm.expect(body).to.have.property('info');",
+                  "  pm.expect(body).to.have.property('paths');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /openapi.yaml",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/docs/openapi.yaml",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "docs", "openapi.yaml"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/yaml', () => {",
+                  "  const ct = pm.response.headers.get('Content-Type') || '';",
+                  "  pm.expect(ct).to.include('yaml');",
+                  "});",
+                  "",
+                  "pm.test('Body looks like YAML (contains openapi: key)', () => {",
+                  "  pm.expect(pm.response.text()).to.include('openapi');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/docs/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "docs", "health"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Body reports healthy status', () => {",
+                  "  pm.expect(body.status).to.eql('healthy');",
+                  "  pm.expect(body.service).to.eql('api-docs');",
+                  "});",
+                  "",
+                  "pm.test('Environment field reflects production on live backend', () => {",
+                  "  pm.expect(body).to.have.property('environment');",
+                  "});",
+                  "",
+                  "pm.test('Endpoints map is present', () => {",
+                  "  pm.expect(body).to.have.property('endpoints');",
+                  "  pm.expect(body.endpoints).to.have.property('swagger_ui');",
+                  "  pm.expect(body.endpoints).to.have.property('redoc_ui');",
+                  "  pm.expect(body.endpoints).to.have.property('openapi_json');",
+                  "  pm.expect(body.endpoints).to.have.property('openapi_yaml');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Test-Auth Page (dev-only, expect 403 in production)",
+      "item": [
+        {
+          "name": "GET /test-auth",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/docs/test-auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "docs", "test-auth"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// On a production deployment (FLASK_ENV=production) this endpoint should be locked down (403).",
+                  "// In development it would return 200 with the HTML test page. Both are acceptable depending on env.",
+                  "pm.test('Status code is 200 (dev) or 403 (production, expected)', () => {",
+                  "  pm.expect([200, 403]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 403) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test('403 body explains dev-only restriction', () => {",
+                  "    pm.expect(body).to.have.property('error');",
+                  "    pm.expect(body.status_code).to.eql(403);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Negative Paths",
+      "item": [
+        {
+          "name": "GET /api/docs/nonexistent-route (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/docs/nonexistent-route",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "docs", "nonexistent-route"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unknown docs sub-route returns 404', () => {",
+                  "  pm.expect(pm.response.code).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/docs/health (405 method not allowed)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/docs/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "docs", "health"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('POST to a GET-only route returns 405', () => {",
+                  "  pm.expect(pm.response.code).to.eql(405);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

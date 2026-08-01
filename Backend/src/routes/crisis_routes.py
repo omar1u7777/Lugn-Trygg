@@ -258,9 +258,10 @@ def get_intervention_protocol(risk_level: str):
 
         valid_levels = ['low', 'medium', 'high', 'critical']
         if risk_level not in valid_levels:
-            return APIResponse.bad_request(
+            return APIResponse.error(
                 f"Invalid risk level. Must be one of: {', '.join(valid_levels)}",
-                "INVALID_RISK_LEVEL"
+                "INVALID_RISK_LEVEL",
+                400
             )
 
         protocol = crisis_intervention_service.get_emergency_protocol(risk_level)
@@ -300,7 +301,10 @@ def get_assessment_history():
         user_id = g.get('user_id')
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
-        limit = int(request.args.get('limit', 10))
+        try:
+            limit = int(request.args.get('limit', 10))
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("limit must be an integer")
 
         # Get recent assessments
         assessments_query = db.collection('crisis_assessments')\

@@ -1,0 +1,1739 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Integration API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "5e2d1a7c-3f6b-4a2e-9d8c-1b7f4e6a2c90",
+    "description": "E2E test collection for third-party integration routes (src/routes/integration_routes.py). Covers OAuth 2.0 connect/callback/status/disconnect for wearable providers, OAuth-backed and legacy mock health data sync, health-mood analytics, deprecated wearable endpoints, not-yet-implemented FHIR endpoints, crisis referral creation, comprehensive multi-source health sync, auto-sync scheduler settings, health alert generation/settings, and negative paths (no auth, invalid provider, missing body fields). All bodies use clearly neutral, benign language — nothing resembling real self-harm/crisis text is submitted."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    },
+    {
+      "key": "oauthState",
+      "value": ""
+    },
+    {
+      "key": "referralId",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-integration_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Integration Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  const responseData = body.data || body;",
+                  "  if (responseData.accessToken) pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  if (responseData.userId) pm.collectionVariables.set('userId', responseData.userId);",
+                  "  else if (responseData.uid) pm.collectionVariables.set('userId', responseData.uid);",
+                  "  console.log('Registered new user, token set');",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-integration_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 or 429 (rate limited)', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || responseData.uid || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. OAuth Authorize",
+      "item": [
+        {
+          "name": "GET /oauth/google_fit/authorize - Valid provider",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/google_fit/authorize",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "google_fit", "authorize"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "console.log('authorize status=' + status + ' body=' + JSON.stringify(body));",
+                  "",
+                  "pm.test('Authorize returns 200 (configured) or 503 (OAuth not configured for this provider in this env)', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const data = body.data || body;",
+                  "  pm.test('Response has authorizationUrl, state and provider', () => {",
+                  "    pm.expect(data).to.have.property('authorizationUrl');",
+                  "    pm.expect(data).to.have.property('state');",
+                  "    pm.expect(data.provider).to.eql('google_fit');",
+                  "  });",
+                  "  pm.collectionVariables.set('oauthState', data.state);",
+                  "} else {",
+                  "  console.log('OAuth not configured for google_fit in this environment - expected in an audit context without real provider credentials');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /oauth/INVALID!/authorize - Invalid provider format (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/INVALID!/authorize",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "INVALID!", "authorize"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Invalid provider format returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /oauth/paypal/authorize - Well-formed but unsupported provider (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/paypal/authorize",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "paypal", "authorize"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Unsupported provider returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /oauth/google_fit/authorize - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/google_fit/authorize",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "google_fit", "authorize"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. OAuth Callback",
+      "item": [
+        {
+          "name": "GET /oauth/google_fit/callback - Unknown/expired state (expect redirect, no token exchange)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/google_fit/callback?code=fake-test-code&state=fake-nonexistent-state-{{testUuid}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "google_fit", "callback"],
+              "query": [
+                { "key": "code", "value": "fake-test-code" },
+                { "key": "state", "value": "fake-nonexistent-state-{{testUuid}}" }
+              ]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const location = pm.response.headers.get('Location') || '';",
+                  "console.log('callback status=' + status + ' location=' + location);",
+                  "",
+                  "pm.test('Callback with unknown state redirects (not 500) and does not attempt a real token exchange', () => {",
+                  "  pm.expect([301, 302, 303, 307, 308]).to.include(status);",
+                  "});",
+                  "",
+                  "pm.test('Redirect indicates state_expired error, not a fabricated success', () => {",
+                  "  pm.expect(location).to.include('error=state_expired');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /oauth/unknownprovider/callback - Unsupported provider (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/unknownprovider/callback?code=x&state=y",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "unknownprovider", "callback"],
+              "query": [
+                { "key": "code", "value": "x" },
+                { "key": "state", "value": "y" }
+              ]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Unsupported provider returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /oauth/google_fit/callback - Missing code and state (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/google_fit/callback",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "google_fit", "callback"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Missing code/state returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. OAuth Status & Disconnect",
+      "item": [
+        {
+          "name": "GET /oauth/google_fit/status - Not connected",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/google_fit/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "google_fit", "status"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Status returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has connected and provider fields', () => {",
+                  "  pm.expect(data).to.have.property('connected');",
+                  "  pm.expect(data.provider).to.eql('google_fit');",
+                  "});",
+                  "",
+                  "console.log('connected=' + data.connected);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /oauth/google_fit/disconnect - No connection exists (expect 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/google_fit/disconnect",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "google_fit", "disconnect"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "console.log('disconnect status=' + status);",
+                  "pm.test('Disconnect with no existing connection returns 404 (or 200 if a prior run left a token)', () => {",
+                  "  pm.expect([200, 404]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /oauth/BAD!!/disconnect - Invalid provider (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/BAD!!/disconnect",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "BAD!!", "disconnect"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Invalid provider returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /oauth/fitbit/status - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/fitbit/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "fitbit", "status"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Health Data Sync (OAuth-based)",
+      "item": [
+        {
+          "name": "POST /health/sync/google_fit - Not connected (expect 401, not 500)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/health/sync/google_fit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "health", "sync", "google_fit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"days\": 7\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "console.log('health/sync/google_fit status=' + status);",
+                  "pm.test('Not connected to provider returns 401 (never 500)', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "  pm.expect([401, 200]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /health/sync/invalidprovider - Unsupported sync provider (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/health/sync/invalidprovider",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "health", "sync", "invalidprovider"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Unsupported provider returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /health/sync/google_fit - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/health/sync/google_fit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "health", "sync", "google_fit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Health Analytics",
+      "item": [
+        {
+          "name": "POST /health/analyze - Default 30-day window",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/health/analyze",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "health", "analyze"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Analyze returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has user_id, generated_at and data_points', () => {",
+                  "  pm.expect(data).to.have.property('user_id');",
+                  "  pm.expect(data).to.have.property('generated_at');",
+                  "  pm.expect(data).to.have.property('data_points');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /health/analyze - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/health/analyze",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "health", "analyze"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Test Route",
+      "item": [
+        {
+          "name": "GET /test - Blocked in production (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/test",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "test"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "console.log('test route status=' + status);",
+                  "pm.test('Test route is disabled in production (403) or, if run against a non-prod env, 200', () => {",
+                  "  pm.expect([403, 200]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. Legacy Wearable Endpoints (Mock/Deprecated)",
+      "item": [
+        {
+          "name": "GET /wearable/status - Deprecated mock status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/wearable/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "wearable", "status"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Wearable status returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response flags itself as deprecated and includes devices array', () => {",
+                  "  pm.expect(data.deprecated).to.eql(true);",
+                  "  pm.expect(data.devices).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /wearable/disconnect - Missing device_id (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/wearable/disconnect",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "wearable", "disconnect"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Missing device_id returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /wearable/disconnect - Valid device_id (no-op, device not present)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/wearable/disconnect",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "wearable", "disconnect"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"test-device-1\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Disconnect with well-formed device_id returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /wearable/sync - Valid device_id (deprecated notice)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/wearable/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "wearable", "sync"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"test-device-1\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Sync returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response flags itself as deprecated with no real mock data', () => {",
+                  "  pm.expect(data.deprecated).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /wearable/google-fit/sync - Fake access token (deprecated notice)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/wearable/google-fit/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "wearable", "google-fit", "sync"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"access_token\": \"fake-test-token-not-real\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Sync returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response flags itself as deprecated legacy endpoint', () => {",
+                  "  pm.expect(data.deprecated).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /wearable/google-fit/sync - Missing access_token (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/wearable/google-fit/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "wearable", "google-fit", "sync"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Missing access_token returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /wearable/apple-health/sync - Not yet available (expect 501)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/wearable/apple-health/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "wearable", "apple-health", "sync"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Apple Health sync is documented not-yet-available (501)', () => {",
+                  "  pm.expect(status).to.eql(501);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /wearable/details - Detailed device info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/wearable/details",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "wearable", "details"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Wearable details returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has devices array and deprecated flag', () => {",
+                  "  pm.expect(data).to.have.property('devices');",
+                  "  pm.expect(data.deprecated).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /wearable/status - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/wearable/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "wearable", "status"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8. FHIR Endpoints (Not Yet Implemented)",
+      "item": [
+        {
+          "name": "GET /fhir/patient - Not yet available (expect 501)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/fhir/patient",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "fhir", "patient"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('FHIR patient endpoint returns 501 (documented not-yet-implemented)', () => {",
+                  "  pm.expect(status).to.eql(501);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /fhir/observation - Not yet available (expect 501)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/fhir/observation",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "fhir", "observation"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('FHIR observation endpoint returns 501 (documented not-yet-implemented)', () => {",
+                  "  pm.expect(status).to.eql(501);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /fhir/patient - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/fhir/patient",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "fhir", "patient"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "9. Crisis Referral",
+      "item": [
+        {
+          "name": "POST /crisis/referral - Benign routine referral",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/crisis/referral",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "crisis", "referral"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"crisis_type\": \"general\",\n  \"urgency_level\": \"low\",\n  \"notes\": \"Routine wellness check-in request, no acute concerns, feeling stable\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Create referral returns 201', () => {",
+                  "  pm.expect(status).to.eql(201);",
+                  "});",
+                  "",
+                  "pm.test('Referral has expected fields', () => {",
+                  "  pm.expect(data.referral).to.have.property('referralId');",
+                  "  pm.expect(data.referral.crisisType).to.eql('general');",
+                  "  pm.expect(data.referral.urgencyLevel).to.eql('low');",
+                  "  pm.expect(data.referral.status).to.eql('pending');",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('referralId', data.referral.referralId);",
+                  "console.log('Created referralId=' + data.referral.referralId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /crisis/referral - Empty body (defaults to general/medium)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/crisis/referral",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "crisis", "referral"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Empty body still returns 201 with defaults', () => {",
+                  "  pm.expect(status).to.eql(201);",
+                  "  pm.expect(data.referral.crisisType).to.eql('general');",
+                  "  pm.expect(data.referral.urgencyLevel).to.eql('medium');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /crisis/referral - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/crisis/referral",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "crisis", "referral"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"crisis_type\": \"general\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10. Comprehensive Health Sync (Mock Multi-Source)",
+      "item": [
+        {
+          "name": "POST /health/sync - Google Fit source",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/health/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "health", "sync"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sources\": [\"google_fit\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Sync returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has syncedData, insights and correlationWithMood', () => {",
+                  "  pm.expect(data).to.have.property('syncedData');",
+                  "  pm.expect(data.syncedData).to.have.property('googleFit');",
+                  "  pm.expect(data).to.have.property('insights');",
+                  "  pm.expect(data).to.have.property('correlationWithMood');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /health/sync - Empty body (defaults to google_fit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/health/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "health", "sync"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Empty body defaults to google_fit source, returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "  pm.expect(data.syncedData).to.have.property('googleFit');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /health/sync - Invalid sources filtered out (defaults to google_fit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/health/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "health", "sync"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sources\": [\"not_a_real_source\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('All-invalid sources list still returns 200 with google_fit fallback (does not 500)', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "  pm.expect(data.syncedData).to.have.property('googleFit');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /health/sync - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/health/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "health", "sync"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "11. Auto-Sync Scheduler",
+      "item": [
+        {
+          "name": "POST /oauth/google_fit/auto-sync - Enable daily auto-sync",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/google_fit/auto-sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "google_fit", "auto-sync"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"frequency\": \"daily\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Toggle auto-sync returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response echoes provider, enabled and frequency', () => {",
+                  "  pm.expect(data.provider).to.eql('google_fit');",
+                  "  pm.expect(data.autoSyncEnabled).to.eql(true);",
+                  "  pm.expect(data.frequency).to.eql('daily');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /oauth/auto-sync/settings - Reflects the toggle just set",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/auto-sync/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "auto-sync", "settings"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Get auto-sync settings returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('settings.google_fit reflects the enable+daily toggle set in the previous request', () => {",
+                  "  pm.expect(data.settings).to.have.property('google_fit');",
+                  "  pm.expect(data.settings.google_fit.enabled).to.eql(true);",
+                  "  pm.expect(data.settings.google_fit.frequency).to.eql('daily');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /oauth/BAD!!/auto-sync - Invalid provider (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/BAD!!/auto-sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "BAD!!", "auto-sync"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Invalid provider returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /oauth/auto-sync/settings - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/oauth/auto-sync/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "oauth", "auto-sync", "settings"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "12. Health Alerts",
+      "item": [
+        {
+          "name": "POST /health/alert-settings - Enable email+push alerts",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/health/alert-settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "health", "alert-settings"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_alerts\": true,\n  \"push_alerts\": true,\n  \"alert_types\": [\"low_steps\", \"high_heart_rate\", \"poor_sleep\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Update alert settings returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response echoes emailAlerts/pushAlerts/alertTypes as submitted', () => {",
+                  "  pm.expect(data.settings.emailAlerts).to.eql(true);",
+                  "  pm.expect(data.settings.pushAlerts).to.eql(true);",
+                  "  pm.expect(data.settings.alertTypes).to.include('low_steps');",
+                  "});",
+                  "",
+                  "console.log('BUG SUSPECT: update_alert_settings() (integration_routes.py) writes the opt-in under key ' +",
+                  "  '\"emailAlerts\" (camelCase) into the integrations Firestore doc, but check_health_alerts() reads it back ' +",
+                  "  'under key \"email_alerts\" (snake_case): `integrations_data.get(\"email_alerts\", {}).get(\"enabled\", False)`. ' +",
+                  "  'Because the keys never match, email_alerts_enabled is always False and the real email-sending branch in ' +",
+                  "  '/health/check-alerts is unreachable no matter what the user configures here. This looks like a genuine ' +",
+                  "  'production bug (dead feature), not a test-script issue - the next request exercises check-alerts to show ' +",
+                  "  'the alerts are computed correctly but the opt-in has no effect.');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /health/check-alerts - Health data that should trigger warnings",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/health/check-alerts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "health", "check-alerts"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"fitbit\",\n  \"health_data\": {\n    \"steps\": 1500,\n    \"heart_rate\": 90,\n    \"sleep_hours\": 5,\n    \"calories\": 1200\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Check-alerts returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Low steps/high heart rate/poor sleep/low calories all trigger alerts', () => {",
+                  "  pm.expect(data.alertCount).to.be.at.least(3);",
+                  "  const types = data.alerts.map(a => a.type);",
+                  "  pm.expect(types).to.include('lowSteps');",
+                  "  pm.expect(types).to.include('highHeartRate');",
+                  "  pm.expect(types).to.include('poorSleep');",
+                  "});",
+                  "",
+                  "console.log('alertCount=' + data.alertCount + ' types=' + JSON.stringify(data.alerts.map(a => a.type)));",
+                  "console.log('Even though email_alerts was just enabled above, the emailAlerts/email_alerts key mismatch ' +",
+                  "  'means send_health_alert() is never actually invoked here - see BUG SUSPECT note on the previous request.');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /health/check-alerts - Healthy values (expect no alerts)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/health/check-alerts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "health", "check-alerts"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"fitbit\",\n  \"health_data\": {\n    \"steps\": 9000,\n    \"heart_rate\": 65,\n    \"sleep_hours\": 8,\n    \"calories\": 2000\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Healthy values return 200 with no alerts', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "  pm.expect(data.alertCount).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /health/alert-settings - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/health/alert-settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "health", "alert-settings"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_alerts\": true\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /health/check-alerts - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integration/health/check-alerts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "integration", "health", "check-alerts"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"health_data\": {}\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

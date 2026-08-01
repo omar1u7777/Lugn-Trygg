@@ -7,7 +7,7 @@ Implements evidence-based thresholds for mental health risk assessment
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -98,7 +98,7 @@ class ClinicalFlaggingService:
             'risk_level': risk_level,
             'flags': flags,
             'recommendations': recommendations,
-            'checked_at': datetime.utcnow().isoformat()
+            'checked_at': datetime.now(UTC).isoformat()
         }
 
     def _check_consecutive_low_mood(
@@ -174,7 +174,7 @@ class ClinicalFlaggingService:
             return None
 
         # Get mood from last 3 days
-        three_days_ago = datetime.utcnow() - timedelta(days=3)
+        three_days_ago = datetime.now(UTC) - timedelta(days=3)
         recent_entries = [
             e for e in sorted_entries
             if self._parse_timestamp(e.get('timestamp')) >= three_days_ago
@@ -210,7 +210,7 @@ class ClinicalFlaggingService:
         sorted_entries: list[dict[str, Any]]
     ) -> dict[str, Any] | None:
         """Check for persistent low mood over 2 weeks (7+ low days in 14 days)."""
-        two_weeks_ago = datetime.utcnow() - timedelta(days=14)
+        two_weeks_ago = datetime.now(UTC) - timedelta(days=14)
         recent_entries = [
             e for e in sorted_entries
             if self._parse_timestamp(e.get('timestamp')) >= two_weeks_ago
@@ -270,16 +270,22 @@ class ClinicalFlaggingService:
         return daily_moods
 
     def _parse_timestamp(self, timestamp: Any) -> datetime:
-        """Parse timestamp from various formats."""
+        """Parse timestamp from various formats.
+
+        Always returns a timezone-aware (UTC) datetime -- callers compare the
+        result against datetime.now(UTC)-derived cutoffs, and a naive/aware
+        mismatch raises TypeError, not a graceful fallback.
+        """
         if isinstance(timestamp, datetime):
-            return timestamp
+            return timestamp if timestamp.tzinfo else timestamp.replace(tzinfo=UTC)
         elif isinstance(timestamp, str):
             try:
-                return datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                parsed = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
             except Exception:
-                return datetime.utcnow()
+                return datetime.now(UTC)
         else:
-            return datetime.utcnow()
+            return datetime.now(UTC)
 
     def _escalate_risk(self, current: str, new: str) -> str:
         """Escalate risk level if new level is higher."""

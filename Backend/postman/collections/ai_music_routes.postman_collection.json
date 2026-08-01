@@ -1,0 +1,752 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - AI Music API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "d4a7e1c9-3f6b-4a2d-9e51-7c8b0f2a6e13",
+    "description": "E2E test collection covering all routes in src/routes/ai_music_routes.py (AI-generated ambient soundscapes: binaural beats, isochronic tones, procedural ambient music). Uses collection variables for auth token and generated track_id chaining."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "testEmail",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    },
+    {
+      "key": "trackId",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-ai_music_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E AI Music Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('testEmail', 'e2e-ai_music_routes-' + pm.collectionVariables.get('testUuid') + '@test.lugntrygg.se');",
+                  "",
+                  "if (status === 201) {",
+                  "  const responseData = body.data || body;",
+                  "  if (responseData.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  }",
+                  "  if (responseData.userId) pm.collectionVariables.set('userId', responseData.userId);",
+                  "  console.log('Registered new user, token set');",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 (or 429 if rate limited)', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || responseData.uid || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Discovery (no auth-sensitive state)",
+      "item": [
+        {
+          "name": "GET /soundscapes - List available soundscape types",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/soundscapes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "soundscapes"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Soundscapes returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Soundscapes is a non-empty array', () => {",
+                  "  pm.expect(responseData.soundscapes).to.be.an('array');",
+                  "  pm.expect(responseData.soundscapes.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "console.log('Soundscape types: ' + (responseData.soundscapes || []).length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /brainwave-info - Educational brainwave info (no auth required)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/brainwave-info",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "brainwave-info"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Brainwave info returns 200 without auth', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Brainwave info has delta/theta/alpha/beta/gamma keys', () => {",
+                  "  pm.expect(responseData).to.have.property('delta');",
+                  "  pm.expect(responseData).to.have.property('theta');",
+                  "  pm.expect(responseData).to.have.property('alpha');",
+                  "  pm.expect(responseData).to.have.property('beta');",
+                  "  pm.expect(responseData).to.have.property('gamma');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Generation, Streaming & Download (chained)",
+      "item": [
+        {
+          "name": "POST /generate - Generate soundscape (captures track_id)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "generate"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"meditation\",\n  \"duration\": 60,\n  \"mood\": \"calm\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Generate returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Generate response has track_id and parameters', () => {",
+                  "  pm.expect(responseData.track_id).to.be.a('string');",
+                  "  pm.expect(responseData.parameters).to.be.an('object');",
+                  "  pm.expect(responseData.parameters.binaural_frequency).to.exist;",
+                  "});",
+                  "",
+                  "pm.test('Duration matches requested value', () => {",
+                  "  pm.expect(responseData.duration_seconds).to.eql(60);",
+                  "});",
+                  "",
+                  "if (responseData.track_id) {",
+                  "  pm.collectionVariables.set('trackId', responseData.track_id);",
+                  "}",
+                  "console.log('Generated track_id=' + pm.collectionVariables.get('trackId'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /stream/{{trackId}} - Stream generated audio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/stream/{{trackId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "stream", "{{trackId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Stream returns 200 (or 404 if in-memory track expired/on a different instance)', () => {",
+                  "  pm.expect([200, 404]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Stream content-type is audio/wav', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('audio/wav');",
+                  "  });",
+                  "  pm.test('Stream has non-trivial audio payload', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Length')).to.exist;",
+                  "    pm.expect(parseInt(pm.response.headers.get('Content-Length'))).to.be.above(1000);",
+                  "  });",
+                  "}",
+                  "console.log('Stream status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /download/{{trackId}} - Download generated audio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/download/{{trackId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "download", "{{trackId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Download returns 200 (or 404 if in-memory track expired/on a different instance)', () => {",
+                  "  pm.expect([200, 404]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Download content-type is audio/wav', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('audio/wav');",
+                  "  });",
+                  "  pm.test('Download has attachment disposition', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment');",
+                  "  });",
+                  "}",
+                  "console.log('Download status=' + status);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Preview",
+      "item": [
+        {
+          "name": "GET /preview/focus - 30s soundscape preview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/preview/focus",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "preview", "focus"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Preview returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Preview content-type is audio/wav', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('audio/wav');",
+                  "});",
+                  "",
+                  "pm.test('Preview has X-Preview header set to true', () => {",
+                  "  pm.expect(pm.response.headers.get('X-Preview')).to.eql('true');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Adaptive Recommendation",
+      "item": [
+        {
+          "name": "POST /adaptive-recommendation - Personalized recommendation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/adaptive-recommendation",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "adaptive-recommendation"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_mood\": \"calm\",\n  \"time_of_day\": \"afternoon\",\n  \"activity\": \"relaxing\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Adaptive recommendation returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Recommendation has expected shape', () => {",
+                  "  pm.expect(responseData.recommended_soundscape).to.be.a('string');",
+                  "  pm.expect(responseData.alternatives).to.be.an('array');",
+                  "  pm.expect(responseData.parameters).to.be.an('object');",
+                  "});",
+                  "",
+                  "console.log('Recommended: ' + responseData.recommended_soundscape);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. MusicGen (Hugging Face, external)",
+      "item": [
+        {
+          "name": "POST /generate-musicgen - Generate real AI music (short clip)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/generate-musicgen",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "generate-musicgen"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"meditation\",\n  \"duration\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "// 200 = success, 503 = not configured / model loading, 502/504 = upstream HF issues (acceptable, not our bug)",
+                  "pm.test('MusicGen returns 200, 502, 503 or 504', () => {",
+                  "  pm.expect([200, 502, 503, 504]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('MusicGen content-type is audio/wav', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('audio/wav');",
+                  "  });",
+                  "  pm.test('MusicGen has non-trivial audio payload', () => {",
+                  "    pm.expect(parseInt(pm.response.headers.get('Content-Length'))).to.be.above(100);",
+                  "  });",
+                  "} else {",
+                  "  console.log('MusicGen not available in this environment, status=' + status);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Negative Tests",
+      "item": [
+        {
+          "name": "GET /soundscapes - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/soundscapes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "soundscapes"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /adaptive-recommendation - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/adaptive-recommendation",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "adaptive-recommendation"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_mood\": \"calm\",\n  \"time_of_day\": \"afternoon\",\n  \"activity\": \"relaxing\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /generate - Invalid soundscape type (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "generate"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"nonexistent_type_xyz\",\n  \"duration\": 60\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "pm.test('Invalid type returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});",
+                  "pm.test('Error code is INVALID_TYPE', () => {",
+                  "  const responseData = body.error || body.data || body;",
+                  "  pm.expect(JSON.stringify(body)).to.include('INVALID_TYPE');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /generate - Duration too short (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "generate"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"meditation\",\n  \"duration\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Duration below 60s returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /generate - Duration too long (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "generate"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"meditation\",\n  \"duration\": 99999\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Duration above 1200s returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /preview/invalid_type_xyz - Invalid type (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/preview/invalid_type_xyz",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "preview", "invalid_type_xyz"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Invalid preview type returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /stream/nonexistent-track-id - Unknown track (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/stream/nonexistent-track-id-e2e-{{testUuid}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "stream", "nonexistent-track-id-e2e-{{testUuid}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Unknown track_id returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /download/nonexistent-track-id - Unknown track (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai-music/download/nonexistent-track-id-e2e-{{testUuid}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai-music", "download", "nonexistent-track-id-e2e-{{testUuid}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Unknown track_id returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

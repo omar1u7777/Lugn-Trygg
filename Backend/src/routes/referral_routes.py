@@ -26,6 +26,11 @@ try:
 except ImportError:
     FieldFilter = None  # type: ignore
 
+try:
+    from google.cloud import firestore as gcfirestore  # For atomic reward redemption
+except Exception:
+    gcfirestore = None  # type: ignore
+
 # Validation pattern for user IDs
 USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
 
@@ -286,7 +291,10 @@ def complete_referral():
 def get_leaderboard():
     """Get top referrers leaderboard"""
     try:
-        limit = int(request.args.get("limit", 10))
+        try:
+            limit = int(request.args.get("limit", 10))
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("limit must be an integer")
         limit = min(limit, 100)  # Max 100 results
 
         # Query top referrers by successful_referrals
@@ -602,16 +610,6 @@ def redeem_reward():
         if not reward_id:
             return APIResponse.bad_request("reward_id required")
 
-        # Get user's referral data
-        referral_ref = db.collection("referrals").document(user_id)  # type: ignore
-        referral_doc = referral_ref.get()
-
-        if not referral_doc.exists:
-            return APIResponse.not_found("No referral data found")
-
-        referral_data = referral_doc.to_dict() or {}
-        available_weeks = referral_data.get("rewards_earned", 0)
-
         # Get reward details (simplified - should match catalog)
         reward_costs = {
             "premium_1week": 1,
@@ -628,19 +626,57 @@ def redeem_reward():
         if cost is None:
             return APIResponse.bad_request("Invalid reward_id")
 
-        if available_weeks < cost:
-            return APIResponse.error(
-                "Insufficient rewards",
-                "INSUFFICIENT_BALANCE",
-                400,
-                {"available": available_weeks, "required": cost}
-            )
+        referral_ref = db.collection("referrals").document(user_id)  # type: ignore
 
-        # Deduct cost and record redemption
-        new_balance = available_weeks - cost
-        referral_ref.update({
-            "rewards_earned": new_balance
-        })
+        # Read-check-deduct must be atomic: without a transaction, two
+        # concurrent redeem requests can both read the same balance and both
+        # pass the sufficiency check, letting a user redeem more rewards than
+        # they actually earned (same class of bug as the subscription quota
+        # race fixed earlier in this project).
+        if gcfirestore is not None:
+            @gcfirestore.transactional
+            def _txn(transaction):
+                snapshot = transaction.get(referral_ref)
+                if not snapshot.exists:
+                    raise ValueError("404:No referral data found")
+                data = snapshot.to_dict() or {}
+                available = data.get("rewards_earned", 0)
+                if available < cost:
+                    raise ValueError(f"400:{available}")
+                balance = available - cost
+                transaction.update(referral_ref, {"rewards_earned": balance})
+                return balance
+
+            try:
+                new_balance = _txn(db.transaction())  # type: ignore
+            except ValueError as ve:
+                msg = str(ve)
+                if msg.startswith("404:"):
+                    return APIResponse.not_found(msg[4:])
+                available_weeks = int(msg.split(":", 1)[1])
+                return APIResponse.error(
+                    "Insufficient rewards",
+                    "INSUFFICIENT_BALANCE",
+                    400,
+                    {"available": available_weeks, "required": cost}
+                )
+        else:
+            referral_doc = referral_ref.get()
+            if not referral_doc.exists:
+                return APIResponse.not_found("No referral data found")
+            referral_data = referral_doc.to_dict() or {}
+            available_weeks = referral_data.get("rewards_earned", 0)
+            if available_weeks < cost:
+                return APIResponse.error(
+                    "Insufficient rewards",
+                    "INSUFFICIENT_BALANCE",
+                    400,
+                    {"available": available_weeks, "required": cost}
+                )
+            new_balance = available_weeks - cost
+            referral_ref.update({
+                "rewards_earned": new_balance
+            })
 
         # Record redemption history
         redemption_ref = db.collection("reward_redemptions").document()  # type: ignore

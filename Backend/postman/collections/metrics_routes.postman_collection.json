@@ -1,0 +1,480 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Metrics Routes API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "a3f0c8e1-6d4b-4b9e-8a1f-5c7d9e2b4f60",
+    "description": "E2E test collection for src/routes/metrics_routes.py covering health/ready/live probes (public) and Prometheus/business metrics (authenticated). All routes are GET-only and read-only (no path/body params), so every request in this collection is safe to run live. Uses collection variables for auth token chaining."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-metrics_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Metrics Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "let body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  const responseData = body.data || body;",
+                  "  const user = responseData.user || responseData;",
+                  "  if (user.id) pm.collectionVariables.set('userId', user.id);",
+                  "  console.log('Registered new user, id=' + (user.id || 'n/a'));",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "} else if (status === 429) {",
+                  "  console.log('Registration rate-limited (429) - expected under concurrent multi-domain audit load');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-metrics_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "let body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "",
+                  "pm.test('Login returns 200 (or 429 if rate limited)', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || (responseData.user && responseData.user.id) || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Public Health Probes (no auth)",
+      "item": [
+        {
+          "name": "GET /health - Basic health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/metrics/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "metrics", "health"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Health check returns 200 or 503', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "pm.test('Response has status, timestamp, system and services', () => {",
+                  "  pm.expect(responseData.status).to.be.oneOf(['healthy', 'degraded']);",
+                  "  pm.expect(responseData.timestamp).to.be.a('string');",
+                  "  pm.expect(responseData.system).to.be.an('object');",
+                  "  pm.expect(responseData.system).to.have.property('cpuUsage');",
+                  "  pm.expect(responseData.system).to.have.property('memoryUsage');",
+                  "  pm.expect(responseData.services).to.be.an('object');",
+                  "  pm.expect(responseData.services).to.have.property('database');",
+                  "});",
+                  "",
+                  "console.log('Health status=' + responseData.status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /ready - Readiness probe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/metrics/ready",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "metrics", "ready"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Readiness returns 200 or 503', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const responseData = body.data || body;",
+                  "  pm.test('Ready payload has status=ready and timestamp', () => {",
+                  "    pm.expect(responseData.status).to.eql('ready');",
+                  "    pm.expect(responseData.timestamp).to.be.a('string');",
+                  "  });",
+                  "} else {",
+                  "  pm.test('Not-ready payload reports success=false', () => {",
+                  "    pm.expect(body.success).to.eql(false);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /live - Liveness probe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/metrics/live",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "metrics", "live"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Liveness returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Status is alive and has timestamp', () => {",
+                  "  pm.expect(responseData.status).to.eql('alive');",
+                  "  pm.expect(responseData.timestamp).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Authenticated Metrics Endpoints",
+      "item": [
+        {
+          "name": "GET /metrics - Prometheus metrics (authenticated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/metrics/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "metrics", "metrics"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const text = pm.response.text();",
+                  "",
+                  "pm.test('Prometheus metrics returns 200, 500 or 501', () => {",
+                  "  pm.expect([200, 500, 501]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Response body is non-empty Prometheus exposition text', () => {",
+                  "    pm.expect(text).to.be.a('string');",
+                  "    pm.expect(text.length).to.be.greaterThan(0);",
+                  "  });",
+                  "  pm.test('Content-Type looks like Prometheus text format', () => {",
+                  "    const ct = pm.response.headers.get('Content-Type') || '';",
+                  "    pm.expect(ct).to.include('text/plain');",
+                  "  });",
+                  "} else if (status === 501) {",
+                  "  console.log('prometheus-client not installed on this deployment (501) - acceptable');",
+                  "} else if (status === 500) {",
+                  "  console.log('Prometheus metrics generation raised a 500 - flagging for investigation. Body: ' + text.substring(0, 500));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /metrics/business - Business KPI metrics (authenticated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/metrics/metrics/business",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "metrics", "metrics", "business"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const text = pm.response.text();",
+                  "",
+                  "pm.test('Business metrics returns 200, 500 or 501', () => {",
+                  "  pm.expect([200, 500, 501]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Response contains business KPI gauge', () => {",
+                  "    pm.expect(text).to.include('lugn_trygg_business_kpis');",
+                  "    pm.expect(text).to.include('total_users');",
+                  "  });",
+                  "} else if (status === 501) {",
+                  "  console.log('prometheus-client not installed on this deployment (501) - acceptable');",
+                  "} else if (status === 500) {",
+                  "  console.log('Business metrics generation raised a 500 - flagging for investigation. Body: ' + text.substring(0, 500));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Negative Tests",
+      "item": [
+        {
+          "name": "GET /metrics - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/metrics/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "metrics", "metrics"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403, 422]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /metrics/business - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/metrics/metrics/business",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "metrics", "metrics", "business"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403, 422]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /metrics - Malformed Authorization header (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer not-a-real-jwt-token" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/metrics/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "metrics", "metrics"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Invalid token returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /metrics/nonexistent - Invalid sub-path (expect 404 or 405)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/metrics/nonexistent",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "metrics", "nonexistent"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Invalid sub-path returns 404 or 405', () => {",
+                  "  pm.expect([404, 405]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

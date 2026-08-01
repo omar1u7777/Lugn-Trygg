@@ -841,7 +841,7 @@ def grant_consent(user_id: str, consent_type: str):
                 'grantedAt': datetime.now(UTC).isoformat()
             }, f"Consent granted for {consent_type}")
         else:
-            return APIResponse.bad_request("Could not grant consent", "GRANT_FAILED")
+            return APIResponse.error("Could not grant consent", "GRANT_FAILED", 400)
 
     except Exception as e:
         logger.exception(f"Error granting consent: {e}")
@@ -874,7 +874,7 @@ def withdraw_consent(user_id: str, consent_type: str):
                 'withdrawnAt': datetime.now(UTC).isoformat()
             }, f"Consent withdrawn for {consent_type}")
         else:
-            return APIResponse.bad_request("Could not withdraw consent", "WITHDRAW_FAILED")
+            return APIResponse.error("Could not withdraw consent", "WITHDRAW_FAILED", 400)
 
     except Exception as e:
         logger.exception(f"Error withdrawing consent: {e}")
@@ -962,7 +962,10 @@ def get_breach_history():
         if not user_doc.exists or user_doc.to_dict().get('role') != 'admin':
             return APIResponse.forbidden("Admin privileges required")
 
-        limit = min(int(request.args.get('limit', 50)), 100)  # Cap at 100
+        try:
+            limit = min(int(request.args.get('limit', 50)), 100)  # Cap at 100
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("limit must be an integer")
 
         if breach_notification_service is None:
             return APIResponse.error("Breach notification service unavailable", "SERVICE_UNAVAILABLE", 503)
@@ -975,7 +978,7 @@ def get_breach_history():
         }, "Incident history retrieved")
 
     except ValueError:
-        return APIResponse.bad_request("Invalid value for limit", "INVALID_LIMIT")
+        return APIResponse.error("Invalid value for limit", "INVALID_LIMIT", 400)
     except Exception as e:
         logger.exception(f"Error getting breach history: {e}")
         return APIResponse.error("Could not retrieve incident history", "FETCH_ERROR", 500)

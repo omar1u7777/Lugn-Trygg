@@ -50,8 +50,11 @@ def get_sync_history():
         if not user_id:
             return APIResponse.unauthorized("Authentication required")
         provider = request.args.get('provider', 'all')
-        days = int(request.args.get('days', 7))
-        limit = min(int(request.args.get('limit', 50)), 100)
+        try:
+            days = int(request.args.get('days', 7))
+            limit = min(int(request.args.get('limit', 50)), 100)
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("days and limit must be integers")
 
         # Calculate date cutoff
         cutoff_date = datetime.now(UTC) - timedelta(days=days)
