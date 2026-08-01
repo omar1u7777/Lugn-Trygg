@@ -404,7 +404,7 @@ def verify_2fa():
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
         g.user_id = user_id
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
 
         if not data:
             return APIResponse.bad_request('Begäransdata krävs')
@@ -489,7 +489,7 @@ def setup_2fa_biometric():
         user_id = g.get('user_id')
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
 
         if not data:
             return APIResponse.bad_request('Begäransdata krävs')
@@ -1043,7 +1043,7 @@ def change_email():
         user_id = g.get('user_id')
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
 
         if not data:
             return APIResponse.bad_request('Begäransdata krävs')
@@ -1183,7 +1183,7 @@ def setup_2fa():
         user_id = g.get('user_id')
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
 
         if not data:
             return APIResponse.bad_request('Begäransdata krävs')
@@ -1280,7 +1280,7 @@ def verify_2fa_setup():
         user_id = g.get('user_id')
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
 
         if not data:
             return APIResponse.bad_request('Begäransdata krävs')

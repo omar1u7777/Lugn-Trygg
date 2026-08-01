@@ -280,7 +280,7 @@ def add_user_xp():
         return APIResponse.unauthorized("Authentication required")
 
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         xp_amount = data.get('amount', 0)
         reason = sanitize_text(data.get('reason', 'general'), max_length=100)
 
@@ -344,7 +344,7 @@ def claim_reward():
         return APIResponse.unauthorized("Authentication required")
 
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         reward_id = sanitize_text(data.get('reward_id', ''), max_length=50)
 
         if not reward_id:
@@ -451,7 +451,7 @@ def check_achievements():
         return APIResponse.unauthorized("Authentication required")
 
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
 
         # Stats to check against
         mood_count = data.get('mood_count', 0)
