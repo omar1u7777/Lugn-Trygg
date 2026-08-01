@@ -637,6 +637,20 @@
       ]
     },
     {
+      "collectionGroup": "peer_chat_presence",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "room_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_seen",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "content_reports",
       "queryScope": "COLLECTION",
       "fields": [

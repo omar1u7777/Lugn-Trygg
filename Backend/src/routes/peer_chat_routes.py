@@ -606,22 +606,27 @@ def get_room_presence(room_id: str):
         typing_users = []
 
         if db is not None:
-            five_min_ago = datetime.now(UTC) - timedelta(minutes=5)
-            docs = db.collection('peer_chat_presence').where(filter=FieldFilter(
-                'room_id', '==', room_id
-            )).where(filter=FieldFilter(
-                'last_seen', '>=', five_min_ago.isoformat()
-            )).stream()
+            try:
+                five_min_ago = datetime.now(UTC) - timedelta(minutes=5)
+                docs = db.collection('peer_chat_presence').where(filter=FieldFilter(
+                    'room_id', '==', room_id
+                )).where(filter=FieldFilter(
+                    'last_seen', '>=', five_min_ago.isoformat()
+                )).stream()
 
-            for doc in docs:
-                user_data = doc.to_dict() or {}
-                active_users.append({
-                    'anonymousName': user_data.get('anonymous_name'),
-                    'avatar': user_data.get('avatar')
-                })
+                for doc in docs:
+                    user_data = doc.to_dict() or {}
+                    active_users.append({
+                        'anonymousName': user_data.get('anonymous_name'),
+                        'avatar': user_data.get('avatar')
+                    })
 
-                if user_data.get('is_typing'):
-                    typing_users.append(user_data.get('anonymous_name'))
+                    if user_data.get('is_typing'):
+                        typing_users.append(user_data.get('anonymous_name'))
+            except Exception:
+                # Compound query may fail if composite index doesn't exist
+                # (mirrors the same guard in get_rooms() for this query shape)
+                logger.exception("Presence query failed for room %s", room_id)
 
         return APIResponse.success({
             'activeCount': len(active_users),
