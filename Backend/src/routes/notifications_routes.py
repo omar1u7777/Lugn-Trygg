@@ -287,7 +287,7 @@ def notification_settings():
                 "updated": True
             }, "Notification settings updated")
 
-        return APIResponse.bad_request("Invalid method", "INVALID_METHOD")
+        return APIResponse.error("Invalid method", "INVALID_METHOD", 400)
 
     except Exception as e:
         logger.exception(f"❌ Failed to handle notification settings: {e}")

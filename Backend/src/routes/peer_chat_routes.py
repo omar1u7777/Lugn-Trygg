@@ -295,7 +295,7 @@ def leave_room(room_id: str):
         session_id = data.get('session_id')
 
         if not session_id:
-            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+            return APIResponse.error("session_id is required", "SESSION_ID_REQUIRED", 400)
 
         _, error_response = _validate_session(session_id, expected_room_id=room_id)
         if error_response is not None:
@@ -333,7 +333,7 @@ def get_messages(room_id: str):
         session_id = request.args.get('session_id')
 
         if not session_id:
-            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+            return APIResponse.error("session_id is required", "SESSION_ID_REQUIRED", 400)
 
         _, error_response = _validate_session(session_id, expected_room_id=room_id)
         if error_response is not None:
@@ -392,15 +392,15 @@ def send_message(room_id: str):
         avatar = data.get('avatar')
 
         if not session_id:
-            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+            return APIResponse.error("session_id is required", "SESSION_ID_REQUIRED", 400)
 
         if not message_text:
-            return APIResponse.bad_request("Message cannot be empty", "EMPTY_MESSAGE")
+            return APIResponse.error("Message cannot be empty", "EMPTY_MESSAGE", 400)
 
         # Moderate message
         is_safe, reason = _moderate_message(message_text)
         if not is_safe:
-            return APIResponse.bad_request(reason, "MODERATION_FAILED")
+            return APIResponse.error(reason, "MODERATION_FAILED", 400)
 
         presence_data, error_response = _validate_session(session_id, expected_room_id=room_id)
         if error_response is not None:
@@ -454,7 +454,7 @@ def like_message(message_id: str):
         session_id = data.get('session_id')
 
         if not session_id:
-            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+            return APIResponse.error("session_id is required", "SESSION_ID_REQUIRED", 400)
 
         _, error_response = _validate_session(session_id)
         if error_response is not None:
@@ -511,7 +511,7 @@ def report_message(message_id: str):
         reason = sanitize_text(data.get('reason', 'Inappropriate content'), max_length=500)
 
         if not session_id:
-            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+            return APIResponse.error("session_id is required", "SESSION_ID_REQUIRED", 400)
 
         _, error_response = _validate_session(session_id)
         if error_response is not None:
@@ -564,7 +564,7 @@ def update_typing(room_id: str):
         is_typing = bool(data.get('is_typing', False))
 
         if not session_id:
-            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+            return APIResponse.error("session_id is required", "SESSION_ID_REQUIRED", 400)
 
         _, error_response = _validate_session(session_id, expected_room_id=room_id)
         if error_response is not None:
@@ -596,7 +596,7 @@ def get_room_presence(room_id: str):
 
         session_id = request.args.get('session_id')
         if not session_id:
-            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+            return APIResponse.error("session_id is required", "SESSION_ID_REQUIRED", 400)
 
         _, error_response = _validate_session(session_id, expected_room_id=room_id)
         if error_response is not None:

@@ -841,7 +841,7 @@ def grant_consent(user_id: str, consent_type: str):
                 'grantedAt': datetime.now(UTC).isoformat()
             }, f"Consent granted for {consent_type}")
         else:
-            return APIResponse.bad_request("Could not grant consent", "GRANT_FAILED")
+            return APIResponse.error("Could not grant consent", "GRANT_FAILED", 400)
 
     except Exception as e:
         logger.exception(f"Error granting consent: {e}")
@@ -874,7 +874,7 @@ def withdraw_consent(user_id: str, consent_type: str):
                 'withdrawnAt': datetime.now(UTC).isoformat()
             }, f"Consent withdrawn for {consent_type}")
         else:
-            return APIResponse.bad_request("Could not withdraw consent", "WITHDRAW_FAILED")
+            return APIResponse.error("Could not withdraw consent", "WITHDRAW_FAILED", 400)
 
     except Exception as e:
         logger.exception(f"Error withdrawing consent: {e}")
@@ -978,7 +978,7 @@ def get_breach_history():
         }, "Incident history retrieved")
 
     except ValueError:
-        return APIResponse.bad_request("Invalid value for limit", "INVALID_LIMIT")
+        return APIResponse.error("Invalid value for limit", "INVALID_LIMIT", 400)
     except Exception as e:
         logger.exception(f"Error getting breach history: {e}")
         return APIResponse.error("Could not retrieve incident history", "FETCH_ERROR", 500)
