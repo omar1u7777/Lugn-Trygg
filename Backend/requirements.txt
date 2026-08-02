@@ -78,7 +78,7 @@ scipy==1.17.0
 # shap==0.46.0
 
 # Payment Processing
-stripe==15.3.1
+stripe==15.4.0
 
 # Database & Storage
 google-cloud-firestore==2.23.0
