@@ -141,7 +141,7 @@ class AdvancedRateLimiter:
             if redis_client is not None:
                 cached = redis_client.get(cache_key)
                 if cached is not None:
-                    return cached.decode('utf-8') if isinstance(cached, (bytes, bytearray)) else str(cached)
+                    return cached.decode('utf-8') if isinstance(cached, bytes | bytearray) else str(cached)
         except Exception as cache_err:
             logger.debug("Tier cache read failed: %s", cache_err)
             redis_client = None

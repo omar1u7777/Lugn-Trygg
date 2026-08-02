@@ -435,7 +435,7 @@ class BiofeedbackBreathingService:
         # Calculate current phase based on time
         elapsed = (datetime.now() - session.start_time).total_seconds()
         # Sum only numeric duration values (exclude 'description')
-        cycle_duration = sum(v for v in pattern_config.values() if isinstance(v, (int, float)))
+        cycle_duration = sum(v for v in pattern_config.values() if isinstance(v, int | float))
         (elapsed % cycle_duration) / cycle_duration if cycle_duration > 0 else 0
 
         # Determine phase

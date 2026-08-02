@@ -42,7 +42,7 @@ def _parse_to_utc_datetime(timestamp: Any) -> datetime | None:
         if isinstance(timestamp, str):
             parsed = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
             return parsed.astimezone(UTC) if parsed.tzinfo else parsed.replace(tzinfo=UTC)
-        if isinstance(timestamp, (int, float)):
+        if isinstance(timestamp, int | float):
             return datetime.fromtimestamp(timestamp, tz=UTC)
     except (ValueError, TypeError, OSError) as exc:
         logger.debug(f"⚠️ Failed to parse timestamp {timestamp!r}: {exc}")

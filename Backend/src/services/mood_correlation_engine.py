@@ -114,7 +114,7 @@ class MoodCorrelationEngine:
             score = entry.get('score')
             tags = entry.get('tags', [])
 
-            if score is None or not isinstance(score, (int, float)):
+            if score is None or not isinstance(score, int | float):
                 continue
 
             if not isinstance(tags, list):

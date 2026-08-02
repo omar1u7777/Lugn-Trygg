@@ -125,7 +125,7 @@ def cached_user_context(namespace: str, user_id: str, compute, ttl: int = DEFAUL
         try:
             cached = redis_client.get(key)
             if cached is not None:
-                raw = cached.decode("utf-8") if isinstance(cached, (bytes, bytearray)) else str(cached)
+                raw = cached.decode("utf-8") if isinstance(cached, bytes | bytearray) else str(cached)
                 if cipher is not None:
                     try:
                         return cipher.decrypt(raw.encode()).decode("utf-8")

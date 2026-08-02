@@ -52,7 +52,7 @@ def _to_bool(value: Any, default: bool = True) -> bool:
         if normalized in {'false', '0', 'no', 'off'}:
             return False
         return default
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return value != 0
     return default
 
