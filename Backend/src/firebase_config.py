@@ -265,8 +265,12 @@ def initialize_firebase(force_reinitialize: bool = False) -> bool:
     # Set storage bucket with EU region
     storage_bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET")
     if storage_bucket_name:
-        # Ensure storage bucket is in EU region for GDPR compliance
-        if not storage_bucket_name.endswith(".appspot.com"):
+        # Only a bare project id (no dot) needs the legacy suffix appended.
+        # A fully-qualified bucket name (either legacy "<id>.appspot.com" or
+        # the newer default "<id>.firebasestorage.app") must be passed through
+        # as-is -- unconditionally appending ".appspot.com" mangled the new
+        # naming scheme into a nonexistent "<id>.firebasestorage.app.appspot.com".
+        if "." not in storage_bucket_name:
             storage_bucket_name += ".appspot.com"
         options["storageBucket"] = storage_bucket_name
 

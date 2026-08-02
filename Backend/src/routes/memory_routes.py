@@ -138,7 +138,7 @@ def upload_memory() -> Response | tuple[Response, int]:
         secure_name = secure_filename(filename)
 
         # Upload to Firebase Storage
-        bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET", "lugn-trygg-53d75.appspot.com")
+        bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET", "lugn-trygg-53d75.firebasestorage.app")
         bucket = storage.bucket(bucket_name)
 
         # Try to create bucket if it doesn't exist
@@ -290,7 +290,7 @@ def get_memory(memory_id: str) -> Response | tuple[Response, int]:
             return APIResponse.bad_request("Invalid file path")
 
         # Get file from Firebase Storage
-        bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET", "lugn-trygg-53d75.appspot.com")
+        bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET", "lugn-trygg-53d75.firebasestorage.app")
         bucket = storage.bucket(bucket_name)
         blob = bucket.blob(file_path)
 
@@ -350,7 +350,7 @@ def delete_memory(memory_id: str) -> Response | tuple[Response, int]:
         # Delete from Firebase Storage if file exists
         if file_path:
             try:
-                bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET", "lugn-trygg-53d75.appspot.com")
+                bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET", "lugn-trygg-53d75.firebasestorage.app")
                 bucket = storage.bucket(bucket_name)
                 blob = bucket.blob(file_path)
                 if blob.exists():
