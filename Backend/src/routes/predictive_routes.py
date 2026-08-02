@@ -106,11 +106,14 @@ def get_mood_predictions():
         if not user_id:
             return APIResponse.unauthorized("Authentication required")
 
-        days_ahead = int(request.args.get('days', 7))
+        try:
+            days_ahead = int(request.args.get('days', 7))
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("days must be an integer")
 
         # Validate days parameter
         if days_ahead < 1 or days_ahead > 30:
-            return APIResponse.bad_request("Days must be between 1-30", "INVALID_DAYS")
+            return APIResponse.error("Days must be between 1-30", "INVALID_DAYS", 400)
 
         if db is None:
             return APIResponse.error("Database connection missing", "DB_ERROR", 503)
@@ -155,13 +158,14 @@ def get_mood_predictions():
                 f"Mood predictions for {days_ahead} days ahead"
             )
         else:
-            return APIResponse.bad_request(
+            return APIResponse.error(
                 result.get('error', 'Could not generate predictions'),
-                "PREDICTION_FAILED"
+                "PREDICTION_FAILED",
+                400
             )
 
     except ValueError:
-        return APIResponse.bad_request("Invalid value for days", "INVALID_DAYS")
+        return APIResponse.error("Invalid value for days", "INVALID_DAYS", 400)
     except Exception as e:
         logger.error(f"Error getting mood predictions: {str(e)}")
         return APIResponse.error("Internal server error during prediction", "PREDICTION_ERROR", 500)

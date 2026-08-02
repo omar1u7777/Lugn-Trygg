@@ -1,0 +1,824 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Mood Analytics Routes API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "6f2a1c3e-9d4b-4a7f-8e1c-2b5d7f9a3c60",
+    "description": "E2E test collection covering all routes in src/routes/mood_analytics_routes.py (registered under /api/v1/mood-analytics via the mood gateway): tag/mood correlation analysis, clinical flagging (consecutive low mood, rapid decline, persistent negative patterns), and combined impact analysis. All 3 routes are GET+OPTIONS, require a valid JWT (AuthService.jwt_required), and read from the authenticated user's own Firestore mood subcollection - no request bodies. A 'Setup Test Data' folder logs a few neutral mood entries first (via the mood domain's /api/v1/mood/log endpoint) so the analytics endpoints have real data to chew on instead of always hitting the empty-history path. All mood text uses neutral, benign content ('Feeling okay today, went for a walk') to avoid triggering real crisis-detection alerts."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "testEmail",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-mood_analytics_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Mood Analytics Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "// 201 = new user, 409 = already exists, 429 = rate limited (all acceptable)",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  pm.collectionVariables.set('testEmail', 'e2e-mood_analytics_routes-' + pm.collectionVariables.get('testUuid') + '@test.lugntrygg.se');",
+                  "  console.log('Registered new mood_analytics test user');",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-mood_analytics_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 or 429', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || (responseData.user && responseData.user.id) || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Setup Test Data (Mood Log Entries)",
+      "item": [
+        {
+          "name": "POST /api/v1/mood/log - Neutral entry 1 (walk tag)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/log",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood", "log"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood_text\": \"Feeling okay today, went for a walk\",\n  \"score\": 0.6,\n  \"tags\": [\"walk\", \"outdoors\"],\n  \"context\": \"afternoon\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Mood log 1 returns 200/201 or 429 (quota)', () => {",
+                  "  pm.expect([200, 201, 429]).to.include(status);",
+                  "});",
+                  "console.log('Mood log 1 status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/mood/log - Neutral entry 2 (walk tag)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/log",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood", "log"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood_text\": \"Calm day, had a good walk outside\",\n  \"score\": 0.5,\n  \"tags\": [\"walk\", \"calm\"],\n  \"context\": \"morning\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Mood log 2 returns 200/201 or 429 (quota)', () => {",
+                  "  pm.expect([200, 201, 429]).to.include(status);",
+                  "});",
+                  "console.log('Mood log 2 status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/mood/log - Neutral entry 3 (walk tag)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/log",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood", "log"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood_text\": \"Relaxed after a short walk and some reading\",\n  \"score\": 0.7,\n  \"tags\": [\"walk\", \"reading\"],\n  \"context\": \"evening\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Mood log 3 returns 200/201 or 429 (quota)', () => {",
+                  "  pm.expect([200, 201, 429]).to.include(status);",
+                  "});",
+                  "console.log('Mood log 3 status=' + status + ' (setup only - quota limits on the mood domain are expected and fine here)');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Correlation Analysis",
+      "item": [
+        {
+          "name": "GET /correlation-analysis - Defaults (days=30, min_occurrences=3)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/correlation-analysis",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "correlation-analysis"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Correlation analysis returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Response has a status field', () => {",
+                  "    pm.expect(responseData).to.have.property('status');",
+                  "  });",
+                  "  console.log('Correlation analysis status field: ' + responseData.status);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /correlation-analysis?days=60&min_occurrences=2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/correlation-analysis?days=60&min_occurrences=2",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "correlation-analysis"],
+              "query": [
+                { "key": "days", "value": "60" },
+                { "key": "min_occurrences", "value": "2" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Correlation analysis with custom params returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /correlation-analysis?days=3 - Below minimum (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/correlation-analysis?days=3",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "correlation-analysis"],
+              "query": [{ "key": "days", "value": "3" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('days below 7 returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /correlation-analysis?days=400 - Above maximum (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/correlation-analysis?days=400",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "correlation-analysis"],
+              "query": [{ "key": "days", "value": "400" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('days above 365 returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /correlation-analysis?min_occurrences=1 - Below minimum (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/correlation-analysis?min_occurrences=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "correlation-analysis"],
+              "query": [{ "key": "min_occurrences", "value": "1" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('min_occurrences below 2 returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /correlation-analysis?min_occurrences=15 - Above maximum (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/correlation-analysis?min_occurrences=15",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "correlation-analysis"],
+              "query": [{ "key": "min_occurrences", "value": "15" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('min_occurrences above 10 returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /correlation-analysis?days=abc - Non-numeric days (expect graceful 400, not 500)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/correlation-analysis?days=abc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "correlation-analysis"],
+              "query": [{ "key": "days", "value": "abc" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Non-numeric days param should not 500 (int() parse crash - route only try/excepts to a generic 500)', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "pm.test('Non-numeric days param returns 400 ideally', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});",
+                  "console.log('days=abc status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /correlation-analysis?min_occurrences=xyz - Non-numeric min_occurrences (expect graceful 400, not 500)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/correlation-analysis?min_occurrences=xyz",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "correlation-analysis"],
+              "query": [{ "key": "min_occurrences", "value": "xyz" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Non-numeric min_occurrences param should not 500 (int() parse crash - route only try/excepts to a generic 500)', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "pm.test('Non-numeric min_occurrences param returns 400 ideally', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});",
+                  "console.log('min_occurrences=xyz status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OPTIONS /correlation-analysis - CORS preflight",
+          "request": {
+            "method": "OPTIONS",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/correlation-analysis",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "correlation-analysis"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('OPTIONS preflight returns 204 (fast-pathed by jwt_required before auth check)', () => {",
+                  "  pm.expect([200, 204]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Clinical Flags",
+      "item": [
+        {
+          "name": "GET /clinical-flags",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/clinical-flags",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "clinical-flags"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Clinical flags returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Response has flagged and risk_level fields', () => {",
+                  "    pm.expect(responseData).to.have.property('flagged');",
+                  "    pm.expect(responseData).to.have.property('risk_level');",
+                  "  });",
+                  "  console.log('flagged=' + responseData.flagged + ' risk_level=' + responseData.risk_level);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Impact Analysis",
+      "item": [
+        {
+          "name": "GET /impact-analysis - Defaults (days=30)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/impact-analysis",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "impact-analysis"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Impact analysis returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Response has correlation_analysis, clinical_flags and summary', () => {",
+                  "    pm.expect(responseData).to.have.property('correlation_analysis');",
+                  "    pm.expect(responseData).to.have.property('clinical_flags');",
+                  "    pm.expect(responseData).to.have.property('summary');",
+                  "  });",
+                  "  pm.test('summary has total_entries and analysis_period_days', () => {",
+                  "    pm.expect(responseData.summary).to.have.property('total_entries');",
+                  "    pm.expect(responseData.summary.analysis_period_days).to.eql(30);",
+                  "  });",
+                  "  console.log('total_entries=' + responseData.summary.total_entries + ' risk_level=' + responseData.summary.risk_level);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /impact-analysis?days=90 - Custom window",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/impact-analysis?days=90",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "impact-analysis"],
+              "query": [{ "key": "days", "value": "90" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Impact analysis with days=90 returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('summary.analysis_period_days echoes 90', () => {",
+                  "    pm.expect(responseData.summary.analysis_period_days).to.eql(90);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /impact-analysis?days=-5 - Negative days (no range validation on this route, expect graceful non-crash)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/impact-analysis?days=-5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "impact-analysis"],
+              "query": [{ "key": "days", "value": "-5" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Negative days never 500s (impact-analysis has no days range check unlike correlation-analysis)', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "pm.test('Negative days returns 200 (empty-ish result) or 400', () => {",
+                  "  pm.expect([200, 400]).to.include(status);",
+                  "});",
+                  "console.log('days=-5 status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /impact-analysis?days=abc - Non-numeric days (expect graceful 400, not 500)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/impact-analysis?days=abc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "impact-analysis"],
+              "query": [{ "key": "days", "value": "abc" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Non-numeric days param should not 500 (int() parse crash - route only try/excepts to a generic 500)', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "pm.test('Non-numeric days param returns 400 ideally', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});",
+                  "console.log('impact-analysis days=abc status=' + status);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Negative Tests - No Auth",
+      "item": [
+        {
+          "name": "GET /correlation-analysis - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/correlation-analysis",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "correlation-analysis"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /clinical-flags - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/clinical-flags",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "clinical-flags"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /impact-analysis - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/impact-analysis",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "impact-analysis"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /correlation-analysis - Malformed auth header (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer not-a-real-token" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-analytics/correlation-analysis",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-analytics", "correlation-analysis"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Invalid/garbage JWT returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

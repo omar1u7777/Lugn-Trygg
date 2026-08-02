@@ -340,3 +340,54 @@ curl -H "Authorization: Bearer $RENDER_API_KEY" \
   first Prometheus metric). No operator action needed as long as deploys go
   through `gunicorn -c gunicorn_config.py main:app` exactly as `render.yaml`
   specifies — don't bypass this entrypoint.
+
+## 9. Known deferred tech debt
+
+### 9a. React Router v6 → v7 (Dependabot #233, #234) — deliberately not done
+
+Two open Dependabot alerts on `react-router-dom`/`react-router` (currently
+pinned at `^6.30.3`), both requiring a v7 migration to fix, not a patch bump:
+
+- **#233** (moderate, open redirect → XSS, `react-router-dom`): **no fix
+  released upstream yet** at any version — migrating to v7 today would not
+  even resolve this one.
+- **#234** (moderate, arbitrary constructor injection via `deserializeErrors()`
+  during SSR hydration, `react-router`): only reachable through React Router's
+  data-router SSR hydration path. This app is a pure Vite SPA — no
+  server-side rendering, no data-router loaders — so this code path is not
+  exercised in production regardless of version.
+
+Decision: defer. Both are Moderate severity, neither is confirmed practically
+exploitable in this app's actual deployment, and #233 can't be fixed by
+upgrading anyway. Revisit as a dedicated migration (package rename
+`react-router-dom` → `react-router`, import updates, full routing regression
+test) once #233 has an upstream fix, rather than folding it into routine
+dependency maintenance.
+
+## 10. Known architectural risk: AI music generation can block the whole backend
+
+Found via a live Postman run against production: `POST /api/v1/ai-music/generate`
+(and the sibling `/generate-musicgen`) calls
+`AIMusicService.generate_soundscape()` **synchronously, inline in the Flask
+request** (`Backend/src/routes/ai_music_routes.py`, calling into
+`Backend/src/services/ai_music_service.py`). That service does real numpy/scipy
+DSP synthesis (binaural beats, FFT-based ambient noise, IIR filtering) for
+durations up to 1200s (20 minutes) of audio — this is genuine CPU-bound work,
+not an I/O wait, so it holds the GIL for extended stretches.
+
+`gunicorn_config.py` runs a single worker (`GUNICORN_WORKERS=1`, `gthread`
+worker class — see the comment there for why: a deliberate low-memory choice).
+With only one worker process, a slow/long soundscape generation can starve
+**every other concurrent request on the entire backend** — including crisis
+endpoints — until it finishes or the 120s gunicorn timeout kills it. During
+live testing, a generation call in flight was directly observed to make
+unrelated requests (login, simple auth checks) fail with 502 until it cleared.
+
+This is not a quick fix — the real options are: (a) move generation to a
+background task/queue (Cloud Tasks, a dedicated worker service, or similar)
+with the client polling or receiving a webhook/notification when the track is
+ready, or (b) bump `GUNICORN_WORKERS` past 1 (reintroduces the OOM-risk
+tradeoff §gunicorn_config.py's comment already documents, and only mitigates
+the problem — a big enough generation request would still starve one worker's
+worth of capacity). Needs a deliberate decision, not something to patch in
+passing. Not fixed as part of this pass.

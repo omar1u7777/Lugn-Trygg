@@ -1143,7 +1143,10 @@ def get_chat_history():
         # Get conversation history
         conversation_ref = db.collection("users").document(user_id).collection("conversations")
         # Paginate: default 50 messages, max 200. Fetch limit+1 to detect if more exist.
-        limit = min(int(request.args.get("limit", 50)), 200)
+        try:
+            limit = min(int(request.args.get("limit", 50)), 200)
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("limit must be an integer")
         raw = list(conversation_ref.order_by("timestamp", direction="DESCENDING").limit(limit + 1).stream())
         has_more = len(raw) > limit
         raw = raw[:limit]

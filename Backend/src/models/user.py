@@ -11,7 +11,7 @@ def _coerce_bool(value: Any, default: bool = False) -> bool:
         return value
     if value is None:
         return default
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return value != 0
     if isinstance(value, str):
         normalized = value.strip().lower()

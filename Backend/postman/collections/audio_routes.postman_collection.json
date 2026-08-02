@@ -1,0 +1,644 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Audio Routes API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "d4a1c8f2-6b3e-4a9d-9e2c-7f5b3a8d1c60",
+    "description": "E2E test collection for src/routes/audio_routes.py (relaxing sounds / meditation audio library). All routes are GET and jwt_required. Uses collection variables for auth token and dynamic category/track IDs captured via chaining."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "testEmail",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    },
+    {
+      "key": "categoryId",
+      "value": ""
+    },
+    {
+      "key": "trackId",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-audio-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Audio Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  const responseData = body.data || body;",
+                  "  const tokens = responseData.tokens || {};",
+                  "  if (tokens.access_token || responseData.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', tokens.access_token || responseData.accessToken);",
+                  "  }",
+                  "  const user = responseData.user || {};",
+                  "  if (user.id || responseData.userId) {",
+                  "    pm.collectionVariables.set('userId', user.id || responseData.userId);",
+                  "  }",
+                  "  pm.collectionVariables.set('testEmail', 'e2e-audio-' + pm.collectionVariables.get('testUuid') + '@test.lugntrygg.se');",
+                  "  console.log('Registered new user, token set');",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "} else if (status === 429) {",
+                  "  console.log('Rate limited on register, will retry via login');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-audio-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 or 429 (rate limited)', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  const tokens = responseData.tokens || {};",
+                  "  pm.collectionVariables.set('accessToken', tokens.access_token || responseData.accessToken);",
+                  "  const user = responseData.user || {};",
+                  "  pm.collectionVariables.set('userId', user.id || responseData.userId || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Audio - Categories & Library",
+      "item": [
+        {
+          "name": "GET /categories - List all categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audio/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audio", "categories"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Categories returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Categories is a non-empty array', () => {",
+                  "  pm.expect(responseData.categories).to.be.an('array');",
+                  "  pm.expect(responseData.categories.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Category items have expected fields', () => {",
+                  "  const cat = responseData.categories[0];",
+                  "  pm.expect(cat).to.have.property('id');",
+                  "  pm.expect(cat).to.have.property('name');",
+                  "  pm.expect(cat).to.have.property('trackCount');",
+                  "});",
+                  "",
+                  "// Chain: capture first category id for later requests",
+                  "if (responseData.categories && responseData.categories.length > 0) {",
+                  "  pm.collectionVariables.set('categoryId', responseData.categories[0].id);",
+                  "}",
+                  "console.log('categoryId=' + pm.collectionVariables.get('categoryId'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /category/{{categoryId}} - Tracks for category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audio/category/{{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audio", "category", "{{categoryId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Category tracks returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has category and tracks', () => {",
+                  "  pm.expect(responseData.category).to.exist;",
+                  "  pm.expect(responseData.tracks).to.be.an('array');",
+                  "  pm.expect(responseData.tracks.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "// Chain: capture first track id for later requests",
+                  "if (responseData.tracks && responseData.tracks.length > 0) {",
+                  "  pm.collectionVariables.set('trackId', responseData.tracks[0].id);",
+                  "}",
+                  "console.log('trackId=' + pm.collectionVariables.get('trackId'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /all - Complete audio library",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audio/all",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audio", "all"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('/all returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('/all has library object with all categories', () => {",
+                  "  pm.expect(responseData.library).to.be.an('object');",
+                  "  pm.expect(Object.keys(responseData.library).length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /library - Alias for /all",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audio/library",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audio", "library"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('/library alias returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('/library returns same shape as /all', () => {",
+                  "  pm.expect(responseData.library).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Audio - Track & Search",
+      "item": [
+        {
+          "name": "GET /track/{{trackId}} - Get single track",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audio/track/{{trackId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audio", "track", "{{trackId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Track returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Track has expected fields', () => {",
+                  "  pm.expect(responseData.track).to.exist;",
+                  "  pm.expect(responseData.track.id).to.eql(pm.collectionVariables.get('trackId'));",
+                  "  pm.expect(responseData.track.url).to.be.a('string');",
+                  "  pm.expect(responseData.category).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /search?q=rain - Search valid query",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audio/search?q=rain",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audio", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "rain"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Search returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Search results is an array', () => {",
+                  "  pm.expect(responseData.results).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Search results above zero for known term \"rain\"', () => {",
+                  "  pm.expect(responseData.count).to.be.above(0);",
+                  "});",
+                  "console.log('Search results count=' + responseData.count);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Audio - Generation",
+      "item": [
+        {
+          "name": "GET /generate - Alpha ambient (default)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audio/generate?type=ambient&brainwave=alpha&duration=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audio", "generate"],
+              "query": [
+                { "key": "type", "value": "ambient" },
+                { "key": "brainwave", "value": "alpha" },
+                { "key": "duration", "value": "5" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Generate returns 200 or 503 (numpy/scipy unavailable)', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Generate returns audio/wav content-type', () => {",
+                  "    const contentType = pm.response.headers.get('Content-Type') || '';",
+                  "    pm.expect(contentType).to.include('audio/wav');",
+                  "  });",
+                  "  pm.test('Generate returns non-empty binary body', () => {",
+                  "    pm.expect(pm.response.responseSize).to.be.above(0);",
+                  "  });",
+                  "}",
+                  "console.log('Generate status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /generate - Delta binaural (sleep, short duration)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audio/generate?type=binaural&brainwave=delta&duration=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audio", "generate"],
+              "query": [
+                { "key": "type", "value": "binaural" },
+                { "key": "brainwave", "value": "delta" },
+                { "key": "duration", "value": "5" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Generate (delta) returns 200 or 503', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "console.log('Generate delta status=' + status);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Negative Tests",
+      "item": [
+        {
+          "name": "GET /categories - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audio/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audio", "categories"]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403, 422]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /category/nonexistent - Invalid category (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audio/category/nonexistent_category_xyz",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audio", "category", "nonexistent_category_xyz"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Invalid category returns 404', () => {",
+                  "  pm.expect([404, 400]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /track/nonexistent - Invalid track (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audio/track/nonexistent_track_xyz",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audio", "track", "nonexistent_track_xyz"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Invalid track returns 404', () => {",
+                  "  pm.expect([404, 400]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /search - Missing query (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audio/search",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audio", "search"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Missing search query returns 400', () => {",
+                  "  pm.expect([400, 422]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /search?q=a - Query too short (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audio/search?q=a",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audio", "search"],
+              "query": [
+                { "key": "q", "value": "a" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Too-short search query returns 400', () => {",
+                  "  pm.expect([400, 422]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

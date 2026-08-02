@@ -376,7 +376,7 @@ def join_challenge(challenge_id: str):
         user_id = g.get('user_id')
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         username = data.get('username', 'Anonymous')
         username = input_sanitizer.sanitize(username, content_type='text', max_length=80) or 'Anonymous'
 
@@ -397,6 +397,7 @@ def join_challenge(challenge_id: str):
             challenge_ref = db.collection('challenges').document(challenge_id)
             user_challenges_ref = db.collection('user_challenges').document(user_id)
 
+            @gcfirestore.transactional
             def _txn(transaction):
                 snapshot = transaction.get(challenge_ref)
                 if not snapshot.exists:
@@ -432,7 +433,8 @@ def join_challenge(challenge_id: str):
                 }, merge=True)
 
             try:
-                db.run_transaction(_txn)
+                transaction = db.transaction()
+                _txn(transaction)
             except ValueError as ve:
                 msg = str(ve)
                 if msg.startswith('404:'):
@@ -559,7 +561,7 @@ def contribute_to_challenge(challenge_id: str):
         user_id = g.get('user_id')
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         contribution_type = (data.get('type') or 'mood').strip().lower()
         amount = data.get('amount', 1)
 

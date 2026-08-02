@@ -641,7 +641,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                             if assessment_type == "phq9":
                                 suicidal = a_data.get("suicidal_ideation", False)
                                 self_harm = a_data.get("self_harm_score", 0)
-                                if suicidal or (isinstance(self_harm, (int, float)) and self_harm > 0):
+                                if suicidal or (isinstance(self_harm, int | float) and self_harm > 0):
                                     crisis_alert = (
                                         "\n\nKRISISLARM (aktiv — HÖGST PRIORITET):\n"
                                         f"Användarens senaste PHQ-9 visar självskadetankar (Q9 poäng: {self_harm}).\n"
@@ -739,7 +739,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                 if not title:
                     continue
                 progress = data.get("progress")
-                prog_part = f" ({int(progress)}%)" if isinstance(progress, (int, float)) else ""
+                prog_part = f" ({int(progress)}%)" if isinstance(progress, int | float) else ""
                 goal_lines.append(f"- {title[:100]}{prog_part}")
                 if len(goal_lines) >= 3:
                     break

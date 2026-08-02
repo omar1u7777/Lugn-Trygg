@@ -1,0 +1,1016 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Chatbot Routes API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "d4a1e6c8-2b7f-4a3d-9e5c-7f1b2c8d4a90",
+    "description": "Live E2E audit collection for Backend/src/routes/chatbot_routes.py (11 routes). Covers /chat, /message, /chat/stream, /session/close, /history, /analyze-patterns, /exercise, /exercise/<user_id>/<exercise_id>/complete, /analysis/framework, /analysis/progress, /analysis/quality. Uses a dedicated e2e test account and only ever sends neutral, non-crisis mood/chat text."
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://lugn-trygg-backend.onrender.com",
+      "description": "Base URL (overridable via --env-var base_url=...)"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "description": "JWT access token (auto-set after login)"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "description": "User ID (auto-set after login)"
+    },
+    {
+      "key": "otherUserId",
+      "value": "e2e-other-user-not-me-000000000000",
+      "description": "A user id that is deliberately NOT the logged-in user, for 403 ownership checks"
+    },
+    {
+      "key": "testEmail",
+      "value": "",
+      "description": "Dynamic test email (auto-set per run)"
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!",
+      "description": "Password meeting complexity rules (8+ chars, mixed case, digit, symbol)"
+    },
+    {
+      "key": "testUuid",
+      "value": "",
+      "description": "Unique suffix for this run's test email"
+    },
+    {
+      "key": "exerciseId",
+      "value": "",
+      "description": "Exercise id captured from POST /exercise, used to chain the /complete call"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate a unique suffix for this run if not already set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-chatbot_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Chatbot Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "let body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  const data = body.data || body;",
+                  "  if (data.user && data.user.id) pm.collectionVariables.set('userId', data.user.id);",
+                  "  pm.collectionVariables.set('testEmail', 'e2e-chatbot_routes-' + pm.collectionVariables.get('testUuid') + '@test.lugntrygg.se');",
+                  "  console.log('Registered new chatbot_routes test user: ' + pm.collectionVariables.get('testEmail'));",
+                  "} else if (status === 409) {",
+                  "  pm.collectionVariables.set('testEmail', 'e2e-chatbot_routes-' + pm.collectionVariables.get('testUuid') + '@test.lugntrygg.se');",
+                  "  console.log('User already existed (unlikely with random suffix), proceeding to login');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Login returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const data = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', data.accessToken || '');",
+                  "  pm.collectionVariables.set('userId', data.userId || (data.user && data.user.id) || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "}",
+                  "",
+                  "pm.test('AccessToken is set', () => {",
+                  "  pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Chat - Core Messaging",
+      "item": [
+        {
+          "name": "POST /chat - Normal neutral message",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "chat"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Jag mar ganska bra idag, jag har precis varit ute och promenerat.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Chat returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has non-empty text', () => {",
+                  "  pm.expect(data.response).to.be.a('string');",
+                  "  pm.expect(data.response.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Response includes camelCase fields', () => {",
+                  "  pm.expect(data).to.have.property('emotionsDetected');",
+                  "  pm.expect(data).to.have.property('suggestedActions');",
+                  "  pm.expect(data).to.have.property('crisisDetected');",
+                  "  pm.expect(data.crisisDetected).to.eql(false);",
+                  "});",
+                  "",
+                  "console.log('Chat response length=' + (data.response || '').length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /chat - Missing message field (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "chat"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"some_key\": \"value\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Missing message returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});",
+                  "",
+                  "pm.test('Error envelope is well-formed', () => {",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /chat - Oversized message >2000 chars (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "chat"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Build a >2000 char benign, repetitive, non-crisis message",
+                  "const longMsg = 'lugn '.repeat(500);",
+                  "pm.request.body.raw = JSON.stringify({ message: longMsg });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Oversized message returns 400', () => {",
+                  "  pm.expect([400, 413, 422]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /message - Legacy alias (happy path)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "message"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Hej, jag ville bara saga att dagen har varit lugn.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Legacy /message returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Legacy response has text', () => {",
+                  "  pm.expect(data.response).to.be.a('string');",
+                  "  pm.expect(data.response.length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /chat/stream - SSE streaming (happy path)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "text/event-stream" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/chat/stream",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "chat", "stream"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Kan du ge mig en kort andningsovning i tre steg?\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const text = pm.response.text();",
+                  "",
+                  "pm.test('Stream returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Stream has SSE data lines', () => {",
+                  "  const lines = text.split('\\n').filter(l => l.startsWith('data: '));",
+                  "  pm.expect(lines.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "console.log('SSE data lines: ' + text.split('\\n').filter(l => l.startsWith('data: ')).length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /chat/stream - Missing message (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/chat/stream",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "chat", "stream"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Missing message on stream returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Session & History",
+      "item": [
+        {
+          "name": "POST /session/close - Close session",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/session/close",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "session", "close"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Session close returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has summarised flag', () => {",
+                  "  pm.expect(data).to.have.property('summarised');",
+                  "});",
+                  "",
+                  "console.log('summarised=' + data.summarised + ' reason=' + (data.reason || 'n/a'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /history - Conversation history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/history?limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "history"],
+              "query": [
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('History returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('History has conversation array', () => {",
+                  "  pm.expect(data.conversation).to.be.an('array');",
+                  "  pm.expect(data).to.have.property('totalMessages');",
+                  "  pm.expect(data).to.have.property('hasMore');",
+                  "});",
+                  "",
+                  "pm.test('History reflects the messages we just sent', () => {",
+                  "  pm.expect(data.conversation.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "console.log('History messages: ' + (data.conversation || []).length);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Mood Pattern Analysis",
+      "item": [
+        {
+          "name": "POST /analyze-patterns - Mood pattern analysis",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/analyze-patterns",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "analyze-patterns"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Analyze patterns returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has patternAnalysis and dataPointsAnalyzed', () => {",
+                  "  pm.expect(data).to.have.property('patternAnalysis');",
+                  "  pm.expect(data).to.have.property('dataPointsAnalyzed');",
+                  "});",
+                  "",
+                  "console.log('dataPointsAnalyzed=' + data.dataPointsAnalyzed);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Exercises",
+      "item": [
+        {
+          "name": "POST /exercise - Start breathing exercise",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/exercise",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "exercise"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exercise_type\": \"breathing\",\n  \"duration\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Exercise start returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Exercise payload has expected shape', () => {",
+                  "  pm.expect(data.exerciseType).to.eql('breathing');",
+                  "  pm.expect(data.duration).to.eql(5);",
+                  "  pm.expect(data.exercise).to.have.property('title');",
+                  "  pm.expect(data.exercise).to.have.property('steps');",
+                  "});",
+                  "",
+                  "if (data.exerciseId) pm.collectionVariables.set('exerciseId', data.exerciseId);",
+                  "console.log('Exercise started, id=' + pm.collectionVariables.get('exerciseId'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /exercise - Missing exercise_type (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/exercise",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "exercise"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"duration\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Missing exercise_type returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions exercise type', () => {",
+                  "  pm.expect(body.message.toLowerCase()).to.include('exercise type');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /exercise - Invalid exercise_type (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/exercise",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "exercise"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exercise_type\": \"invalid_type_xyz\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Invalid exercise type returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions invalid exercise type', () => {",
+                  "  pm.expect(body.message.toLowerCase()).to.include('invalid exercise type');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /exercise/{{userId}}/{{exerciseId}}/complete - Complete own exercise",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/exercise/{{userId}}/{{exerciseId}}/complete",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "exercise", "{{userId}}", "{{exerciseId}}", "complete"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Complete exercise returns 200 (exerciseId chained from prior request)', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Completion message confirms success', () => {",
+                  "    pm.expect(data.message).to.include('completed');",
+                  "  });",
+                  "}",
+                  "console.log('Complete exercise status=' + status + ' exerciseId=' + pm.collectionVariables.get('exerciseId'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /exercise/{{otherUserId}}/{{exerciseId}}/complete - Wrong user (expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/exercise/{{otherUserId}}/{{exerciseId}}/complete",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "exercise", "{{otherUserId}}", "{{exerciseId}}", "complete"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Completing another user\\'s exercise returns 403', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "});",
+                  "",
+                  "pm.test('Error code is FORBIDDEN', () => {",
+                  "  pm.expect(body.error).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /exercise//{{exerciseId}}/complete - Missing path segment (expect 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/exercise//{{exerciseId}}/complete",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "exercise", "", "{{exerciseId}}", "complete"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Missing user_id path segment returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Advanced AI Chat Analytics",
+      "item": [
+        {
+          "name": "GET /analysis/framework - Therapeutic framework detection",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/analysis/framework",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "analysis", "framework"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Framework analysis returns 200 or 503 (feature unavailable)', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const data = body.data || body;",
+                  "  pm.test('Framework analysis payload has expected shape', () => {",
+                  "    pm.expect(data).to.have.property('framework');",
+                  "    pm.expect(data).to.have.property('confidence');",
+                  "  });",
+                  "}",
+                  "console.log('Framework analysis status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /analysis/progress - Therapeutic progress tracking",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/analysis/progress",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "analysis", "progress"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Progress analysis returns 200 or 503 (feature unavailable)', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "console.log('Progress analysis status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /analysis/quality - Conversation quality metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/analysis/quality",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "analysis", "quality"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Quality metrics returns 200 or 503 (feature unavailable)', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "console.log('Quality metrics status=' + status);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Negative & Security Tests",
+      "item": [
+        {
+          "name": "POST /chat - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "chat"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"test\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth on /chat returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /history - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/history",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "history"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth on /history returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /exercise - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/exercise",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "exercise"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exercise_type\": \"breathing\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth on /exercise returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /analysis/framework - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chatbot/analysis/framework",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chatbot", "analysis", "framework"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth on /analysis/framework returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

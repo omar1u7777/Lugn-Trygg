@@ -1,0 +1,759 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Leaderboard API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "b4f3a1d2-6c9e-4a7f-8b1d-9e2c5f7a3d61",
+    "description": "E2E test collection for the leaderboard/ranking routes (src/routes/leaderboard_routes.py). All 6 routes are read-only GET endpoints (XP leaderboard, streak leaderboard, mood leaderboard, per-user rank lookup via two aliased paths, and weekly winners) backed by Firestore aggregation queries. None of these routes write any data, so every request in this collection is safe to execute live - there is no 'Not Executed For Safety' folder."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-leaderboard_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Leaderboard Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  const responseData = body.data || body;",
+                  "  if (responseData.accessToken) pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  if (responseData.user && responseData.user.id) pm.collectionVariables.set('userId', responseData.user.id);",
+                  "  else if (responseData.userId) pm.collectionVariables.set('userId', responseData.userId);",
+                  "  console.log('Registered new user, will login next for tokens');",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-leaderboard_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 or 429 (rate limited)', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || (responseData.user && responseData.user.id) || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "",
+                  "  pm.test('userId matches expected format (20-128 alphanumeric chars)', () => {",
+                  "    pm.expect(pm.collectionVariables.get('userId')).to.match(/^[a-zA-Z0-9]{20,128}$/);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. XP Leaderboard",
+      "item": [
+        {
+          "name": "GET /leaderboard/xp - Default limit",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/xp",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "xp"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('XP leaderboard returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data || body;",
+                  "",
+                  "  pm.test('Response has leaderboard array', () => {",
+                  "    pm.expect(data.leaderboard).to.be.an('array');",
+                  "  });",
+                  "",
+                  "  pm.test('Response has timeframe and updatedAt', () => {",
+                  "    pm.expect(data).to.have.property('timeframe');",
+                  "    pm.expect(data).to.have.property('updatedAt');",
+                  "  });",
+                  "",
+                  "  if (data.leaderboard.length > 0) {",
+                  "    const entry = data.leaderboard[0];",
+                  "    pm.test('Leaderboard entry has expected shape', () => {",
+                  "      pm.expect(entry).to.have.property('rank');",
+                  "      pm.expect(entry).to.have.property('userId');",
+                  "      pm.expect(entry).to.have.property('displayName');",
+                  "      pm.expect(entry).to.have.property('xp');",
+                  "      pm.expect(entry).to.have.property('badgeCount');",
+                  "    });",
+                  "    pm.test('Entries are sorted descending by xp', () => {",
+                  "      for (let i = 1; i < data.leaderboard.length; i++) {",
+                  "        pm.expect(data.leaderboard[i].xp).to.be.at.most(data.leaderboard[i - 1].xp);",
+                  "      }",
+                  "    });",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /leaderboard/xp?limit=5&timeframe=weekly",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/xp?limit=5&timeframe=weekly",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "xp"],
+              "query": [
+                { "key": "limit", "value": "5" },
+                { "key": "timeframe", "value": "weekly" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('XP leaderboard with limit/timeframe returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data || body;",
+                  "  pm.test('Leaderboard respects limit=5', () => {",
+                  "    pm.expect(data.leaderboard.length).to.be.at.most(5);",
+                  "  });",
+                  "  pm.test('Timeframe echoed back as weekly', () => {",
+                  "    pm.expect(data.timeframe).to.eql('weekly');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /leaderboard/xp?limit=9999 - Clamped to max 100",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/xp?limit=9999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "xp"],
+              "query": [
+                { "key": "limit", "value": "9999" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('XP leaderboard with oversized limit returns 200 (not 500)', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data || body;",
+                  "  pm.test('Leaderboard length clamped to <= 100', () => {",
+                  "    pm.expect(data.leaderboard.length).to.be.at.most(100);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /leaderboard/xp - No auth",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/xp",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "xp"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('XP leaderboard without auth returns 401', () => {",
+                  "  pm.expect(pm.response.code).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Streak Leaderboard",
+      "item": [
+        {
+          "name": "GET /leaderboard/streaks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/streaks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "streaks"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Streak leaderboard returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data || body;",
+                  "  pm.test('Response has leaderboard array', () => {",
+                  "    pm.expect(data.leaderboard).to.be.an('array');",
+                  "  });",
+                  "  if (data.leaderboard.length > 0) {",
+                  "    pm.test('Entry has streak fields', () => {",
+                  "      pm.expect(data.leaderboard[0]).to.have.property('currentStreak');",
+                  "      pm.expect(data.leaderboard[0]).to.have.property('longestStreak');",
+                  "    });",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /leaderboard/streaks?limit=3",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/streaks?limit=3",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "streaks"],
+              "query": [{ "key": "limit", "value": "3" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Streak leaderboard with limit=3 returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "if (status === 200) {",
+                  "  const data = pm.response.json().data || pm.response.json();",
+                  "  pm.test('Respects limit=3', () => {",
+                  "    pm.expect(data.leaderboard.length).to.be.at.most(3);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /leaderboard/streaks - No auth",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/streaks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "streaks"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Streak leaderboard without auth returns 401', () => {",
+                  "  pm.expect(pm.response.code).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Mood Leaderboard",
+      "item": [
+        {
+          "name": "GET /leaderboard/moods",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/moods",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "moods"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Mood leaderboard returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data || body;",
+                  "  pm.test('Response has leaderboard array', () => {",
+                  "    pm.expect(data.leaderboard).to.be.an('array');",
+                  "  });",
+                  "  if (data.leaderboard.length > 0) {",
+                  "    pm.test('Entry has mood fields', () => {",
+                  "      pm.expect(data.leaderboard[0]).to.have.property('moodCount');",
+                  "      pm.expect(data.leaderboard[0]).to.have.property('averageMood');",
+                  "    });",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /leaderboard/moods - No auth",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/moods",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "moods"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Mood leaderboard without auth returns 401', () => {",
+                  "  pm.expect(pm.response.code).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. User Rank",
+      "item": [
+        {
+          "name": "GET /leaderboard/user/{{userId}}/rank - Own rank",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/user/{{userId}}/rank",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "user", "{{userId}}", "rank"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Own user rank returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data || body;",
+                  "  pm.test('Response has rankings for xp, streak, moods', () => {",
+                  "    pm.expect(data.rankings).to.have.property('xp');",
+                  "    pm.expect(data.rankings).to.have.property('streak');",
+                  "    pm.expect(data.rankings).to.have.property('moods');",
+                  "  });",
+                  "  pm.test('Response has totalUsers', () => {",
+                  "    pm.expect(data).to.have.property('totalUsers');",
+                  "  });",
+                  "  pm.test('userId echoed matches requested id', () => {",
+                  "    pm.expect(data.userId).to.eql(pm.collectionVariables.get('userId'));",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /leaderboard/user/{{userId}} - Alt path (no /rank suffix)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/user/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "user", "{{userId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Alt user rank path returns 200 (same handler as /rank)', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const data = pm.response.json().data || pm.response.json();",
+                  "  pm.test('Alt path returns same shape with rankings', () => {",
+                  "    pm.expect(data.rankings).to.have.property('xp');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /leaderboard/user/<valid-format-nonexistent> - 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/user/zzzzzzzzzzzzzzzzzzzzzzzzzzzz/rank",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "user", "zzzzzzzzzzzzzzzzzzzzzzzzzzzz", "rank"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 28 lowercase 'z' chars passes the USER_ID_PATTERN (20-128 alphanumeric)",
+                  "// format check but should not exist in either users or user_rewards.",
+                  "pm.test('Well-formed but nonexistent userId returns 404', () => {",
+                  "  pm.expect(pm.response.code).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /leaderboard/user/<too-short> - Invalid format returns 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/user/short/rank",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "user", "short", "rank"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 'short' is only 5 chars, fails the 20-128 char USER_ID_PATTERN regex,",
+                  "// so the route should reject it before any Firestore call.",
+                  "pm.test('Too-short userId returns 400 bad request', () => {",
+                  "  pm.expect(pm.response.code).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /leaderboard/user/<special-chars> - Invalid format returns 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/user/valid-looking-id-but-has-dashes-in-it/rank",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "user", "valid-looking-id-but-has-dashes-in-it", "rank"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Contains dashes, which are not in [a-zA-Z0-9], so this must be",
+                  "// rejected by the format validator even though it is long enough.",
+                  "pm.test('userId with dashes returns 400 bad request', () => {",
+                  "  pm.expect(pm.response.code).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /leaderboard/user/{{userId}}/rank - No auth",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/user/{{userId}}/rank",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "user", "{{userId}}", "rank"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User rank without auth returns 401', () => {",
+                  "  pm.expect(pm.response.code).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Weekly Winners",
+      "item": [
+        {
+          "name": "GET /leaderboard/weekly-winners",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/weekly-winners",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "weekly-winners"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Weekly winners returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data || body;",
+                  "  pm.test('Response has weekStart/weekEnd/winners', () => {",
+                  "    pm.expect(data).to.have.property('weekStart');",
+                  "    pm.expect(data).to.have.property('weekEnd');",
+                  "    pm.expect(data.winners).to.have.property('xp');",
+                  "  });",
+                  "  pm.test('Winners xp array has at most 3 entries', () => {",
+                  "    pm.expect(data.winners.xp.length).to.be.at.most(3);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /leaderboard/weekly-winners - No auth",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/leaderboard/weekly-winners",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "leaderboard", "weekly-winners"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Weekly winners without auth returns 401', () => {",
+                  "  pm.expect(pm.response.code).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
