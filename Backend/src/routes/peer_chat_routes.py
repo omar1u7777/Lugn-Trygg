@@ -295,7 +295,7 @@ def leave_room(room_id: str):
         session_id = data.get('session_id')
 
         if not session_id:
-            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+            return APIResponse.error("session_id is required", "SESSION_ID_REQUIRED", 400)
 
         _, error_response = _validate_session(session_id, expected_room_id=room_id)
         if error_response is not None:
@@ -326,11 +326,14 @@ def get_messages(room_id: str):
 
         # Get last_message_id for incremental updates
         last_message_id = request.args.get('after')
-        limit = min(int(request.args.get('limit', 20)), 50)  # Cap at 50
+        try:
+            limit = min(int(request.args.get('limit', 20)), 50)  # Cap at 50
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("limit must be an integer")
         session_id = request.args.get('session_id')
 
         if not session_id:
-            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+            return APIResponse.error("session_id is required", "SESSION_ID_REQUIRED", 400)
 
         _, error_response = _validate_session(session_id, expected_room_id=room_id)
         if error_response is not None:
@@ -389,15 +392,15 @@ def send_message(room_id: str):
         avatar = data.get('avatar')
 
         if not session_id:
-            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+            return APIResponse.error("session_id is required", "SESSION_ID_REQUIRED", 400)
 
         if not message_text:
-            return APIResponse.bad_request("Message cannot be empty", "EMPTY_MESSAGE")
+            return APIResponse.error("Message cannot be empty", "EMPTY_MESSAGE", 400)
 
         # Moderate message
         is_safe, reason = _moderate_message(message_text)
         if not is_safe:
-            return APIResponse.bad_request(reason, "MODERATION_FAILED")
+            return APIResponse.error(reason, "MODERATION_FAILED", 400)
 
         presence_data, error_response = _validate_session(session_id, expected_room_id=room_id)
         if error_response is not None:
@@ -451,7 +454,7 @@ def like_message(message_id: str):
         session_id = data.get('session_id')
 
         if not session_id:
-            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+            return APIResponse.error("session_id is required", "SESSION_ID_REQUIRED", 400)
 
         _, error_response = _validate_session(session_id)
         if error_response is not None:
@@ -508,7 +511,7 @@ def report_message(message_id: str):
         reason = sanitize_text(data.get('reason', 'Inappropriate content'), max_length=500)
 
         if not session_id:
-            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+            return APIResponse.error("session_id is required", "SESSION_ID_REQUIRED", 400)
 
         _, error_response = _validate_session(session_id)
         if error_response is not None:
@@ -561,7 +564,7 @@ def update_typing(room_id: str):
         is_typing = bool(data.get('is_typing', False))
 
         if not session_id:
-            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+            return APIResponse.error("session_id is required", "SESSION_ID_REQUIRED", 400)
 
         _, error_response = _validate_session(session_id, expected_room_id=room_id)
         if error_response is not None:
@@ -593,7 +596,7 @@ def get_room_presence(room_id: str):
 
         session_id = request.args.get('session_id')
         if not session_id:
-            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+            return APIResponse.error("session_id is required", "SESSION_ID_REQUIRED", 400)
 
         _, error_response = _validate_session(session_id, expected_room_id=room_id)
         if error_response is not None:
@@ -603,22 +606,27 @@ def get_room_presence(room_id: str):
         typing_users = []
 
         if db is not None:
-            five_min_ago = datetime.now(UTC) - timedelta(minutes=5)
-            docs = db.collection('peer_chat_presence').where(filter=FieldFilter(
-                'room_id', '==', room_id
-            )).where(filter=FieldFilter(
-                'last_seen', '>=', five_min_ago.isoformat()
-            )).stream()
+            try:
+                five_min_ago = datetime.now(UTC) - timedelta(minutes=5)
+                docs = db.collection('peer_chat_presence').where(filter=FieldFilter(
+                    'room_id', '==', room_id
+                )).where(filter=FieldFilter(
+                    'last_seen', '>=', five_min_ago.isoformat()
+                )).stream()
 
-            for doc in docs:
-                user_data = doc.to_dict() or {}
-                active_users.append({
-                    'anonymousName': user_data.get('anonymous_name'),
-                    'avatar': user_data.get('avatar')
-                })
+                for doc in docs:
+                    user_data = doc.to_dict() or {}
+                    active_users.append({
+                        'anonymousName': user_data.get('anonymous_name'),
+                        'avatar': user_data.get('avatar')
+                    })
 
-                if user_data.get('is_typing'):
-                    typing_users.append(user_data.get('anonymous_name'))
+                    if user_data.get('is_typing'):
+                        typing_users.append(user_data.get('anonymous_name'))
+            except Exception:
+                # Compound query may fail if composite index doesn't exist
+                # (mirrors the same guard in get_rooms() for this query shape)
+                logger.exception("Presence query failed for room %s", room_id)
 
         return APIResponse.success({
             'activeCount': len(active_users),

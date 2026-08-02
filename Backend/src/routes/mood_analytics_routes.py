@@ -43,8 +43,11 @@ def get_correlation_analysis() -> Response | tuple[Response, int]:
             return APIResponse.unauthorized('User ID missing from context')
 
         # Get query parameters
-        days = int(request.args.get('days', 30))
-        min_occurrences = int(request.args.get('min_occurrences', 3))
+        try:
+            days = int(request.args.get('days', 30))
+            min_occurrences = int(request.args.get('min_occurrences', 3))
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("days and min_occurrences must be integers")
 
         # Validate parameters
         if days < 7 or days > 365:
@@ -173,7 +176,10 @@ def get_impact_analysis() -> Response | tuple[Response, int]:
         if not user_id:
             return APIResponse.unauthorized('User ID missing from context')
 
-        days = int(request.args.get('days', 30))
+        try:
+            days = int(request.args.get('days', 30))
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("days must be an integer")
 
         # Fetch mood entries
         cutoff_date = datetime.utcnow() - timedelta(days=days)

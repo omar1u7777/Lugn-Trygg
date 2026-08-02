@@ -43,7 +43,7 @@ google-cloud-storage==3.13.0
 
 # ML & Data Science (pinned)
 scikit-learn==1.8.0
-numpy==2.2.4
+numpy==2.4.6
 pandas==3.0.0
 joblib==1.5.3
 
@@ -78,7 +78,7 @@ scipy==1.17.0
 # shap==0.46.0
 
 # Payment Processing
-stripe==11.3.0
+stripe==15.3.1
 
 # Database & Storage
 google-cloud-firestore==2.23.0
@@ -88,19 +88,19 @@ resend==2.0.0
 
 # Data Validation
 pydantic==2.13.4
-pydantic-settings==2.7.0
+pydantic-settings==2.14.2
 email-validator==2.3.0
 marshmallow==3.26.2
 
 # API Documentation
-apispec==6.9.0
+apispec==6.10.0
 flasgger==0.9.7.1
 
 # Monitoring & Logging
 prometheus-client==0.26.0
 sentry-sdk[flask]==2.52.0
-structlog==25.5.0
-python-json-logger==4.0.0
+structlog==26.1.0
+python-json-logger==4.1.0
 
 # Health Data Integration
 oauthlib==3.3.1
@@ -112,9 +112,9 @@ python-dateutil==2.9.0.post0
 pytz==2025.2
 
 # Two-Factor Authentication
-pyotp==2.9.0
+pyotp==2.10.0
 qrcode[pil]==8.0
-webauthn==2.7.0
+webauthn==3.0.0
 pyOpenSSL==26.3.0
 
 # System Monitoring

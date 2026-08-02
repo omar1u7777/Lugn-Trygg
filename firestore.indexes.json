@@ -595,6 +595,20 @@
       ]
     },
     {
+      "collectionGroup": "crisis_assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "assessment_timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "insights",
       "queryScope": "COLLECTION",
       "fields": [
@@ -619,6 +633,20 @@
         {
           "fieldPath": "timestamp",
           "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "peer_chat_presence",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "room_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_seen",
+          "order": "ASCENDING"
         }
       ]
     },

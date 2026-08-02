@@ -1,0 +1,722 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Notifications API",
+    "description": "Push notification / FCM token / reminder scheduling endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-notifications_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Notifications Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => { pm.expect([201, 409, 429]).to.include(status); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-notifications_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code; let body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "pm.test('Login returns 200 (or 429)', () => { pm.expect([200, 429]).to.include(status); });",
+                  "if (status === 200) {",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.test('AccessToken is set', () => { pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty; });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Send Reminder (no FCM token yet)",
+      "item": [
+        {
+          "name": "POST /notifications/send-reminder - No FCM token yet (graceful)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/send-reminder",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "send-reminder"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"message\": \"Test reminder\", \"type\": \"daily\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Send reminder returns 200 or 404', () => { pm.expect([200, 404]).to.include(pm.response.code); });",
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json().data || pm.response.json();",
+                  "  pm.test('Response has sent field', () => { pm.expect(data).to.have.property('sent'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notifications/send-reminder - Invalid type (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/send-reminder",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "send-reminder"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"message\": \"Test\", \"type\": \"not_a_real_type\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Invalid type returns 400', () => { pm.expect(pm.response.code).to.eql(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notifications/send-reminder - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/send-reminder",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "send-reminder"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No auth returns 401', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. FCM Token",
+      "item": [
+        {
+          "name": "POST /notifications/fcm-token - Save token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/fcm-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "fcm-token"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fcmToken\": \"test-fcm-token-{{testUuid}}-abcdef123456\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Save FCM token returns 200', () => { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data || pm.response.json();",
+                  "pm.test('tokenSaved is true', () => { pm.expect(data.tokenSaved).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notifications/fcm-token - Missing token (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/fcm-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "fcm-token"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing token returns 400', () => { pm.expect(pm.response.code).to.eql(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notifications/fcm-token - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/fcm-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "fcm-token"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fcmToken\": \"x\"}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No auth returns 401', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Schedule Daily",
+      "item": [
+        {
+          "name": "POST /notifications/schedule-daily - Valid time",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/schedule-daily",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "schedule-daily"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"enabled\": true, \"time\": \"08:30\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Schedule daily returns 200', () => { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data || pm.response.json();",
+                  "pm.test('time echoed correctly', () => { pm.expect(data.time).to.eql('08:30'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notifications/schedule-daily - Invalid time format (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/schedule-daily",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "schedule-daily"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"enabled\": true, \"time\": \"not-a-time\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Invalid time returns 400', () => { pm.expect(pm.response.code).to.eql(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notifications/schedule-daily - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/schedule-daily",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "schedule-daily"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No auth returns 401', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Settings",
+      "item": [
+        {
+          "name": "GET /notifications/settings - Get settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "settings"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get settings returns 200', () => { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data || pm.response.json();",
+                  "pm.test('Has settings object', () => { pm.expect(data).to.have.property('settings'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notifications/settings - Update settings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "settings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"dailyRemindersEnabled\": false, \"reminderTime\": \"10:15\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Update settings returns 200', () => { pm.expect(pm.response.code).to.eql(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications/settings - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "settings"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No auth returns 401', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Disable All",
+      "item": [
+        {
+          "name": "POST /notifications/disable-all",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/disable-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "disable-all"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Disable all returns 200', () => { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data || pm.response.json();",
+                  "pm.test('allDisabled is true', () => { pm.expect(data.allDisabled).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notifications/disable-all - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/disable-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "disable-all"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No auth returns 401', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.collectionVariables.get('accessToken'), type: 'text' });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    }
+  ]
+}

@@ -202,7 +202,10 @@ def get_advanced_forecast():
 
     try:
         user_id = g.get('user_id')
-        days = min(int(request.args.get('days', 7)), 14)
+        try:
+            days = min(int(request.args.get('days', 7)), 14)
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("days must be an integer")
         include_patterns = request.args.get('include_patterns', 'false').lower() == 'true'
 
         # Get user's mood history
@@ -284,7 +287,10 @@ def _fallback_forecast_endpoint():
         from src.services.predictive_service import predictive_service
 
         user_id = g.get('user_id')
-        days = min(int(request.args.get('days', 7)), 14)
+        try:
+            days = min(int(request.args.get('days', 7)), 14)
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("days must be an integer")
 
         mood_docs = db.collection('users').document(user_id)\
             .collection('moods')\

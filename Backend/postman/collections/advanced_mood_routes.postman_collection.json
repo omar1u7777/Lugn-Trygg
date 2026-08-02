@@ -1,0 +1,1180 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Advanced Mood Routes API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "144180e0-53d4-44a9-888c-347b82962602",
+    "description": "E2E test collection covering all routes in src/routes/advanced_mood_routes.py (registered under /api/v1/advanced-mood): Swedish BERT NLP mood analysis, Temporal LSTM forecasting, PHQ-9/GAD-7 clinical assessments, micro-journaling smart prompts/quick-log/tag-suggestions, and streak gamification. All optional ML services (NLP_AVAILABLE, LSTM_AVAILABLE, CLINICAL_AVAILABLE, JOURNALING_AVAILABLE) are feature-flagged in the backend, so tests accept 200 or 503 as valid outcomes where a service may be unavailable in the deployed environment. All free-text bodies use neutral, benign content ('Kande mig lugn idag, tog en promenad') to avoid triggering real crisis-detection alerts."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "testEmail",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-advanced_mood_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Advanced Mood Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "// 201 = new user, 409 = already exists, 429 = rate limited (all acceptable)",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  pm.collectionVariables.set('testEmail', 'e2e-advanced_mood_routes-' + pm.collectionVariables.get('testUuid') + '@test.lugntrygg.se');",
+                  "  console.log('Registered new advanced_mood test user');",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-advanced_mood_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 or 429', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || (responseData.user && responseData.user.id) || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Swedish BERT NLP Analysis",
+      "item": [
+        {
+          "name": "POST /analyze - Valid neutral text",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/analyze",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "analyze"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Kande mig lugn och avslappnad idag, tog en langpromenad i solen.\",\n  \"include_clinical\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Analyze returns 200 or 503 (NLP service may be unavailable)', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Response has valence/arousal/dominance/primary_emotion', () => {",
+                  "    pm.expect(responseData).to.have.property('valence');",
+                  "    pm.expect(responseData).to.have.property('arousal');",
+                  "    pm.expect(responseData).to.have.property('dominance');",
+                  "    pm.expect(responseData).to.have.property('primary_emotion');",
+                  "    pm.expect(responseData).to.have.property('intensity');",
+                  "    pm.expect(responseData).to.have.property('confidence');",
+                  "  });",
+                  "  console.log('Primary emotion: ' + responseData.primary_emotion);",
+                  "} else {",
+                  "  console.log('NLP service unavailable (503) - acceptable in this deployment');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /analyze - Missing text (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/analyze",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "analyze"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"include_clinical\": false\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Missing text returns 400 (or 503 if NLP unavailable)', () => {",
+                  "  pm.expect([400, 503]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /analyze - Empty body (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/analyze",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "analyze"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Empty body returns 400 (or 503 if NLP unavailable)', () => {",
+                  "  pm.expect([400, 503]).to.include(status);",
+                  "});",
+                  "pm.test('Empty body never 500s', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Temporal LSTM Forecast",
+      "item": [
+        {
+          "name": "GET /forecast?days=7&include_patterns=true",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/forecast?days=7&include_patterns=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "forecast"],
+              "query": [
+                { "key": "days", "value": "7" },
+                { "key": "include_patterns", "value": "true" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "// 200 = forecast generated (LSTM or statistical fallback),",
+                  "// 400 = fresh test account lacks the >=14 mood entries LSTM needs,",
+                  "// 503 = neither LSTM nor fallback available in this deployment.",
+                  "pm.test('Forecast returns 200, 400 or 503', () => {",
+                  "  pm.expect([200, 400, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Response has forecasts array and model_type', () => {",
+                  "    pm.expect(responseData.forecasts).to.be.an('array');",
+                  "    pm.expect(responseData).to.have.property('model_type');",
+                  "  });",
+                  "  console.log('Forecast model: ' + responseData.model_type);",
+                  "} else {",
+                  "  console.log('Forecast status ' + status + ' - acceptable for a fresh test account');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /forecast?days=100 - Out-of-range days clamps to 14",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/forecast?days=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "forecast"],
+              "query": [{ "key": "days", "value": "100" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Out-of-range days never 500s', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "pm.test('Out-of-range days returns 200, 400 or 503', () => {",
+                  "  pm.expect([200, 400, 503]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /forecast?days=abc - Non-numeric days (expect graceful handling, not 500)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/forecast?days=abc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "forecast"],
+              "query": [{ "key": "days", "value": "abc" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Non-numeric days param never 500s', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "pm.test('Non-numeric days returns 200, 400 or 503', () => {",
+                  "  pm.expect([200, 400, 503]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Clinical Assessments (PHQ-9 / GAD-7)",
+      "item": [
+        {
+          "name": "POST /assess/phq9 - Valid mild-range responses",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/assess/phq9",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "assess", "phq9"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responses\": {\n    \"little_interest\": 1,\n    \"feeling_down\": 1,\n    \"sleep_problems\": 1,\n    \"feeling_tired\": 1,\n    \"appetite\": 1,\n    \"feeling_bad\": 1,\n    \"concentration\": 0,\n    \"moving_slowly\": 0,\n    \"self_harm\": 0\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('PHQ-9 assessment returns 200 or 503', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Response has total_score, severity, risk_level', () => {",
+                  "    pm.expect(responseData.total_score).to.eql(6);",
+                  "    pm.expect(responseData).to.have.property('severity');",
+                  "    pm.expect(responseData).to.have.property('risk_level');",
+                  "    pm.expect(responseData).to.have.property('recommendations');",
+                  "  });",
+                  "  pm.test('suicidal_ideation is false (self_harm scored 0)', () => {",
+                  "    pm.expect(responseData.suicidal_ideation).to.eql(false);",
+                  "  });",
+                  "  console.log('PHQ-9 severity: ' + responseData.severity + ', risk: ' + responseData.risk_level);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /assess/phq9 - Missing question keys (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/assess/phq9",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "assess", "phq9"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responses\": {\n    \"little_interest\": 1,\n    \"feeling_down\": 1\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Missing PHQ-9 keys returns 400 (or 503 if unavailable)', () => {",
+                  "  pm.expect([400, 503]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /assess/phq9 - Score out of 0-3 range (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/assess/phq9",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "assess", "phq9"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responses\": {\n    \"little_interest\": 5,\n    \"feeling_down\": 1,\n    \"sleep_problems\": 1,\n    \"feeling_tired\": 1,\n    \"appetite\": 1,\n    \"feeling_bad\": 1,\n    \"concentration\": 0,\n    \"moving_slowly\": 0,\n    \"self_harm\": 0\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Out-of-range PHQ-9 score returns 400 (or 503 if unavailable)', () => {",
+                  "  pm.expect([400, 503]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /assess/gad7 - Valid minimal-range responses",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/assess/gad7",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "assess", "gad7"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responses\": {\n    \"feeling_nervous\": 1,\n    \"cant_control_worry\": 1,\n    \"worrying_too_much\": 1,\n    \"trouble_relaxing\": 1,\n    \"restless\": 0,\n    \"easily_annoyed\": 0,\n    \"afraid\": 0\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('GAD-7 assessment returns 200 or 503', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Response has total_score, severity, risk_level', () => {",
+                  "    pm.expect(responseData.total_score).to.eql(4);",
+                  "    pm.expect(responseData).to.have.property('severity');",
+                  "    pm.expect(responseData).to.have.property('risk_level');",
+                  "  });",
+                  "  console.log('GAD-7 severity: ' + responseData.severity);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /assess/gad7 - Unknown question key (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/assess/gad7",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "assess", "gad7"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responses\": {\n    \"feeling_nervous\": 1,\n    \"cant_control_worry\": 1,\n    \"worrying_too_much\": 1,\n    \"trouble_relaxing\": 1,\n    \"restless\": 0,\n    \"easily_annoyed\": 0,\n    \"not_a_real_question\": 2\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Unknown GAD-7 key returns 400 (or 503 if unavailable)', () => {",
+                  "  pm.expect([400, 503]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /assess/history - All assessments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/assess/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "assess", "history"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Assessment history returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has history array and total', () => {",
+                  "  pm.expect(responseData.history).to.be.an('array');",
+                  "  pm.expect(responseData).to.have.property('total');",
+                  "});",
+                  "console.log('History entries: ' + responseData.total);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /assess/history?type=phq9&limit=5 - Filtered by type",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/assess/history?type=phq9&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "assess", "history"],
+              "query": [
+                { "key": "type", "value": "phq9" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Filtered history returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('All returned entries are type phq9 (if any)', () => {",
+                  "  responseData.history.forEach((h) => {",
+                  "    pm.expect(h.type).to.eql('phq9');",
+                  "  });",
+                  "});",
+                  "",
+                  "pm.test('At least one phq9 entry exists from earlier request in this run', () => {",
+                  "  pm.expect(responseData.history.length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /assess/comprehensive - Combined clinical risk",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/assess/comprehensive",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "assess", "comprehensive"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Comprehensive assessment returns 200 or 503', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Response has composite_risk and interventions', () => {",
+                  "    pm.expect(responseData).to.have.property('composite_risk');",
+                  "    pm.expect(responseData).to.have.property('risk_factors');",
+                  "    pm.expect(responseData).to.have.property('protective_factors');",
+                  "    pm.expect(responseData).to.have.property('suggested_interventions');",
+                  "  });",
+                  "  pm.test('latest_phq9 reflects the assessment submitted earlier', () => {",
+                  "    pm.expect(responseData.latest_phq9).to.not.be.null;",
+                  "  });",
+                  "  console.log('Composite risk: ' + responseData.composite_risk);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Micro-Journaling",
+      "item": [
+        {
+          "name": "GET /journal/smart-prompts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/journal/smart-prompts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "journal", "smart-prompts"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Smart prompts returns 200 or 503', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Response has prompts array', () => {",
+                  "    pm.expect(responseData.prompts).to.be.an('array');",
+                  "  });",
+                  "  pm.test('Response has time_context', () => {",
+                  "    pm.expect(responseData).to.have.property('time_context');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /journal/quick-options",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/journal/quick-options",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "journal", "quick-options"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Quick options returns 200 or 503', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Response has options', () => {",
+                  "    pm.expect(responseData).to.have.property('options');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /journal/suggest-tags - Valid neutral note",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/journal/suggest-tags",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "journal", "suggest-tags"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Kande mig lugn efter en promenad i naturen idag.\",\n  \"current_tags\": [\"natur\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Suggest tags returns 200 or 503', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Response has suggested_tags array', () => {",
+                  "    pm.expect(responseData.suggested_tags).to.be.an('array');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /journal/suggest-tags - Empty body (defaults note to '')",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/journal/suggest-tags",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "journal", "suggest-tags"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Empty body never 500s (note/current_tags default gracefully)', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "pm.test('Empty body returns 200 or 503', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Streak Gamification",
+      "item": [
+        {
+          "name": "GET /streak",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/streak",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "streak"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Streak returns 200 or 503', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Negative Tests - No Auth",
+      "item": [
+        {
+          "name": "POST /analyze - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/analyze",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "analyze"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Kande mig lugn idag.\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /forecast - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/forecast",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "forecast"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /assess/phq9 - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/assess/phq9",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "assess", "phq9"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responses\": {\n    \"little_interest\": 1,\n    \"feeling_down\": 1,\n    \"sleep_problems\": 1,\n    \"feeling_tired\": 1,\n    \"appetite\": 1,\n    \"feeling_bad\": 1,\n    \"concentration\": 0,\n    \"moving_slowly\": 0,\n    \"self_harm\": 0\n  }\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /assess/gad7 - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/assess/gad7",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "assess", "gad7"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responses\": {\n    \"feeling_nervous\": 1,\n    \"cant_control_worry\": 1,\n    \"worrying_too_much\": 1,\n    \"trouble_relaxing\": 1,\n    \"restless\": 0,\n    \"easily_annoyed\": 0,\n    \"afraid\": 0\n  }\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /assess/history - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/assess/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "assess", "history"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /assess/comprehensive - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/assess/comprehensive",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "assess", "comprehensive"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /journal/smart-prompts - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/journal/smart-prompts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "journal", "smart-prompts"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /journal/quick-options - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/journal/quick-options",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "journal", "quick-options"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /journal/suggest-tags - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/journal/suggest-tags",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "journal", "suggest-tags"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Kande mig lugn idag.\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /streak - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/advanced-mood/streak",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "advanced-mood", "streak"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -334,7 +334,7 @@ class InputSanitizer:
             errors.append(f"Expected type {expected_type.__name__}, got {type(input_data).__name__}")
 
         # Length validation
-        if isinstance(input_data, (str, list, dict)):
+        if isinstance(input_data, str | list | dict):
             min_length = rules.get('min_length')
             max_length = rules.get('max_length')
 
@@ -351,7 +351,7 @@ class InputSanitizer:
                 errors.append("Input does not match required pattern")
 
         # Range validation for numbers
-        if isinstance(input_data, (int, float)):
+        if isinstance(input_data, int | float):
             min_value = rules.get('min_value')
             max_value = rules.get('max_value')
 
@@ -569,7 +569,7 @@ def validate_mood_input(mood_data: dict[str, Any]) -> bool:
 
     # Validate sentiment_score (should be between -1 and 1)
     sentiment_score = mood_data.get('sentiment_score')
-    if not isinstance(sentiment_score, (int, float)) or not (-1 <= sentiment_score <= 1):
+    if not isinstance(sentiment_score, int | float) or not (-1 <= sentiment_score <= 1):
         return False
 
     # Validate timestamp if provided

@@ -1,0 +1,1009 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Feedback API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "f3b8e4a1-6d2c-4a9e-8b7f-1c9d4e2a5f30",
+    "description": "E2E test collection for user feedback routes (src/routes/feedback_routes.py). Covers feedback submission (rating/category/message/feature-request/bug-report), the authenticated user's own feedback history, and the admin-only list/stats endpoints. Includes negative paths (no auth, missing/invalid body fields, non-admin access to admin endpoints) and a security probe for whether /submit trusts the user_id supplied in the body instead of the authenticated identity."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    },
+    {
+      "key": "feedbackId",
+      "value": ""
+    },
+    {
+      "key": "spoofedUserId",
+      "value": "zz9SpoofedNotRealUser01"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-feedback_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Feedback Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  const responseData = body.data || body;",
+                  "  const user = responseData.user || responseData;",
+                  "  if (responseData.accessToken) pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  if (user.id) pm.collectionVariables.set('userId', user.id);",
+                  "  else if (responseData.userId) pm.collectionVariables.set('userId', responseData.userId);",
+                  "  console.log('Registered new user, userId=' + pm.collectionVariables.get('userId'));",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-feedback_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 or 429 (rate limited)', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || (responseData.user && responseData.user.id) || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "  pm.test('UserId matches USER_ID_PATTERN (20-128 alphanumeric)', () => {",
+                  "    pm.expect(pm.collectionVariables.get('userId')).to.match(/^[a-zA-Z0-9]{20,128}$/);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Feedback Submission",
+      "item": [
+        {
+          "name": "POST /submit - Valid rating + message (own user_id)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "submit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"rating\": 5,\n  \"category\": \"general\",\n  \"message\": \"The app has been helpful for tracking my mood, went for a walk today too.\",\n  \"allow_contact\": false\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Submit feedback returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has feedbackId', () => {",
+                  "  pm.expect(data.feedbackId).to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "",
+                  "if (data.feedbackId) {",
+                  "  pm.collectionVariables.set('feedbackId', data.feedbackId);",
+                  "  console.log('Captured feedbackId=' + data.feedbackId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /submit - Feature request only",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "submit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"rating\": 4,\n  \"category\": \"feature\",\n  \"feature_request\": \"Add a dark mode option to the settings page.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Submit feature request returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "pm.test('Response has feedbackId', () => {",
+                  "  pm.expect(data.feedbackId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /submit - Bug report only",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "submit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"rating\": 2,\n  \"category\": \"bug\",\n  \"bug_report\": \"The weekly summary chart does not load on the statistics screen.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Submit bug report returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "pm.test('Response has feedbackId', () => {",
+                  "  pm.expect(data.feedbackId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SECURITY PROBE: POST /submit - user_id in body does not match authenticated token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "submit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{spoofedUserId}}\",\n  \"rating\": 3,\n  \"category\": \"general\",\n  \"message\": \"Security probe: submitting feedback attributed to a user_id that is not the authenticated caller.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "// The route reads user_id from the JSON body (input_sanitizer.sanitize(data.get('user_id'))),",
+                  "// not from g.get('user_id') / the JWT subject. A spoofedUserId that merely satisfies the",
+                  "// 20-128 alphanumeric regex should NOT be accepted for an authenticated request whose",
+                  "// token subject is a different user - if it returns 200, that is an IDOR: any authenticated",
+                  "// caller can attribute feedback (and increment feedback_submissions / last_feedback_at) to",
+                  "// an arbitrary user_id string.",
+                  "pm.test('DOCUMENTS BEHAVIOR: does /submit accept a user_id that does not match the JWT subject?', () => {",
+                  "  console.log('Status for mismatched user_id: ' + status);",
+                  "  if (status === 200) {",
+                  "    console.log('SECURITY FINDING: /submit stored feedback for spoofedUserId=' + pm.collectionVariables.get('spoofedUserId') + ' while authenticated as userId=' + pm.collectionVariables.get('userId') + '. The endpoint does not verify that body.user_id matches the JWT-authenticated identity (IDOR).');",
+                  "  } else {",
+                  "    console.log('Endpoint rejected mismatched user_id with status ' + status + ' (no IDOR observed).');",
+                  "  }",
+                  "  pm.expect(status).to.be.oneOf([200, 400, 401, 403]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /submit - Missing user_id (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "submit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"message\": \"Missing user_id in this request\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Missing user_id returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /submit - Invalid user_id format (too short, expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "submit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"short\",\n  \"rating\": 5,\n  \"message\": \"user_id is too short to pass USER_ID_PATTERN\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Invalid user_id format returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /submit - Rating too high (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "submit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"rating\": 6,\n  \"message\": \"Rating out of allowed range (max 5)\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Rating above 5 returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /submit - Rating too low (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "submit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"rating\": 0,\n  \"message\": \"Rating out of allowed range (min 1)\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Rating below 1 returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /submit - No content provided (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "submit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"rating\": 3\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('No message/feature_request/bug_report returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /submit - Empty body (expect graceful handling, not 500)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "submit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Empty body does not crash the server (no 500)', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "console.log('Empty body status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /submit - Malformed JSON body (expect graceful handling, not 500)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "submit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ this is not valid json "
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Malformed JSON body does not crash the server (no 500)', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "console.log('Malformed body status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /submit - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "submit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"rating\": 5,\n  \"message\": \"No auth header attached\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OPTIONS /submit - CORS preflight (expect 204)",
+          "request": {
+            "method": "OPTIONS",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "submit"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OPTIONS preflight returns 204', () => {",
+                  "  pm.expect(pm.response.code).to.eql(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. My Feedback History",
+      "item": [
+        {
+          "name": "GET /my-feedback - Returns own submissions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/my-feedback",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "my-feedback"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Get my-feedback returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Feedback list is an array containing this run\\'s submissions', () => {",
+                  "  pm.expect(data.feedback).to.be.an('array');",
+                  "  pm.expect(data.count).to.be.at.least(3);",
+                  "});",
+                  "",
+                  "pm.test('Every returned item belongs to the authenticated user', () => {",
+                  "  const userId = pm.collectionVariables.get('userId');",
+                  "  data.feedback.forEach(item => {",
+                  "    pm.expect(item.userId).to.eql(userId);",
+                  "  });",
+                  "});",
+                  "",
+                  "if (data.feedback && data.feedback.length > 0) {",
+                  "  const ids = data.feedback.map(f => f.id);",
+                  "  pm.test('Captured feedbackId is present in history', () => {",
+                  "    const capturedId = pm.collectionVariables.get('feedbackId');",
+                  "    if (capturedId) pm.expect(ids).to.include(capturedId);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /my-feedback - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/my-feedback",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "my-feedback"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OPTIONS /my-feedback - CORS preflight (expect 204)",
+          "request": {
+            "method": "OPTIONS",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/my-feedback",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "my-feedback"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OPTIONS preflight returns 204', () => {",
+                  "  pm.expect(pm.response.code).to.eql(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Admin Feedback List (non-admin test user)",
+      "item": [
+        {
+          "name": "GET /list - Non-admin user forbidden (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/list",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "list"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Non-admin gets 403 Forbidden', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /list?status=pending&category=bug - Non-admin still forbidden",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/list?status=pending&category=bug&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "list"],
+              "query": [
+                { "key": "status", "value": "pending" },
+                { "key": "category", "value": "bug" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Non-admin gets 403 Forbidden even with query filters', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /list - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/list",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "list"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OPTIONS /list - CORS preflight (expect 204)",
+          "request": {
+            "method": "OPTIONS",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/list",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "list"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OPTIONS preflight returns 204', () => {",
+                  "  pm.expect(pm.response.code).to.eql(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Admin Feedback Stats (non-admin test user)",
+      "item": [
+        {
+          "name": "GET /stats - Non-admin user forbidden (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "stats"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Non-admin gets 403 Forbidden', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /stats?days=7 - Non-admin still forbidden",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/stats?days=7",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "stats"],
+              "query": [
+                { "key": "days", "value": "7" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Non-admin gets 403 Forbidden even with query params', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /stats?days=99999 - Days param way above 365 cap (expect 403 non-admin, or 200 if it were admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/stats?days=99999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "stats"],
+              "query": [
+                { "key": "days", "value": "99999" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "// Admin check happens before the days cap is applied, so a non-admin caller",
+                  "// always gets 403 here regardless of the days value.",
+                  "pm.test('Large days value does not crash the server (no 500)', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "console.log('days=99999 status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /stats - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "stats"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OPTIONS /stats - CORS preflight (expect 204)",
+          "request": {
+            "method": "OPTIONS",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feedback/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "feedback", "stats"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OPTIONS preflight returns 204', () => {",
+                  "  pm.expect(pm.response.code).to.eql(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

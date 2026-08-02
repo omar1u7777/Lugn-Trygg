@@ -132,7 +132,7 @@ def insight_action_taken(insight_id: str):
     """Log that user took action on an insight."""
     try:
         user_id = g.get('user_id')
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         action_taken = data.get('action', 'unknown')
 
         # Verify ownership (same check as dismiss_insight)

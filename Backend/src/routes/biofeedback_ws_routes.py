@@ -201,7 +201,7 @@ def start_session_rest():
     """REST endpoint to start session (WebSocket alternative)."""
     try:
         user_id = g.get('user_id')
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
 
         pattern = data.get('pattern', 'coherence')
         duration = data.get('duration', 5)
@@ -231,7 +231,7 @@ def start_session_rest():
 def submit_heart_rate_data(session_id: str):
     """REST endpoint to submit HRV data (WebSocket alternative)."""
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         rr_intervals = data.get('rr_intervals', [])
 
         if not rr_intervals:

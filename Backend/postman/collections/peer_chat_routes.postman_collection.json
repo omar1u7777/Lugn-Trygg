@@ -1,0 +1,1143 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Peer Chat API",
+    "description": "Anonymous peer support chat rooms: join, send/like/report messages, presence/typing, leave.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-peer_chat_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E PeerChat Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Register returns 201, 409 or 429', () => { pm.expect([201, 409, 429]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-peer_chat_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code; let body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "pm.test('Login returns 200 (or 429)', () => { pm.expect([200, 429]).to.include(status); });",
+                  "if (status === 200) {",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.test('AccessToken is set', () => { pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty; });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Rooms",
+      "item": [
+        {
+          "name": "GET /peer-chat/rooms - List rooms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/rooms",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "rooms"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('List rooms returns 200', () => { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data || pm.response.json();",
+                  "pm.test('Has 6 rooms with memberCount', () => {",
+                  "  pm.expect(data.rooms).to.be.an('array').with.lengthOf(6);",
+                  "  pm.expect(data.rooms[0]).to.have.property('memberCount');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /peer-chat/rooms - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/rooms",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "rooms"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No auth returns 401', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Join Room",
+      "item": [
+        {
+          "name": "POST /peer-chat/room/anxiety/join - Valid room",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/join",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "join"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Join room returns 200', () => { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data || pm.response.json();",
+                  "pm.test('Has sessionId, anonymousName, room', () => {",
+                  "  pm.expect(data).to.have.property('sessionId');",
+                  "  pm.expect(data).to.have.property('anonymousName');",
+                  "  pm.expect(data.room.id).to.eql('anxiety');",
+                  "  pm.expect(data.messages).to.be.an('array');",
+                  "});",
+                  "pm.collectionVariables.set('sessionId', data.sessionId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /peer-chat/room/bogus_room/join - Invalid room (expect 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/bogus_room/join",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "bogus_room",
+                "join"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Invalid room returns 404', () => { pm.expect(pm.response.code).to.eql(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /peer-chat/room/anxiety/join - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/join",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "join"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No auth returns 401', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Send Message",
+      "item": [
+        {
+          "name": "POST /peer-chat/room/anxiety/send - Valid message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "send"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"session_id\": \"{{sessionId}}\", \"message\": \"Hej, det har varit en tuff vecka men jag mar battre nu.\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Send message returns 200', () => { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data || pm.response.json();",
+                  "pm.test('Message echoed back', () => { pm.expect(data.message.message).to.include('tuff vecka'); });",
+                  "pm.collectionVariables.set('messageId', data.message.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /peer-chat/room/anxiety/send - Missing session_id (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "send"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"message\": \"hello\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing session_id returns 400', () => { pm.expect(pm.response.code).to.eql(400); });",
+                  "const data = pm.response.json();",
+                  "pm.test('error code is SESSION_ID_REQUIRED (not generic BAD_REQUEST)', () => { pm.expect(data.error).to.eql('SESSION_ID_REQUIRED'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /peer-chat/room/anxiety/send - Empty message (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "send"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"session_id\": \"{{sessionId}}\", \"message\": \"\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Empty message returns 400', () => { pm.expect(pm.response.code).to.eql(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /peer-chat/room/anxiety/send - Contains email (moderation, expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "send"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"session_id\": \"{{sessionId}}\", \"message\": \"Kontakta mig pa test@example.com snalla\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Email in message returns 400', () => { pm.expect(pm.response.code).to.eql(400); });",
+                  "const data = pm.response.json();",
+                  "pm.test('error code is MODERATION_FAILED', () => { pm.expect(data.error).to.eql('MODERATION_FAILED'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /peer-chat/room/anxiety/send - Wrong room for session (expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/depression/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "depression",
+                "send"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"session_id\": \"{{sessionId}}\", \"message\": \"cross room test message\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Cross-room session use returns 403', () => { pm.expect(pm.response.code).to.eql(403); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /peer-chat/room/anxiety/send - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "send"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"session_id\": \"x\", \"message\": \"hi\"}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No auth returns 401', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Get Messages / Typing / Presence",
+      "item": [
+        {
+          "name": "GET /peer-chat/room/anxiety/messages - Poll messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/messages?session_id={{sessionId}}&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "messages?session_id={{sessionId}}&limit=20"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get messages returns 200', () => { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data || pm.response.json();",
+                  "pm.test('Our sent message is present', () => {",
+                  "  const found = data.messages.some(m => m.id === pm.collectionVariables.get('messageId'));",
+                  "  pm.expect(found).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /peer-chat/room/anxiety/messages - Bad limit (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/messages?session_id={{sessionId}}&limit=notanumber",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "messages?session_id={{sessionId}}&limit=notanumber"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Non-numeric limit returns 400 not 500', () => { pm.expect(pm.response.code).to.eql(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /peer-chat/room/anxiety/messages - Missing session_id (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "messages"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing session_id returns 400', () => { pm.expect(pm.response.code).to.eql(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /peer-chat/room/anxiety/typing - Update typing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/typing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "typing"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"session_id\": \"{{sessionId}}\", \"is_typing\": true}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Update typing returns 200', () => { pm.expect(pm.response.code).to.eql(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /peer-chat/room/anxiety/presence - Get presence",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/presence?session_id={{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "presence?session_id={{sessionId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get presence returns 200', () => { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data || pm.response.json();",
+                  "pm.test('activeCount >= 1', () => { pm.expect(data.activeCount).to.be.at.least(1); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Like / Report Message",
+      "item": [
+        {
+          "name": "POST /peer-chat/message/{{messageId}}/like - Like",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/message/{{messageId}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "message",
+                "{{messageId}}",
+                "like"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"session_id\": \"{{sessionId}}\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Like message returns 200', () => { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data || pm.response.json();",
+                  "pm.test('action is liked, likes is 1', () => { pm.expect(data.action).to.eql('liked'); pm.expect(data.likes).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /peer-chat/message/{{messageId}}/like - Unlike (toggle)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/message/{{messageId}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "message",
+                "{{messageId}}",
+                "like"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"session_id\": \"{{sessionId}}\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unlike message returns 200', () => { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data || pm.response.json();",
+                  "pm.test('action is unliked, likes is 0', () => { pm.expect(data.action).to.eql('unliked'); pm.expect(data.likes).to.eql(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /peer-chat/message/nonexistent_id/like - Not found (expect 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/message/nonexistent_id_12345/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "message",
+                "nonexistent_id_12345",
+                "like"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"session_id\": \"{{sessionId}}\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Nonexistent message returns 404', () => { pm.expect(pm.response.code).to.eql(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /peer-chat/message/{{messageId}}/report - Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/message/{{messageId}}/report",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "message",
+                "{{messageId}}",
+                "report"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"session_id\": \"{{sessionId}}\", \"reason\": \"Spam\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Report message returns 200', () => { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data || pm.response.json();",
+                  "pm.test('reported is true', () => { pm.expect(data.reported).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Leave Room",
+      "item": [
+        {
+          "name": "POST /peer-chat/room/anxiety/leave - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/leave",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "leave"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"session_id\": \"x\"}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No auth returns 401', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /peer-chat/room/anxiety/leave - Missing session_id (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/leave",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "leave"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing session_id returns 400', () => { pm.expect(pm.response.code).to.eql(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /peer-chat/room/anxiety/leave - Leave own session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/leave",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "leave"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"session_id\": \"{{sessionId}}\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Leave room returns 200', () => { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data || pm.response.json();",
+                  "pm.test('left is true', () => { pm.expect(data.left).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /peer-chat/room/anxiety/messages - Session invalidated after leave (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/peer-chat/room/anxiety/messages?session_id={{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "peer-chat",
+                "room",
+                "anxiety",
+                "messages?session_id={{sessionId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Deleted session returns 403', () => { pm.expect(pm.response.code).to.eql(403); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.collectionVariables.get('accessToken'), type: 'text' });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "sessionId",
+      "value": ""
+    },
+    {
+      "key": "messageId",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    }
+  ]
+}

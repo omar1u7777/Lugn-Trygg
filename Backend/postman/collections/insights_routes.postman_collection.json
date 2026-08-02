@@ -1,0 +1,851 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Insights API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "7c4e9a2d-3f61-4b8e-9d5a-2e8b6f1c0a97",
+    "description": "E2E test collection for daily insights routes (src/routes/insights_routes.py). Covers insight generation, pending-insight retrieval, dismiss, and action-taken, including ownership/security checks across two independent test identities. No route in this domain writes user-authored text into a crisis-detection or notification pipeline, so every request here is safe to execute live."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://lugn-trygg-backend.onrender.com" },
+    { "key": "testPassword", "value": "AuditP@ss2026x!" },
+    { "key": "testUuid", "value": "" },
+    { "key": "testUuid2", "value": "" },
+    { "key": "accessToken", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "accessToken2", "value": "" },
+    { "key": "userId2", "value": "" },
+    { "key": "insightId", "value": "" },
+    { "key": "insightId2", "value": "" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique suffixes for this run if not already set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "if (!pm.collectionVariables.get('testUuid2')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid2', uuid.v4().substring(0, 8));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Primary Test User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-insights_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Insights Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "if (status === 201) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  if (responseData.accessToken) pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  if (responseData.userId) pm.collectionVariables.set('userId', responseData.userId);",
+                  "  else if (responseData.uid) pm.collectionVariables.set('userId', responseData.uid);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Primary Test User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-insights_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Login returns 200 or 429 (rate limited)', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || responseData.uid || '');",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Secondary Test User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-insights_routes-secondary-{{testUuid2}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Insights Tester 2\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "if (status === 201) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  if (responseData.accessToken) pm.collectionVariables.set('accessToken2', responseData.accessToken);",
+                  "  if (responseData.userId) pm.collectionVariables.set('userId2', responseData.userId);",
+                  "  else if (responseData.uid) pm.collectionVariables.set('userId2', responseData.uid);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Secondary Test User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-insights_routes-secondary-{{testUuid2}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Login returns 200 or 429 (rate limited)', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken2', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId2', responseData.userId || responseData.uid || '');",
+                  "  pm.test('AccessToken2 is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken2')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Generate Insights",
+      "item": [
+        {
+          "name": "POST /insights/generate/{{userId}} - Self (primary user)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/generate/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "generate", "{{userId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Generate insights returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has generated_count and insights array', () => {",
+                  "  pm.expect(data).to.have.property('generated_count');",
+                  "  pm.expect(data).to.have.property('insights');",
+                  "  pm.expect(data.insights).to.be.an('array');",
+                  "});",
+                  "",
+                  "if (data.insights && data.insights.length > 0) {",
+                  "  pm.collectionVariables.set('insightId', data.insights[0].insight_id);",
+                  "  console.log('Captured insightId=' + data.insights[0].insight_id + ' type=' + data.insights[0].insight_type);",
+                  "} else {",
+                  "  console.log('No insights generated for a fresh user (unexpected - onboarding fallback should fire for <3 mood logs)');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /insights/generate/{{userId2}} - Self (secondary user)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken2}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/generate/{{userId2}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "generate", "{{userId2}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Generate insights (secondary user) returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (data.insights && data.insights.length > 0) {",
+                  "  pm.collectionVariables.set('insightId2', data.insights[0].insight_id);",
+                  "  console.log('Captured insightId2=' + data.insights[0].insight_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /insights/generate/{{userId2}} - Mismatched user_id (expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/generate/{{userId2}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "generate", "{{userId2}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Generating insights for another user_id returns 403', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "  pm.expect(body.error).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /insights/generate/{{userId}} - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/generate/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "generate", "{{userId}}"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /insights/generate/{{userId}} - Second call same day (idempotency check)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/generate/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "generate", "{{userId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Repeat generate call same day still returns 200 (does not error/duplicate)', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "console.log('Second generate call generated_count=' + data.generated_count);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Pending Insights",
+      "item": [
+        {
+          "name": "GET /insights/pending/{{userId}} - Self (primary user)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/pending/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "pending", "{{userId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Get pending insights returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has insights array and count', () => {",
+                  "  pm.expect(data).to.have.property('insights');",
+                  "  pm.expect(data.insights).to.be.an('array');",
+                  "  pm.expect(data).to.have.property('count');",
+                  "});",
+                  "",
+                  "if (!pm.collectionVariables.get('insightId') && data.insights && data.insights.length > 0) {",
+                  "  pm.collectionVariables.set('insightId', data.insights[0].insight_id);",
+                  "  console.log('Fallback-captured insightId=' + data.insights[0].insight_id);",
+                  "}",
+                  "",
+                  "console.log('Pending count=' + data.count);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /insights/pending/{{userId2}} - Mismatched user_id (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/pending/{{userId2}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "pending", "{{userId2}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Fetching another user_id pending insights returns 403', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "  pm.expect(body.error).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /insights/pending/{{userId}} - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/pending/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "pending", "{{userId}}"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Insight Action",
+      "item": [
+        {
+          "name": "POST /insights/action/{{insightId}} - Own insight, valid action",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/action/{{insightId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "action", "{{insightId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"reflected_on_message\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('insightId')) {",
+                  "  console.log('SKIP-CHECK: no insightId was captured earlier (generator produced 0 insights); this request ran against an empty path segment.');",
+                  "}",
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Action on own insight returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /insights/action/{{insightId}} - Missing action field (defaults to unknown)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/action/{{insightId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "action", "{{insightId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Empty body still returns 200 (action defaults to unknown)', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /insights/action/{{insightId}} - Malformed JSON body (expect graceful handling, not 500)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/action/{{insightId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "action", "{{insightId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ this is not valid json "
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "let body = {};",
+                  "try { body = pm.response.json(); } catch (e) { /* non-JSON response */ }",
+                  "console.log('Malformed body status=' + status + ' body=' + JSON.stringify(body));",
+                  "",
+                  "pm.test('Malformed JSON body does not crash the server (no 500)', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "",
+                  "if (status === 500) {",
+                  "  console.log('BUG SUSPECT: request.get_json() raises a werkzeug BadRequest when the body is not valid JSON. ',",
+                  "    'insight_action_taken() only has a bare except Exception around the whole handler, so that BadRequest is caught ',",
+                  "    'and converted into APIResponse.error(\\'Failed to record action\\') with the DEFAULT status_code=500, instead of a 400. ',",
+                  "    'Same class of bug likely affects any other route calling request.get_json() without silent=True inside a generic try/except.');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /insights/action/nonexistent-insight-id-xyz - Not found (expect 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/action/nonexistent-insight-id-xyz",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "action", "nonexistent-insight-id-xyz"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Nonexistent insight_id returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "  pm.expect(body.error).to.eql('NOT_FOUND');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /insights/action/{{insightId}} - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/action/{{insightId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "action", "{{insightId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"test\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /insights/action/{{insightId}} - Cross-user ownership check (secondary user token, expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken2}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/action/{{insightId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "action", "{{insightId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Secondary user acting on primary user insight returns 403 (ownership enforced)', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "  pm.expect(body.error).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Insight Dismiss",
+      "item": [
+        {
+          "name": "POST /insights/dismiss/{{insightId2}} - Cross-user ownership check (primary token on secondary's insight, expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/dismiss/{{insightId2}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "dismiss", "{{insightId2}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Primary user dismissing secondary user insight returns 403 (ownership enforced)', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "  pm.expect(body.error).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /insights/dismiss/nonexistent-insight-id-xyz - Not found (expect 404)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/dismiss/nonexistent-insight-id-xyz",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "dismiss", "nonexistent-insight-id-xyz"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Nonexistent insight_id returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "  pm.expect(body.error).to.eql('NOT_FOUND');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /insights/dismiss/{{insightId}} - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/dismiss/{{insightId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "dismiss", "{{insightId}}"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /insights/dismiss/{{insightId}} - Own insight",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/dismiss/{{insightId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "dismiss", "{{insightId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Dismiss own insight returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /insights/dismiss/{{insightId}} - Dismiss again (idempotency check)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights/dismiss/{{insightId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "insights", "dismiss", "{{insightId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Re-dismissing an already-dismissed insight still returns 200 (idempotent, not an error)', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

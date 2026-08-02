@@ -172,10 +172,10 @@ class ErrorHandler:
                 sanitized[key_text] = "***"
                 continue
 
-            if isinstance(value, (str, int, float, bool)) or value is None:
+            if isinstance(value, str | int | float | bool) or value is None:
                 value_text = str(value)
                 sanitized[key_text] = value_text[:200]
-            elif isinstance(value, (list, tuple, set)):
+            elif isinstance(value, list | tuple | set):
                 sanitized[key_text] = f"{type(value).__name__}(len={len(value)})"
             elif isinstance(value, dict):
                 sanitized[key_text] = f"dict(keys={list(value.keys())[:10]})"

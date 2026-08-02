@@ -1,0 +1,555 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Health Routes API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "d4a1c9e2-3b5f-4e7a-9c1d-8f2a6b4e0d13",
+    "description": "E2E test collection for src/routes/health_routes.py covering liveness, readiness, database health, metrics and advanced health check endpoints. Uses collection variables for auth token chaining."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "testEmail",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-health-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Health Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  const responseData = body.data || body;",
+                  "  const user = responseData.user || responseData;",
+                  "  if (user.id) pm.collectionVariables.set('userId', user.id);",
+                  "  console.log('Registered new user, id=' + (user.id || 'n/a'));",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-health-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Login returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || (responseData.user && responseData.user.id) || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "}",
+                  "",
+                  "pm.test('AccessToken is set', () => {",
+                  "  pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Public Health Checks (no auth)",
+      "item": [
+        {
+          "name": "GET / - Basic health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", ""]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Health check returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Status is healthy', () => {",
+                  "  pm.expect(responseData.status).to.eql('healthy');",
+                  "});",
+                  "",
+                  "pm.test('Has timestamp and service name', () => {",
+                  "  pm.expect(responseData.timestamp).to.be.a('string');",
+                  "  pm.expect(responseData.service).to.eql('Lugn & Trygg API');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OPTIONS / - CORS preflight",
+          "request": {
+            "method": "OPTIONS",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", ""]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('OPTIONS preflight returns 204', () => {",
+                  "  pm.expect(status).to.eql(204);",
+                  "});",
+                  "",
+                  "pm.test('Preflight body is empty', () => {",
+                  "  pm.expect(pm.response.text()).to.eql('');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /ready - Readiness probe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/ready",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", "ready"]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Readiness returns 200 or 503', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "pm.test('Response has checks object', () => {",
+                  "  const responseData = (body.data || (body.details) || body);",
+                  "  pm.expect(responseData.checks).to.be.an('object');",
+                  "  pm.expect(responseData.checks).to.have.property('server');",
+                  "  pm.expect(responseData.checks).to.have.property('firebase');",
+                  "});",
+                  "",
+                  "console.log('Readiness status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /live - Liveness probe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/live",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", "live"]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Liveness returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Status is alive and has pid', () => {",
+                  "  pm.expect(responseData.status).to.eql('alive');",
+                  "  pm.expect(responseData.pid).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Authenticated Health Checks",
+      "item": [
+        {
+          "name": "GET /db - Database health (authenticated user)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/db",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", "db"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('DB health returns 200 or 503', () => {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const responseData = body.data || body;",
+                  "  pm.test('DB health payload is well-formed', () => {",
+                  "    pm.expect(responseData.status).to.eql('healthy');",
+                  "    pm.expect(responseData.database).to.eql('firestore');",
+                  "    pm.expect(responseData.latencyMs).to.be.a('number');",
+                  "  });",
+                  "} else {",
+                  "  console.log('DB unhealthy response: ' + JSON.stringify(body));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /metrics - System metrics (non-admin, expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", "metrics"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Metrics returns 200 (if admin) or 403 (non-admin)', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 403) {",
+                  "  pm.test('Forbidden response has error message', () => {",
+                  "    pm.expect(body.success).to.eql(false);",
+                  "  });",
+                  "}",
+                  "",
+                  "console.log('Metrics status=' + status + ' (test user is non-admin, 403 expected)');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /advanced - Advanced health check (non-admin, expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/advanced",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", "advanced"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Advanced health returns 200 (if admin) or 403 (non-admin)', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 403) {",
+                  "  pm.test('Forbidden response has error message', () => {",
+                  "    pm.expect(body.success).to.eql(false);",
+                  "  });",
+                  "}",
+                  "",
+                  "console.log('Advanced health status=' + status + ' (test user is non-admin, 403 expected)');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Negative Tests",
+      "item": [
+        {
+          "name": "GET /db - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/db",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", "db"]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /metrics - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", "metrics"]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /advanced - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/advanced",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", "advanced"]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /nonexistent - Invalid sub-path (expect 404 or 405)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/nonexistent",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", "nonexistent"]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "// Note: main.py registers a catch-all '/api/<path:path>' OPTIONS-only",
+                  "// route for CORS preflight, so Werkzeug's router sees a URL pattern",
+                  "// match (for OPTIONS) and correctly raises 405 instead of 404 for GET.",
+                  "pm.test('Invalid sub-path returns 404 or 405', () => {",
+                  "  pm.expect([404, 405]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

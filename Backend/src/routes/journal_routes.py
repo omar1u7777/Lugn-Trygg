@@ -53,7 +53,7 @@ def _validate_mood(mood) -> tuple[bool, str]:
     """Validate mood value - returns (is_valid, error_message)"""
     if mood is None:
         return True, ""
-    if not isinstance(mood, (int, float)):
+    if not isinstance(mood, int | float):
         return False, "Mood must be a number"
     if not 1 <= mood <= 10:
         return False, "Mood must be between 1 and 10"

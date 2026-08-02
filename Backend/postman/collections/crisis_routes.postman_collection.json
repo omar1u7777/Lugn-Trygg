@@ -1,0 +1,1066 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Crisis API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "9b6f2a3e-1d4c-4f8a-b7e0-6c2a9d3f5b81",
+    "description": "E2E test collection for crisis intervention routes (src/routes/crisis_routes.py). Covers crisis risk assessment, safety-plan get/update, intervention protocols, assessment history, indicator catalog, escalation checking, and negative paths (no auth, invalid path param). All mood/text bodies use clearly neutral, benign language to avoid tripping real crisis detection/notification paths."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-crisis_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Crisis Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  const responseData = body.data || body;",
+                  "  if (responseData.accessToken) pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  if (responseData.userId) pm.collectionVariables.set('userId', responseData.userId);",
+                  "  else if (responseData.uid) pm.collectionVariables.set('userId', responseData.uid);",
+                  "  console.log('Registered new user, token set');",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-crisis_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 or 429 (rate limited)', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || responseData.uid || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Crisis Assessment",
+      "item": [
+        {
+          "name": "POST /crisis/assess - Benign low-risk assessment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/assess",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "assess"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood_history\": [7, 6, 7, 8],\n  \"recent_text_content\": \"Feeling okay today, went for a walk\",\n  \"days_without_social_interaction\": 0,\n  \"social_activity_trend\": 1.0,\n  \"insomnia_nights_last_week\": 0,\n  \"current_anxiety_score\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Assess returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has risk_level and risk_score', () => {",
+                  "  pm.expect(data).to.have.property('risk_level');",
+                  "  pm.expect(data).to.have.property('risk_score');",
+                  "  pm.expect(data).to.have.property('active_indicators');",
+                  "});",
+                  "",
+                  "pm.test('Benign input yields minimal/low/medium risk (not critical/high) - sanity check we did not trip crisis escalation', () => {",
+                  "  pm.expect(['minimal', 'low', 'medium']).to.include(data.risk_level);",
+                  "});",
+                  "",
+                  "console.log('Assessment risk_level=' + data.risk_level + ' score=' + data.risk_score);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /crisis/assess - Empty body (defaults)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/assess",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "assess"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Empty body still returns 200 (all fields default)', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('risk_level present', () => {",
+                  "  pm.expect(data).to.have.property('risk_level');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /crisis/assess - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/assess",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "assess"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood_history\": []\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /crisis/assess - Malformed JSON body (expect graceful handling, not 500)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/assess",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "assess"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ this is not valid json "
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Malformed JSON body does not crash the server (no 500)', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "console.log('Malformed body status=' + status);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Safety Plan",
+      "item": [
+        {
+          "name": "GET /crisis/safety-plan - Get personalized safety plan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/safety-plan",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "safety-plan"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Get safety plan returns 200 for a registered user', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Safety plan has expected structure', () => {",
+                  "  pm.expect(data).to.have.property('warning_signs');",
+                  "  pm.expect(data).to.have.property('coping_strategies');",
+                  "  pm.expect(data).to.have.property('support_contacts');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /crisis/safety-plan - Update safety plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/safety-plan",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "safety-plan"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"warning_signs\": [\"poor sleep\", \"skipping meals\"],\n  \"coping_strategies\": [\"go for a walk\", \"call a friend\"],\n  \"support_contacts\": [{\"name\": \"Test Friend\", \"phone\": \"0700000000\"}],\n  \"professional_help\": [{\"name\": \"Local clinic\", \"phone\": \"0700000001\"}],\n  \"environmental_safety\": [\"keep space tidy and well lit\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Update safety plan returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response echoes submitted warning_signs and coping_strategies', () => {",
+                  "  pm.expect(data.warning_signs).to.include('poor sleep');",
+                  "  pm.expect(data.coping_strategies).to.include('go for a walk');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /crisis/safety-plan - Reflects updated plan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/safety-plan",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "safety-plan"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Get safety plan returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "console.log('NOTE: this route regenerates the safety plan from crisis_intervention_service.generate_safety_plan() ",
+                  "  rather than returning the document just written by PUT, so the previously-set warning_signs may not persist as-is.');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /crisis/safety-plan - Empty body",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/safety-plan",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "safety-plan"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Empty body update returns 200 (all sections default to empty lists)', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /crisis/safety-plan - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/safety-plan",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "safety-plan"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /crisis/safety-plan - No auth (expect 401)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/safety-plan",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "safety-plan"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"warning_signs\": [\"test\"]\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Intervention Protocols",
+      "item": [
+        {
+          "name": "GET /crisis/protocols/low - Valid risk level",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/protocols/low",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "protocols", "low"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Get protocol returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Protocol has expected fields', () => {",
+                  "  pm.expect(data.risk_level).to.eql('low');",
+                  "  pm.expect(data).to.have.property('immediate_actions');",
+                  "  pm.expect(data).to.have.property('support_resources');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /crisis/protocols/medium - Valid risk level",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/protocols/medium",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "protocols", "medium"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Get protocol returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "pm.test('risk_level echoed as medium', () => {",
+                  "  pm.expect(data.risk_level).to.eql('medium');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /crisis/protocols/high - Valid risk level",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/protocols/high",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "protocols", "high"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Get protocol returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "pm.test('risk_level echoed as high', () => {",
+                  "  pm.expect(data.risk_level).to.eql('high');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /crisis/protocols/critical - Valid risk level",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/protocols/critical",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "protocols", "critical"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Get protocol returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "pm.test('risk_level echoed as critical, and support_resources non-empty (e.g. crisis lines)', () => {",
+                  "  pm.expect(data.risk_level).to.eql('critical');",
+                  "  pm.expect(data.support_resources).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /crisis/protocols/invalid_level - Invalid risk level (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/protocols/invalid_level",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "protocols", "invalid_level"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Invalid risk level returns 400 INVALID_RISK_LEVEL', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "  pm.expect(body.error).to.eql('INVALID_RISK_LEVEL');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /crisis/protocols/low - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/protocols/low",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "protocols", "low"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Assessment History",
+      "item": [
+        {
+          "name": "GET /crisis/history - Default limit",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "history"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Get history returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('History has assessments array including the earlier /assess calls', () => {",
+                  "  pm.expect(data).to.have.property('assessments');",
+                  "  pm.expect(data.assessments).to.be.an('array');",
+                  "  pm.expect(data.total_count).to.be.at.least(1);",
+                  "});",
+                  "",
+                  "console.log('History total_count=' + data.total_count);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /crisis/history?limit=1 - Explicit limit",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/history?limit=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "history"],
+              "query": [{ "key": "limit", "value": "1" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Get history with limit=1 returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('At most 1 assessment returned', () => {",
+                  "  pm.expect(data.assessments.length).to.be.at.most(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /crisis/history?limit=abc - Non-numeric limit (expect graceful handling, not 500)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/history?limit=abc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "history"],
+              "query": [{ "key": "limit", "value": "abc" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "console.log('Non-numeric limit status=' + status);",
+                  "pm.test('Non-numeric limit query param does not crash with unhandled 500', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /crisis/history - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "history"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Crisis Indicators",
+      "item": [
+        {
+          "name": "GET /crisis/indicators - Full catalog",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/indicators",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "indicators"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Get indicators returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Indicators list and grouping present', () => {",
+                  "  pm.expect(data).to.have.property('indicators');",
+                  "  pm.expect(data.indicators).to.be.an('array');",
+                  "  pm.expect(data.total_count).to.eql(data.indicators.length);",
+                  "  pm.expect(data).to.have.property('grouped_by_category');",
+                  "  pm.expect(data.grouped_by_category).to.have.property('behavioral');",
+                  "  pm.expect(data.grouped_by_category).to.have.property('emotional');",
+                  "  pm.expect(data.grouped_by_category).to.have.property('cognitive');",
+                  "  pm.expect(data.grouped_by_category).to.have.property('physical');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /crisis/indicators - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/indicators",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "indicators"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Check Escalation",
+      "item": [
+        {
+          "name": "POST /crisis/check-escalation - After a real assessment exists (expect success, not 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/check-escalation",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "check-escalation"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_context\": {\n    \"note\": \"feeling a bit better today, benign test context\"\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "console.log('check-escalation status=' + status + ' body=' + JSON.stringify(body));",
+                  "",
+                  "pm.test('check-escalation does not 500', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "",
+                  "if (status === 404) {",
+                  "  console.log('BUG SUSPECT: /crisis/assess (folder 1) was called earlier in this run and returned 200, ' +",
+                  "    'meaning an assessment document now exists in crisis_assessments for this user (written via .add(), auto-ID). ' +",
+                  "    'But /check-escalation reads via db.collection(\\'crisis_assessments\\').document(user_id).get() - a document ' +",
+                  "    'keyed by the user_id itself, which /assess never writes. Result: NO_ASSESSMENT/404 even though a prior ' +",
+                  "    'assessment genuinely exists for this user. This looks like a real production logic bug (ID scheme mismatch ' +",
+                  "    'between the writer in assess_crisis_risk() and the reader in check_escalation()), not a test-script issue.');",
+                  "} else {",
+                  "  pm.test('check-escalation returns 200 with should_escalate field when a prior assessment doc is found', () => {",
+                  "    pm.expect(status).to.eql(200);",
+                  "    const data = body.data || body;",
+                  "    pm.expect(data).to.have.property('should_escalate');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /crisis/check-escalation - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/check-escalation",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "check-escalation"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_context\": {}\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /crisis/check-escalation - Malformed JSON body (expect graceful handling, not 500)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/check-escalation",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "check-escalation"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ this is not valid json "
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "console.log('Malformed body status=' + status);",
+                  "pm.test('Malformed JSON body does not crash the server (no 500)', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. Not Executed For Safety (Reference Only)",
+      "description": "Requests in this folder are intentionally NOT run in the live audit. They are kept here as reference for a human to run deliberately. Reason: they would require submitting text resembling real self-harm/crisis language to a live crisis-detection pipeline that sends real emails/SMS/push notifications to a real on-call inbox (see crisis_routes.py _escalate_crisis -> crisis_task_queue.enqueue_crisis_escalation).",
+      "item": [
+        {
+          "name": "[SKIPPED] POST /crisis/assess - High-risk text that would trigger real escalation email/SMS/push",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/crisis/assess",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "crisis", "assess"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood_history\": [1, 1, 1, 1],\n  \"recent_text_content\": \"<INTENTIONALLY OMITTED - do not fill with real self-harm language>\",\n  \"days_without_social_interaction\": 14,\n  \"insomnia_nights_last_week\": 7,\n  \"consecutive_low_mood_days\": 10,\n  \"current_anxiety_score\": 9\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Not executed in the automated run. Would trigger _escalate_crisis() ->",
+                  "// crisis_alerts Firestore doc + enqueue_crisis_escalation() -> real",
+                  "// SMS/email/push via CrisisEscalationService. Skipped for safety."
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

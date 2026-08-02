@@ -1,0 +1,679 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Mood Stats Routes API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "6f2a9e1c-3b7d-4e2a-9c1a-8f6a0d5e7b31",
+    "description": "E2E test collection covering all routes in src/routes/mood_stats_routes.py (registered under /api/v1/mood-stats): comprehensive mood statistics, daily analytics, and monthly analytics. All routes are read-only (GET) and require JWT auth. A couple of benign mood log entries are seeded first (via /api/v1/mood/log) so the statistics/analytics endpoints have real data to aggregate. All free-text bodies use neutral, benign content ('Feeling okay today, went for a walk') to avoid triggering real crisis-detection alerts."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "testEmail",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-mood_stats_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Mood Stats Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "// 201 = new user, 409 = already exists, 429 = rate limited (all acceptable)",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  pm.collectionVariables.set('testEmail', 'e2e-mood_stats_routes-' + pm.collectionVariables.get('testUuid') + '@test.lugntrygg.se');",
+                  "  console.log('Registered new mood_stats test user');",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-mood_stats_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 or 429', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || (responseData.user && responseData.user.id) || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Seed Mood Data",
+      "item": [
+        {
+          "name": "POST /api/v1/mood/log - Seed entry 1 (neutral, benign)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/log",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood", "log"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood_text\": \"Bra\",\n  \"note\": \"Feeling okay today, went for a walk\",\n  \"score\": 7,\n  \"tags\": [\"walk\", \"outdoors\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "// 201/200 = logged, 429 = daily quota reached (acceptable for a plan-limited account),",
+                  "// 503 = downstream service unavailable (acceptable in this deployment)",
+                  "pm.test('Seed mood log returns 200, 201, 429 or 503', () => {",
+                  "  pm.expect([200, 201, 429, 503]).to.include(status);",
+                  "});",
+                  "console.log('Seed entry 1 status: ' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/mood/log - Seed entry 2 (neutral, benign)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood/log",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood", "log"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood_text\": \"Neutral\",\n  \"note\": \"Calm afternoon, read a book at home\",\n  \"score\": 5,\n  \"tags\": [\"reading\", \"home\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Seed mood log returns 200, 201, 429 or 503', () => {",
+                  "  pm.expect([200, 201, 429, 503]).to.include(status);",
+                  "});",
+                  "console.log('Seed entry 2 status: ' + status);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Mood Statistics",
+      "item": [
+        {
+          "name": "GET /statistics - Comprehensive mood stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-stats/statistics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-stats", "statistics"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Statistics returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has all documented statistics fields', () => {",
+                  "  pm.expect(responseData).to.have.property('totalMoods');",
+                  "  pm.expect(responseData).to.have.property('averageSentiment');",
+                  "  pm.expect(responseData).to.have.property('currentStreak');",
+                  "  pm.expect(responseData).to.have.property('longestStreak');",
+                  "  pm.expect(responseData).to.have.property('positivePercentage');",
+                  "  pm.expect(responseData).to.have.property('negativePercentage');",
+                  "  pm.expect(responseData).to.have.property('neutralPercentage');",
+                  "  pm.expect(responseData).to.have.property('bestDay');",
+                  "  pm.expect(responseData).to.have.property('worstDay');",
+                  "  pm.expect(responseData).to.have.property('recentTrend');",
+                  "});",
+                  "",
+                  "pm.test('totalMoods is a non-negative number', () => {",
+                  "  pm.expect(responseData.totalMoods).to.be.a('number');",
+                  "  pm.expect(responseData.totalMoods).to.be.at.least(0);",
+                  "});",
+                  "",
+                  "console.log('totalMoods=' + responseData.totalMoods + ' recentTrend=' + responseData.recentTrend);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Daily Analytics",
+      "item": [
+        {
+          "name": "GET /daily - Default (30 days)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-stats/daily",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-stats", "daily"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Daily analytics returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Default days is 30', () => {",
+                  "  pm.expect(responseData.days).to.eql(30);",
+                  "});",
+                  "",
+                  "pm.test('Response has documented fields', () => {",
+                  "  pm.expect(responseData).to.have.property('totalEntries');",
+                  "  pm.expect(responseData.dailyAverages).to.be.an('array');",
+                  "  pm.expect(responseData.hourlyDistribution).to.be.an('array');",
+                  "  pm.expect(responseData.dayOfWeekAverages).to.be.an('array');",
+                  "  pm.expect(responseData.tagFrequency).to.be.an('array');",
+                  "  pm.expect(responseData).to.have.property('intensityDistribution');",
+                  "});",
+                  "",
+                  "pm.test('hourlyDistribution has 24 entries, dayOfWeekAverages has 7', () => {",
+                  "  pm.expect(responseData.hourlyDistribution.length).to.eql(24);",
+                  "  pm.expect(responseData.dayOfWeekAverages.length).to.eql(7);",
+                  "});",
+                  "",
+                  "console.log('Daily totalEntries=' + responseData.totalEntries);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /daily?days=7 - Minimum valid range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-stats/daily?days=7",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-stats", "daily"],
+              "query": [{ "key": "days", "value": "7" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('days=7 returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('days echoed back as 7', () => {",
+                  "  pm.expect(responseData.days).to.eql(7);",
+                  "});",
+                  "",
+                  "pm.test('dailyAverages has 7 entries', () => {",
+                  "  pm.expect(responseData.dailyAverages.length).to.eql(7);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /daily?days=100 - Out-of-range clamps to 90",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-stats/daily?days=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-stats", "daily"],
+              "query": [{ "key": "days", "value": "100" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Out-of-range days never 500s', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "",
+                  "pm.test('days=100 returns 200 and clamps to 90', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "  pm.expect(responseData.days).to.eql(90);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /daily?days=abc - Non-numeric days (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-stats/daily?days=abc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-stats", "daily"],
+              "query": [{ "key": "days", "value": "abc" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Non-numeric days never 500s', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "",
+                  "pm.test('Non-numeric days returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Monthly Analytics",
+      "item": [
+        {
+          "name": "GET /monthly - Default (6 months)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-stats/monthly",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-stats", "monthly"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Monthly analytics returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Default months is 6', () => {",
+                  "  pm.expect(responseData.months).to.eql(6);",
+                  "});",
+                  "",
+                  "pm.test('Response has documented fields', () => {",
+                  "  pm.expect(responseData).to.have.property('totalEntries');",
+                  "  pm.expect(responseData.monthlyData).to.be.an('array');",
+                  "  pm.expect(responseData).to.have.property('overallTrend');",
+                  "});",
+                  "",
+                  "pm.test('monthlyData has 6 entries', () => {",
+                  "  pm.expect(responseData.monthlyData.length).to.eql(6);",
+                  "});",
+                  "",
+                  "console.log('Monthly totalEntries=' + responseData.totalEntries + ' overallTrend=' + responseData.overallTrend);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /monthly?months=3 - Valid range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-stats/monthly?months=3",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-stats", "monthly"],
+              "query": [{ "key": "months", "value": "3" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('months=3 returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('months echoed back as 3', () => {",
+                  "  pm.expect(responseData.months).to.eql(3);",
+                  "});",
+                  "",
+                  "pm.test('monthlyData has 3 entries', () => {",
+                  "  pm.expect(responseData.monthlyData.length).to.eql(3);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /monthly?months=100 - Out-of-range clamps to 12",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-stats/monthly?months=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-stats", "monthly"],
+              "query": [{ "key": "months", "value": "100" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Out-of-range months never 500s', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "",
+                  "pm.test('months=100 returns 200 and clamps to 12', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "  pm.expect(responseData.months).to.eql(12);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /monthly?months=abc - Non-numeric months (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-stats/monthly?months=abc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-stats", "monthly"],
+              "query": [{ "key": "months", "value": "abc" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Non-numeric months never 500s', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "",
+                  "pm.test('Non-numeric months returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Negative Tests - No Auth",
+      "item": [
+        {
+          "name": "GET /statistics - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-stats/statistics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-stats", "statistics"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /daily - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-stats/daily",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-stats", "daily"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /monthly - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mood-stats/monthly",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "mood-stats", "monthly"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect(status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

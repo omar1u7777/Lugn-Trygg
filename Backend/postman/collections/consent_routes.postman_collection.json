@@ -1,0 +1,826 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Consent API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "d4a1e6f2-7c3b-4e91-9a2d-5b8f1c0e6a72",
+    "description": "E2E test collection for GDPR consent management routes (src/routes/consent_routes.py). Covers bulk consent grant/withdraw, single-type grant/withdraw/check, feature-access validation, and negative paths (no auth, unknown consent type, invalid path param)."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-consent_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Consent Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  const responseData = body.data || body;",
+                  "  if (responseData.accessToken) pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  if (responseData.userId) pm.collectionVariables.set('userId', responseData.userId);",
+                  "  else if (responseData.uid) pm.collectionVariables.set('userId', responseData.uid);",
+                  "  console.log('Registered new user, token set');",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-consent_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 or 429 (rate limited)', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || responseData.uid || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Consent - Bulk Operations",
+      "item": [
+        {
+          "name": "POST /consent - Bulk grant consents",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"terms_of_service\": true,\n  \"privacy_policy\": true,\n  \"data_processing_consent\": true,\n  \"ai_analysis_consent\": true,\n  \"analytics_consent\": true,\n  \"marketing_consent\": false\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Bulk grant returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has granted array with expected types', () => {",
+                  "  pm.expect(data.granted).to.be.an('array');",
+                  "  pm.expect(data.granted).to.include('terms_of_service');",
+                  "  pm.expect(data.granted).to.include('privacy_policy');",
+                  "  pm.expect(data.granted).to.include('data_processing');",
+                  "  pm.expect(data.granted).to.include('ai_processing');",
+                  "  pm.expect(data.granted).to.include('analytics');",
+                  "});",
+                  "",
+                  "pm.test('Nothing failed', () => {",
+                  "  pm.expect(data.failed).to.be.an('array').that.is.empty;",
+                  "});",
+                  "",
+                  "console.log('Bulk granted=' + JSON.stringify(data.granted));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /consent - Get all user consents",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Get consents returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Consent map contains known consent types', () => {",
+                  "  pm.expect(data).to.have.property('terms_of_service');",
+                  "  pm.expect(data).to.have.property('analytics');",
+                  "  pm.expect(data).to.have.property('marketing');",
+                  "});",
+                  "",
+                  "pm.test('Previously granted consent shows has_consent=true', () => {",
+                  "  pm.expect(data.terms_of_service.status.has_consent).to.eql(true);",
+                  "  pm.expect(data.analytics.status.has_consent).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Never-granted consent shows has_consent=false', () => {",
+                  "  pm.expect(data.marketing.status.has_consent).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Consent - Single Type Operations",
+      "item": [
+        {
+          "name": "POST /consent/analytics - Grant single consent",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent/analytics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent", "analytics"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": \"1.0\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Grant single consent returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response echoes consent_type and granted_at', () => {",
+                  "  pm.expect(data.consent_type).to.eql('analytics');",
+                  "  pm.expect(data.granted_at).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /consent/aiAnalysis - Grant via frontend alias",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent/aiAnalysis",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent", "aiAnalysis"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": \"1.0\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Grant via frontend alias returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Frontend alias aiAnalysis is mapped to backend type ai_processing', () => {",
+                  "  pm.expect(data.consent_type).to.eql('ai_processing');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /consent/check/analytics - Check consent (granted)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent/check/analytics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent", "check", "analytics"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Check consent returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('has_consent is true after grant', () => {",
+                  "  pm.expect(data.has_consent).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /consent/analytics - Withdraw consent",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent/analytics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent", "analytics"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Withdraw consent returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response echoes consent_type and withdrawn_at', () => {",
+                  "  pm.expect(data.consent_type).to.eql('analytics');",
+                  "  pm.expect(data.withdrawn_at).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /consent/check/analytics - Check consent (withdrawn)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent/check/analytics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent", "check", "analytics"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Check consent returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('has_consent is false after withdrawal', () => {",
+                  "  pm.expect(data.has_consent).to.eql(false);",
+                  "});",
+                  "",
+                  "pm.test('withdrawn flag is true', () => {",
+                  "  pm.expect(data.withdrawn).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Consent - Feature Validation",
+      "item": [
+        {
+          "name": "GET /consent/validate/mood_logging - All required consents present",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent/validate/mood_logging",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent", "validate", "mood_logging"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Validate feature returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('mood_logging access is granted (terms/privacy/data_processing were granted earlier)', () => {",
+                  "  pm.expect(data.access_granted).to.eql(true);",
+                  "  pm.expect(data.missing_consents).to.be.an('array').that.is.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /consent/validate/voice_analysis - Missing voice_processing consent",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent/validate/voice_analysis",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent", "validate", "voice_analysis"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Validate feature returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('voice_analysis access is denied (voice_processing consent never granted)', () => {",
+                  "  pm.expect(data.access_granted).to.eql(false);",
+                  "  pm.expect(data.missing_consents.length).to.be.above(0);",
+                  "  const types = data.missing_consents.map(c => c.type);",
+                  "  pm.expect(types).to.include('voice_processing');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /consent/validate/unknown_feature_xyz - Unknown feature defaults to granted",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent/validate/unknown_feature_xyz",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent", "validate", "unknown_feature_xyz"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Validate feature returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Unrecognized feature has no requirements and defaults to access_granted=true', () => {",
+                  "  pm.expect(data.access_granted).to.eql(true);",
+                  "  pm.expect(data.required_consents).to.be.an('array').that.is.empty;",
+                  "});",
+                  "",
+                  "console.log('NOTE: unmapped feature names silently pass consent validation - confirm this fail-open behavior is intended for any new/renamed feature keys.');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Negative Tests",
+      "item": [
+        {
+          "name": "GET /consent - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /consent - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"analytics_consent\": true\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /consent/analytics - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent/analytics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent", "analytics"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": \"1.0\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /consent/analytics - No auth (expect 401)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent/analytics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent", "analytics"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /consent/validate/mood_logging - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent/validate/mood_logging",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent", "validate", "mood_logging"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /consent/check/analytics - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent/check/analytics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent", "check", "analytics"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /consent/invalid_unknown_type_xyz - Unknown consent type (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent/invalid_unknown_type_xyz",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent", "invalid_unknown_type_xyz"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": \"1.0\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Unknown consent type returns 400 GRANT_FAILED', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "  pm.expect(body.error).to.eql('GRANT_FAILED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /consent - Malformed JSON body (expect graceful handling, not 500)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ this is not valid json "
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Malformed JSON body does not crash the server (no 500)', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "console.log('Malformed body status=' + status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /consent/check/ - Missing path param (expect 404 or 405)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consent/check/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "consent", "check", ""]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "// After stripping the trailing slash, Werkzeug matches this path against",
+                  "// the '/<consent_type>' rule (consent_type='check'), which only registers",
+                  "// POST/DELETE - so a GET correctly yields 405, not 404.",
+                  "pm.test('Missing consent_type path segment returns 404 or 405', () => {",
+                  "  pm.expect([404, 405]).to.include(status);",
+                  "});",
+                  "console.log('Missing path param status=' + status);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

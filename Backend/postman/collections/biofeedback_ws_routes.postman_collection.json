@@ -1,0 +1,649 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Biofeedback API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "d4a7e2f1-9c6b-4e3a-8b2d-7f1c5a9e3b02",
+    "description": "E2E test collection for Backend/src/routes/biofeedback_ws_routes.py. Covers the 5 REST fallback endpoints (patterns, start, data submission, end, history). Note: this source file also registers Socket.IO event handlers (connect/start_session/heart_rate_data/end_session/join_room) on the '/biofeedback' namespace — those are not reachable via plain HTTP Postman requests and are exercised separately by Backend/tests/test_biofeedback_ws_routes.py; they are out of scope for this HTTP collection."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "testEmail",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    },
+    {
+      "key": "biofeedbackSessionId",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-biofeedback_ws_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Biofeedback Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.collectionVariables.set('testEmail', 'e2e-biofeedback_ws_routes-' + pm.collectionVariables.get('testUuid') + '@test.lugntrygg.se');",
+                  "",
+                  "// 201 = new user, 409 = already exists, 429 = rate limited (all acceptable)",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  const responseData = body.data || body;",
+                  "  if (responseData.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  }",
+                  "  if (responseData.userId) pm.collectionVariables.set('userId', responseData.userId);",
+                  "  console.log('Registered new user, token set');",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "} else if (status === 429) {",
+                  "  console.log('Rate limited on register, will retry/login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 or 429', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || responseData.uid || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Biofeedback - Patterns",
+      "item": [
+        {
+          "name": "GET /patterns - Breathing patterns catalog",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/biofeedback/patterns",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "biofeedback", "patterns"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Patterns returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Patterns list is a non-empty array', () => {",
+                  "  pm.expect(responseData.patterns).to.be.an('array');",
+                  "  pm.expect(responseData.patterns.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Each pattern has expected shape', () => {",
+                  "  responseData.patterns.forEach((p) => {",
+                  "    pm.expect(p).to.have.property('id');",
+                  "    pm.expect(p).to.have.property('durations');",
+                  "    pm.expect(p.durations).to.have.property('inhale');",
+                  "    pm.expect(p).to.have.property('breaths_per_minute');",
+                  "  });",
+                  "});",
+                  "",
+                  "console.log('Patterns returned: ' + (responseData.patterns || []).length);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Biofeedback - Session Lifecycle",
+      "item": [
+        {
+          "name": "POST /start - Start breathing session (coherence)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/biofeedback/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "biofeedback", "start"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pattern\": \"coherence\",\n  \"duration\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Start session returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has session_id and pattern', () => {",
+                  "  pm.expect(responseData.session_id).to.be.a('string').and.not.empty;",
+                  "  pm.expect(responseData.pattern).to.eql('coherence_6bpm');",
+                  "});",
+                  "",
+                  "if (responseData.session_id) {",
+                  "  pm.collectionVariables.set('biofeedbackSessionId', responseData.session_id);",
+                  "}",
+                  "console.log('Started session: ' + responseData.session_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /data/{{biofeedbackSessionId}} - Submit RR interval data",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/biofeedback/data/{{biofeedbackSessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "biofeedback", "data", "{{biofeedbackSessionId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rr_intervals\": [850, 860, 870, 880, 890, 900, 895, 885, 875, 865, 855, 845, 850, 860, 870, 880, 890, 900, 895, 885]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Submit RR data returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has feedback object with expected fields', () => {",
+                  "  pm.expect(responseData.feedback).to.be.an('object');",
+                  "  pm.expect(responseData.feedback).to.have.property('phase');",
+                  "  pm.expect(responseData.feedback).to.have.property('coherence');",
+                  "  pm.expect(responseData.feedback).to.have.property('resonance');",
+                  "  pm.expect(responseData.feedback).to.have.property('guidance');",
+                  "});",
+                  "",
+                  "console.log('Feedback phase=' + (responseData.feedback || {}).phase);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /end/{{biofeedbackSessionId}} - End breathing session",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/biofeedback/end/{{biofeedbackSessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "biofeedback", "end", "{{biofeedbackSessionId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('End session returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has summary object', () => {",
+                  "  pm.expect(responseData.summary).to.be.an('object');",
+                  "});",
+                  "",
+                  "// Known service behavior: if the session_id isn't found in the in-memory",
+                  "// active_sessions map (e.g. different worker process handled /start),",
+                  "// end_session() returns {} rather than a 404 -- so summary may be empty.",
+                  "if (responseData.summary && responseData.summary.session_id) {",
+                  "  pm.test('Summary matches the session we started', () => {",
+                  "    pm.expect(responseData.summary.session_id).to.eql(pm.collectionVariables.get('biofeedbackSessionId'));",
+                  "  });",
+                  "  pm.test('Summary has coherence/resonance/duration fields', () => {",
+                  "    pm.expect(responseData.summary).to.have.property('avg_coherence');",
+                  "    pm.expect(responseData.summary).to.have.property('resonance_achieved');",
+                  "    pm.expect(responseData.summary).to.have.property('duration_minutes');",
+                  "  });",
+                  "  console.log('Session ended, resonance_achieved=' + responseData.summary.resonance_achieved);",
+                  "} else {",
+                  "  console.log('WARNING: end_session summary was empty -- in-memory session was not found on this worker (see notes).');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Biofeedback - History",
+      "item": [
+        {
+          "name": "GET /history - Session history (default paging)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/biofeedback/history?limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "biofeedback", "history"],
+              "query": [
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('History returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('History has sessions array and pagination fields', () => {",
+                  "  pm.expect(responseData.sessions).to.be.an('array');",
+                  "  pm.expect(responseData).to.have.property('total');",
+                  "  pm.expect(responseData).to.have.property('hasMore');",
+                  "});",
+                  "",
+                  "console.log('History sessions: ' + (responseData.sessions || []).length + ', hasMore=' + responseData.hasMore);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /history?limit=500 - Oversized limit is clamped to 100",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/biofeedback/history?limit=500",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "biofeedback", "history"],
+              "query": [
+                { "key": "limit", "value": "500" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('History with oversized limit still returns 200 (server clamps to 100)', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Negative Tests",
+      "item": [
+        {
+          "name": "GET /patterns - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/biofeedback/patterns",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "biofeedback", "patterns"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /start - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/biofeedback/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "biofeedback", "start"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pattern\": \"coherence\",\n  \"duration\": 5\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /history - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/biofeedback/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "biofeedback", "history"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /data/{{biofeedbackSessionId}} - Missing rr_intervals (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/biofeedback/data/{{biofeedbackSessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "biofeedback", "data", "{{biofeedbackSessionId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Missing rr_intervals returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});",
+                  "",
+                  "pm.test('Error response has success:false', () => {",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /data/does-not-exist-{{testUuid}} - Invalid session id (soft-fail, expect 200 default feedback)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/biofeedback/data/does-not-exist-{{testUuid}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "biofeedback", "data", "does-not-exist-{{testUuid}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rr_intervals\": [850, 860, 870, 880, 890, 900, 895, 885, 875, 865]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "// Documents current behavior: an unknown session_id does NOT 404 -- the",
+                  "// service silently falls back to _default_feedback(). This is a design",
+                  "// note, not asserted as a hard bug here (see 'notes' in the audit report).",
+                  "pm.test('Invalid session id returns 200 with default/empty feedback (documented soft-fail behavior)', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "  pm.expect(responseData.feedback).to.be.an('object');",
+                  "});",
+                  "console.log('Invalid session id -> status=' + status + ' feedback=' + JSON.stringify(responseData.feedback));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /end/does-not-exist-{{testUuid}} - Invalid session id (soft-fail, expect 200 empty summary)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/biofeedback/end/does-not-exist-{{testUuid}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "biofeedback", "end", "does-not-exist-{{testUuid}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "// Documents current behavior: an unknown session_id does NOT 404 -- the",
+                  "// service returns {} which is wrapped in a 200 success envelope.",
+                  "pm.test('Invalid session id returns 200 with empty summary (documented soft-fail behavior)', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "  pm.expect(responseData.summary).to.eql({});",
+                  "});",
+                  "console.log('Invalid session id end -> status=' + status);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

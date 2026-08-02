@@ -1,0 +1,1049 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - CBT Routes API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "d4a1e6f0-2c9b-4a3d-9e7f-1b8c5d3a6f02",
+    "description": "E2E test collection covering all CBT (Cognitive Behavioral Therapy) routes: modules, personalized session, exercises, progress tracking, and insights. Uses collection variables for auth token and dynamic test data chaining. New accounts get an automatic account-bound trial, which grants CBT (premium) access."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://lugn-trygg-backend.onrender.com"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "csrfToken",
+      "value": ""
+    },
+    {
+      "key": "csrfCookie",
+      "value": ""
+    },
+    {
+      "key": "testEmail",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "AuditP@ss2026x!"
+    },
+    {
+      "key": "testUuid",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}",
+          "// Auto-inject CSRF headers if set (harmless no-op for Bearer-authenticated",
+          "// requests, since the backend's CSRF middleware exempts any request that",
+          "// carries a valid Authorization: Bearer header)",
+          "if (pm.collectionVariables.get('csrfToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'X-CSRF-Token',",
+          "    value: pm.collectionVariables.get('csrfToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-cbt_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E CBT Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "// 201 = new user, 409 = already exists, 429 = rate limited (all acceptable)",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  pm.collectionVariables.set('testEmail', 'e2e-cbt_routes-' + pm.collectionVariables.get('testUuid') + '@test.lugntrygg.se');",
+                  "  console.log('Registered new CBT test user');",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-cbt_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Login returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || (responseData.user && responseData.user.id) || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "}",
+                  "",
+                  "pm.test('AccessToken is set', () => {",
+                  "  pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get CSRF Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard/csrf-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "dashboard", "csrf-token"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('CSRF returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('csrfToken', responseData.csrfToken || '');",
+                  "  const setCookie = pm.response.headers.get('Set-Cookie') || '';",
+                  "  const match = setCookie.match(/csrf_token=([^;]+)/);",
+                  "  if (match) pm.collectionVariables.set('csrfCookie', match[1]);",
+                  "  console.log('CSRF token set');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. CBT - Modules",
+      "item": [
+        {
+          "name": "GET /modules - List all CBT modules",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/modules",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "modules"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "// 200 = trial/premium access granted, 403 = free plan without active trial",
+                  "pm.test('Modules list returns 200 or 403 (premium required)', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Modules is a non-empty array', () => {",
+                  "    pm.expect(responseData.modules).to.be.an('array');",
+                  "    pm.expect(responseData.modules.length).to.be.above(0);",
+                  "  });",
+                  "  pm.test('Each module has completion/lock flags', () => {",
+                  "    responseData.modules.forEach((m) => {",
+                  "      pm.expect(m).to.have.property('moduleId');",
+                  "      pm.expect(m).to.have.property('isCompleted');",
+                  "      pm.expect(m).to.have.property('isLocked');",
+                  "    });",
+                  "  });",
+                  "  console.log('Modules returned: ' + responseData.modules.length);",
+                  "} else {",
+                  "  pm.test('403 has PREMIUM_REQUIRED error code', () => {",
+                  "    pm.expect(body.error_code || body.errorCode).to.eql('PREMIUM_REQUIRED');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /modules/anxiety_basics - Module detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/modules/anxiety_basics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "modules", "anxiety_basics"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Module detail returns 200 or 403', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const m = responseData.module;",
+                  "  pm.test('Module id matches request', () => {",
+                  "    pm.expect(m.moduleId).to.eql('anxiety_basics');",
+                  "  });",
+                  "  pm.test('Module has swedishContent and exercises', () => {",
+                  "    pm.expect(m).to.have.property('swedishContent');",
+                  "    pm.expect(m.exercises).to.be.an('array');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /modules/{{nonexistentModuleId}} - Unknown module (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/modules/does_not_exist_xyz",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "modules", "does_not_exist_xyz"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Unknown module returns 404 (or 403 if not premium)', () => {",
+                  "  pm.expect([404, 403]).to.include(status);",
+                  "});",
+                  "pm.test('Unknown module never 500s', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. CBT - Personalized Session",
+      "item": [
+        {
+          "name": "GET /session - Default mood (neutral)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/session",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "session"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Session returns 200 or 403', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const s = responseData.session;",
+                  "  pm.test('Session has exercises and guidance', () => {",
+                  "    pm.expect(s.exercises).to.be.an('array');",
+                  "    pm.expect(s.exercises.length).to.be.above(0);",
+                  "    pm.expect(s).to.have.property('guidance');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /session?mood=high_anxiety",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/session?mood=high_anxiety",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "session"],
+              "query": [{ "key": "mood", "value": "high_anxiety" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('High-anxiety session returns 200 or 403', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Session theme is anxiety_management', () => {",
+                  "    pm.expect(responseData.session.sessionTheme).to.eql('anxiety_management');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /session?mood=depression",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/session?mood=depression",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "session"],
+              "query": [{ "key": "mood", "value": "depression" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Depression session returns 200 or 403', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Session theme is behavioral_activation', () => {",
+                  "    pm.expect(responseData.session.sessionTheme).to.eql('behavioral_activation');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /session?mood=not_a_real_mood - Invalid mood falls back to neutral",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/session?mood=not_a_real_mood_xyz",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "session"],
+              "query": [{ "key": "mood", "value": "not_a_real_mood_xyz" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Invalid mood value never 500s (server sanitizes to neutral)', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. CBT - Exercises",
+      "item": [
+        {
+          "name": "GET /exercises - List all exercises",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/exercises",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "exercises"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Exercises list returns 200 or 403', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Exercises is a non-empty array', () => {",
+                  "    pm.expect(responseData.exercises).to.be.an('array');",
+                  "    pm.expect(responseData.exercises.length).to.be.above(0);",
+                  "  });",
+                  "  console.log('Exercises returned: ' + responseData.exercises.length);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /exercises?module=anxiety_basics - Filter by module",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/exercises?module=anxiety_basics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "exercises"],
+              "query": [{ "key": "module", "value": "anxiety_basics" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Filtered exercises returns 200 or 403', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('All returned exercises belong to anxiety_basics', () => {",
+                  "    responseData.exercises.forEach((ex) => {",
+                  "      pm.expect(ex.moduleId).to.eql('anxiety_basics');",
+                  "    });",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /exercises?type=exposure - Filter by type",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/exercises?type=exposure",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "exercises"],
+              "query": [{ "key": "type", "value": "exposure" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Type-filtered exercises returns 200 or 403', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('All returned exercises have type exposure', () => {",
+                  "    responseData.exercises.forEach((ex) => {",
+                  "      pm.expect(ex.type).to.eql('exposure');",
+                  "    });",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. CBT - Progress Tracking",
+      "item": [
+        {
+          "name": "POST /progress - Complete thought_record_basic",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "progress"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exerciseId\": \"thought_record_basic\",\n  \"successRate\": 0.8,\n  \"timeSpent\": 15,\n  \"difficultyRating\": 2,\n  \"notes\": \"Feeling okay today, went for a walk\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Progress update returns 200 or 403', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Response has skillMastery and streakCount', () => {",
+                  "    pm.expect(responseData.skillMastery).to.be.an('object');",
+                  "    pm.expect(responseData.streakCount).to.be.a('number');",
+                  "  });",
+                  "  pm.collectionVariables.set('lastStreakCount', responseData.streakCount);",
+                  "  console.log('Streak after thought_record_basic: ' + responseData.streakCount);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /progress - Complete behavioral_activation (completes module)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "progress"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exerciseId\": \"behavioral_activation\",\n  \"successRate\": 0.9,\n  \"timeSpent\": 20,\n  \"difficultyRating\": 2,\n  \"notes\": \"Feeling okay today, went for a walk\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Progress update returns 200 or 403', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('Streak did not decrease/reset unexpectedly within same run', () => {",
+                  "    pm.expect(responseData.streakCount).to.be.at.least(1);",
+                  "  });",
+                  "  // behavioral_activation is the sole exercise in depression_cognitive,",
+                  "  // so completing it for the first time should unlock the module.",
+                  "  console.log('Achievements: ' + JSON.stringify(responseData.achievements));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /progress - Complete worry_time (completes anxiety_basics)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "progress"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exerciseId\": \"worry_time\",\n  \"successRate\": 0.85,\n  \"timeSpent\": 25,\n  \"difficultyRating\": 3,\n  \"notes\": \"Feeling okay today, went for a walk\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Progress update returns 200 or 403', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  pm.test('completedModules array present', () => {",
+                  "    pm.expect(responseData.completedModules).to.be.an('array');",
+                  "  });",
+                  "  console.log('Completed modules: ' + JSON.stringify(responseData.completedModules));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /progress - Missing exerciseId (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "progress"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"successRate\": 0.5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Missing exerciseId returns 400 (or 403 if not premium)', () => {",
+                  "  pm.expect([400, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /progress - Unknown exercise (expect 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "progress"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exerciseId\": \"not_a_real_exercise_xyz\",\n  \"successRate\": 0.5,\n  \"timeSpent\": 5,\n  \"difficultyRating\": 3\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Unknown exercise returns 404 (or 403 if not premium)', () => {",
+                  "  pm.expect([404, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /progress - Empty body (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "progress"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Empty body returns 400 (or 403 if not premium)', () => {",
+                  "  pm.expect([400, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. CBT - Insights",
+      "item": [
+        {
+          "name": "GET /insights - User CBT insights",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/insights",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "insights"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const responseData = body.data || body;",
+                  "",
+                  "pm.test('Insights returns 200 or 403', () => {",
+                  "  pm.expect([200, 403]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const insights = responseData.insights;",
+                  "  pm.test('Insights has documented fields', () => {",
+                  "    pm.expect(insights).to.have.property('overallProgress');",
+                  "    pm.expect(insights).to.have.property('strengthAreas');",
+                  "    pm.expect(insights).to.have.property('improvementAreas');",
+                  "    pm.expect(insights).to.have.property('recommendedNextSteps');",
+                  "    pm.expect(insights).to.have.property('streak');",
+                  "    pm.expect(insights.streak).to.have.property('current');",
+                  "    pm.expect(insights.streak).to.have.property('longest');",
+                  "    pm.expect(insights.streak).to.have.property('consistencyRating');",
+                  "    pm.expect(insights).to.have.property('exercisesCompleted');",
+                  "    pm.expect(insights).to.have.property('modulesCompleted');",
+                  "  });",
+                  "  pm.test('exercisesCompleted reflects the 3 progress calls made earlier', () => {",
+                  "    pm.expect(insights.exercisesCompleted).to.be.at.least(3);",
+                  "  });",
+                  "  console.log('Overall progress: ' + insights.overallProgress);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Negative Tests",
+      "item": [
+        {
+          "name": "GET /modules - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/modules",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "modules"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /session - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/session",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "session"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /exercises - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/exercises",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "exercises"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /insights - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/insights",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "insights"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /progress - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "progress"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exerciseId\": \"thought_record_basic\",\n  \"successRate\": 0.5,\n  \"timeSpent\": 5,\n  \"difficultyRating\": 2\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /modules/<invalid path param with encoded slash> (expect 404, not 500)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cbt/modules/..%2f..%2fetc%2fpasswd",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cbt", "modules", "..%2f..%2fetc%2fpasswd"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Path-traversal-like module id never 500s', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});",
+                  "pm.test('Path-traversal-like module id returns 404/400/403, not file content', () => {",
+                  "  pm.expect([400, 401, 403, 404]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

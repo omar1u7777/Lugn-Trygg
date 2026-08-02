@@ -481,7 +481,7 @@ def sync_health_data_oauth(provider):
             access_token = new_token_data.get('access_token') or access_token
 
         # Get date range from request - validate
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         days_back = data.get('days', 7)
         if not isinstance(days_back, int) or days_back < 1 or days_back > 90:
             days_back = 7
@@ -575,7 +575,7 @@ def analyze_health_mood_patterns():
             return APIResponse.unauthorized('Authentication required')
 
         # Get request parameters (optional date range)
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         days = data.get('days', 30)  # Default to last 30 days
 
         # Fetch health data from Firestore
@@ -711,7 +711,7 @@ def disconnect_wearable():
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
 
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         device_id = data.get('device_id')
 
         # Validate device_id
@@ -748,7 +748,7 @@ def sync_wearable():
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
 
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         device_id = data.get('device_id')
 
         # Validate device_id
@@ -793,7 +793,7 @@ def sync_google_fit():
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
 
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         access_token = data.get('access_token')
         data.get('date_from', (datetime.now(UTC) - timedelta(days=7)).isoformat())
         data.get('date_to', datetime.now(UTC).isoformat())
@@ -947,7 +947,7 @@ def create_crisis_referral():
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
 
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
 
         # Validate and sanitize input
         valid_crisis_types = ['general', 'anxiety', 'depression', 'suicidal', 'panic', 'other']
@@ -1012,7 +1012,7 @@ def sync_health_data():
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
 
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         sources = data.get('sources', ['google_fit'])  # Default to Google Fit
 
         # Validate sources
@@ -1165,7 +1165,7 @@ def toggle_auto_sync(provider):
         if not PROVIDER_PATTERN.match(provider_clean) or provider_clean not in SUPPORTED_PROVIDERS:
             return APIResponse.bad_request('Invalid provider')
 
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         enabled = bool(data.get("enabled", False))
 
         valid_frequencies = ['hourly', 'daily', 'weekly']
@@ -1239,7 +1239,7 @@ def check_health_alerts():
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
 
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
 
         provider = data.get("provider", "unknown")
         if provider:
@@ -1370,7 +1370,7 @@ def update_alert_settings():
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
 
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
 
         email_alerts = bool(data.get("email_alerts", False))
         push_alerts = bool(data.get("push_alerts", False))

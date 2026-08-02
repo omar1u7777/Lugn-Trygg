@@ -56,7 +56,7 @@ def generate_soundscape():
     """
     try:
         user_id = g.get('user_id')
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
 
         # Validate type
         soundscape_type_str = data.get('type', 'meditation')
@@ -298,7 +298,7 @@ def get_adaptive_recommendation():
     }
     """
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
 
         mood = data.get('current_mood', 'neutral')
         time_of_day = data.get('time_of_day', 'afternoon')
@@ -454,7 +454,7 @@ def generate_musicgen():
         )
 
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         soundscape_type = data.get('type', 'meditation')
         custom_prompt = data.get('custom_prompt', '').strip()
         duration = min(int(data.get('duration', 30)), 30)  # MusicGen max ~30s

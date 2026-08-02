@@ -1,0 +1,1137 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Journal API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "7d4e1c9a-3f6b-4a82-9c1d-5b8e2f7a6c30",
+    "description": "E2E test collection for personal journal routes (src/routes/journal_routes.py). Covers create/list/get/update/delete of journal entries, authorization checks (user can only touch their own journal), input validation (content length/word count, mood range, tag format, user_id/entry_id format), and negative paths (no auth, invalid path params, not-found). All journal content bodies use clearly neutral, benign language."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://lugn-trygg-backend.onrender.com" },
+    { "key": "accessToken", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "testPassword", "value": "AuditP@ss2026x!" },
+    { "key": "testUuid", "value": "" },
+    { "key": "entryId", "value": "" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate unique UUID for this run if not set",
+          "if (!pm.collectionVariables.get('testUuid')) {",
+          "  const uuid = require('uuid');",
+          "  pm.collectionVariables.set('testUuid', uuid.v4().substring(0, 8));",
+          "}",
+          "// Auto-inject Authorization header if accessToken is set (skip for noauth requests)",
+          "const isNoAuth = pm.request.auth && pm.request.auth.type === 'noauth';",
+          "if (pm.collectionVariables.get('accessToken') && !isNoAuth) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('accessToken'),",
+          "    type: 'text'",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth Setup",
+      "item": [
+        {
+          "name": "Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-journal_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\",\n  \"name\": \"E2E Journal Tester\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Register returns 201, 409 or 429 (rate limited)', () => {",
+                  "  pm.expect([201, 409, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 201) {",
+                  "  const responseData = body.data || body;",
+                  "  if (responseData.accessToken) pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  if (responseData.userId) pm.collectionVariables.set('userId', responseData.userId);",
+                  "  else if (responseData.uid) pm.collectionVariables.set('userId', responseData.uid);",
+                  "  console.log('Registered new user, token set');",
+                  "} else if (status === 409) {",
+                  "  console.log('User already exists, will login next');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"e2e-journal_routes-{{testUuid}}@test.lugntrygg.se\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "",
+                  "pm.test('Login returns 200 or 429 (rate limited)', () => {",
+                  "  pm.expect([200, 429]).to.include(status);",
+                  "});",
+                  "",
+                  "if (status === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const responseData = body.data || body;",
+                  "  pm.collectionVariables.set('accessToken', responseData.accessToken);",
+                  "  pm.collectionVariables.set('userId', responseData.userId || responseData.uid || '');",
+                  "  console.log('Login OK, userId=' + pm.collectionVariables.get('userId'));",
+                  "",
+                  "  pm.test('AccessToken is set', () => {",
+                  "    pm.expect(pm.collectionVariables.get('accessToken')).to.not.be.empty;",
+                  "  });",
+                  "  pm.test('userId looks like a valid Firebase UID (needed for journal user_id path param validation)', () => {",
+                  "    pm.expect(pm.collectionVariables.get('userId')).to.match(/^[a-zA-Z0-9]{20,128}$/);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Create Journal Entry",
+      "item": [
+        {
+          "name": "POST /{{userId}}/journal - Create valid entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Feeling okay today, went for a walk in the park\",\n  \"mood\": 7,\n  \"tags\": [\"calm\", \"walk\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Create entry returns 201', () => {",
+                  "  pm.expect(status).to.eql(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has entry id, content, mood, tags, timestamps', () => {",
+                  "  pm.expect(data).to.have.property('id');",
+                  "  pm.expect(data.content).to.eql('Feeling okay today, went for a walk in the park');",
+                  "  pm.expect(data.mood).to.eql(7);",
+                  "  pm.expect(data.tags).to.include('calm');",
+                  "  pm.expect(data).to.have.property('createdAt');",
+                  "  pm.expect(data).to.have.property('updatedAt');",
+                  "});",
+                  "",
+                  "if (data.id) pm.collectionVariables.set('entryId', data.id);",
+                  "console.log('Created entry id=' + data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /{{userId}}/journal - Missing content (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Missing content returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /{{userId}}/journal - Content too short / <3 words (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"ok\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Content with fewer than 3 words returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /{{userId}}/journal - Invalid mood out of range (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Valid content text here\",\n  \"mood\": 15\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('mood=15 (out of 1-10 range) returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /{{userId}}/journal - Invalid tag format (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Valid content text here\",\n  \"tags\": [\"bad@tag!\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Invalid tag characters return 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /{{userId}}/journal - No auth (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Feeling okay today, went for a walk\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /{{userId}}/journal - Malformed user_id format (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/short-id/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "short-id", "journal"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Feeling okay today, went for a walk\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Malformed (too short / has hyphen) user_id path param returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /{{otherUserId}}/journal - Different user (expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/otheruserid1234567890/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "otheruserid1234567890", "journal"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Feeling okay today, went for a walk\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Creating an entry under a different (valid-format) user_id returns 403 (unauthorized), not 200/500', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. List Journal Entries",
+      "item": [
+        {
+          "name": "GET /{{userId}}/journal - Default listing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('List entries returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has entries array including the just-created entry', () => {",
+                  "  pm.expect(data).to.have.property('entries');",
+                  "  pm.expect(data.entries).to.be.an('array');",
+                  "  pm.expect(data.entries.length).to.be.at.least(1);",
+                  "  const ids = data.entries.map(e => e.id);",
+                  "  pm.expect(ids).to.include(pm.collectionVariables.get('entryId'));",
+                  "});",
+                  "",
+                  "console.log('Entries returned: ' + data.entries.length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /{{userId}}/journal?limit=1 - Explicit limit",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal?limit=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal"],
+              "query": [{ "key": "limit", "value": "1" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('List with limit=1 returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('At most 1 entry returned', () => {",
+                  "  pm.expect(data.entries.length).to.be.at.most(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /{{userId}}/journal?limit=abc - Non-numeric limit (expect graceful handling, not 500)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal?limit=abc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal"],
+              "query": [{ "key": "limit", "value": "abc" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "console.log('Non-numeric limit status=' + status);",
+                  "pm.test('Non-numeric limit query param does not crash with unhandled 500', () => {",
+                  "  pm.expect(status).to.not.eql(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /{{userId}}/journal - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /otheruserid1234567890/journal - Different user (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/otheruserid1234567890/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "otheruserid1234567890", "journal"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Listing a different (valid-format) user_id journal returns 403, confirming no cross-user data leak', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /short-id/journal - Malformed user_id format (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/short-id/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "short-id", "journal"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Malformed user_id path param returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Get Single Journal Entry",
+      "item": [
+        {
+          "name": "GET /{{userId}}/journal/{{entryId}} - Existing entry",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal/{{entryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal", "{{entryId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Get single entry returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Entry matches what was created', () => {",
+                  "  pm.expect(data.id).to.eql(pm.collectionVariables.get('entryId'));",
+                  "  pm.expect(data.content).to.eql('Feeling okay today, went for a walk in the park');",
+                  "  pm.expect(data.mood).to.eql(7);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /{{userId}}/journal/{{entryId}} - Not found (well-formed but nonexistent id)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal/nonexistent0000001",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal", "nonexistent0000001"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Well-formed but nonexistent entry_id returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /{{userId}}/journal/x1 - Malformed entry_id format (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal/x1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal", "x1"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Too-short entry_id path param returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /{{userId}}/journal/{{entryId}} - No auth (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal/{{entryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal", "{{entryId}}"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /otheruserid1234567890/journal/{{entryId}} - Different user path (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/otheruserid1234567890/journal/{{entryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "otheruserid1234567890", "journal", "{{entryId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Reading another user_id path with own token returns 403 (auth check happens before ownership check)', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Update Journal Entry",
+      "item": [
+        {
+          "name": "PUT /{{userId}}/journal/{{entryId}} - Update content",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal/{{entryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal", "{{entryId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Updated journal content, still feeling calm\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Update content returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response reflects updated content', () => {",
+                  "  pm.expect(data.content).to.eql('Updated journal content, still feeling calm');",
+                  "  pm.expect(data.id).to.eql(pm.collectionVariables.get('entryId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /{{userId}}/journal/{{entryId}} - Update mood and tags",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal/{{entryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal", "{{entryId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood\": 9,\n  \"tags\": [\"relaxed\", \"outdoors\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Update mood/tags returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response reflects updated mood and tags', () => {",
+                  "  pm.expect(data.mood).to.eql(9);",
+                  "  pm.expect(data.tags).to.include('relaxed');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /{{userId}}/journal/{{entryId}} - Empty body (expect 400 No data provided)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal/{{entryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal", "{{entryId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "console.log('Empty body update status=' + status + ' body=' + JSON.stringify(body));",
+                  "pm.test('Empty JSON object body returns 400 (falsy dict -> \"No data provided\")', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /{{userId}}/journal/{{entryId}} - Invalid mood (expect 400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal/{{entryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal", "{{entryId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood\": -3\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('mood=-3 (out of 1-10 range) returns 400', () => {",
+                  "  pm.expect(status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /{{userId}}/journal/{{entryId}} - No auth (expect 401)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal/{{entryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal", "{{entryId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Should not be applied, no auth\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /{{userId}}/journal/nonexistent0000001 - Not found (expect 404)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal/nonexistent0000001",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal", "nonexistent0000001"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Update to a nonexistent entry id\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Updating a well-formed but nonexistent entry_id returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /otheruserid1234567890/journal/{{entryId}} - Different user (expect 403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/otheruserid1234567890/journal/{{entryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "otheruserid1234567890", "journal", "{{entryId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Attempted cross-user update\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Updating under a different (valid-format) user_id returns 403', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Delete Journal Entry",
+      "item": [
+        {
+          "name": "DELETE /otheruserid1234567890/journal/{{entryId}} - Different user (expect 403, entry must survive)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/otheruserid1234567890/journal/{{entryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "otheruserid1234567890", "journal", "{{entryId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Deleting under a different (valid-format) user_id returns 403 and does not delete the entry', () => {",
+                  "  pm.expect(status).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /{{userId}}/journal/{{entryId}} - No auth (expect 401, entry must survive)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal/{{entryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal", "{{entryId}}"]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('No auth returns 401', () => {",
+                  "  pm.expect([401, 403]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /{{userId}}/journal/nonexistent0000001 - Not found (expect 404)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal/nonexistent0000001",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal", "nonexistent0000001"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Deleting a well-formed but nonexistent entry_id returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /{{userId}}/journal/{{entryId}} - Delete own test entry (cleanup)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal/{{entryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal", "{{entryId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "",
+                  "pm.test('Delete own entry returns 200', () => {",
+                  "  pm.expect(status).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Response echoes deleted id', () => {",
+                  "  pm.expect(data.id).to.eql(pm.collectionVariables.get('entryId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /{{userId}}/journal/{{entryId}} - Verify deleted (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/journal/{{userId}}/journal/{{entryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "journal", "{{userId}}", "journal", "{{entryId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Getting the deleted entry now returns 404', () => {",
+                  "  pm.expect(status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

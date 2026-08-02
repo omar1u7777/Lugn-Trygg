@@ -683,7 +683,10 @@ def get_meditation_sessions():
 
     try:
         # Get query parameters
-        limit = int(request.args.get('limit', 50))
+        try:
+            limit = int(request.args.get('limit', 50))
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("limit must be an integer")
         start_date_str = request.args.get('startDate')
         end_date_str = request.args.get('endDate')
 

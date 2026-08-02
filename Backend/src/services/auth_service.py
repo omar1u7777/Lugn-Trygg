@@ -433,7 +433,7 @@ class AuthService:
     @staticmethod
     def _refresh_expiry_from_payload(payload: dict[str, Any]) -> datetime:
         exp = payload.get("exp")
-        if isinstance(exp, (int, float)):
+        if isinstance(exp, int | float):
             return datetime.fromtimestamp(exp, UTC)
         if isinstance(exp, datetime):
             return exp.astimezone(UTC)

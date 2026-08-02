@@ -119,6 +119,12 @@ class _FakeFirestoreTransaction:
     def _rollback(self):
         self._id = None
 
+    def get(self, reference, **kwargs):
+        # Real Transaction.get(ref) just reads through to the reference's own
+        # .get() (scoped inside the transaction); delegate the same way so
+        # transactional code that reads-before-writing works under test.
+        return reference.get()
+
     def set(self, reference, document_data, **kwargs):
         # Record only (matches the previous MagicMock no-op semantics); does
         # not eagerly write so tests keep control of the mocked ref state.

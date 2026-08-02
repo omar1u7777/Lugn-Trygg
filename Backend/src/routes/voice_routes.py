@@ -659,7 +659,7 @@ def save_voice_recording():
             emotion_confidences = {}
         else:
             emotion_confidences = {
-                str(k): float(v) if isinstance(v, (int, float)) and 0 <= v <= 1 else 0.0
+                str(k): float(v) if isinstance(v, int | float) and 0 <= v <= 1 else 0.0
                 for k, v in emotion_confidences.items()
             }
 
@@ -684,13 +684,13 @@ def save_voice_recording():
             volume_variation = 'moderate'
 
         valence = data.get('valence')
-        if isinstance(valence, (int, float)) and -1 <= valence <= 1:
+        if isinstance(valence, int | float) and -1 <= valence <= 1:
             valence = float(valence)
         else:
             valence = None
 
         arousal = data.get('arousal')
-        if isinstance(arousal, (int, float)) and -1 <= arousal <= 1:
+        if isinstance(arousal, int | float) and -1 <= arousal <= 1:
             arousal = float(arousal)
         else:
             arousal = None

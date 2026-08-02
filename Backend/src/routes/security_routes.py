@@ -47,7 +47,10 @@ def key_rotation_status():
 @rate_limit_by_endpoint
 def tamper_events():
     """Return recent tamper detection alerts and summary."""
-    limit = min(int(request.args.get('limit', 50)), 200)
+    try:
+        limit = min(int(request.args.get('limit', 50)), 200)
+    except (TypeError, ValueError):
+        return APIResponse.bad_request("limit must be an integer")
     events = tamper_detection_service.get_recent_events(limit=limit)
     return APIResponse.success({
         "events": events,

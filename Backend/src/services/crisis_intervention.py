@@ -762,10 +762,17 @@ class CrisisInterventionService:
 
         return trends
 
+    _PROTOCOL_KEY_BY_RISK_LEVEL = {
+        'low': 'low_risk_support',
+        'medium': 'medium_risk_intervention',
+        'high': 'high_risk_crisis',
+        'critical': 'critical_risk_emergency',
+    }
+
     def get_emergency_protocol(self, risk_level: str) -> InterventionProtocol | None:
         """Get emergency intervention protocol for risk level"""
-        protocol_key = f'{risk_level}_risk_emergency' if risk_level == 'critical' else f'{risk_level}_risk_crisis'
-        return self.intervention_protocols.get(protocol_key)
+        protocol_key = self._PROTOCOL_KEY_BY_RISK_LEVEL.get(risk_level)
+        return self.intervention_protocols.get(protocol_key) if protocol_key else None
 
     def should_escalate_crisis(self, assessment: CrisisAssessment, new_context: dict[str, Any]) -> bool:
         """Determine if crisis situation requires escalation"""

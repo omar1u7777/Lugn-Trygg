@@ -192,7 +192,10 @@ def list_feedback():
 
         status = request.args.get("status", "all")
         category = request.args.get("category", "all")
-        limit = min(int(request.args.get("limit", 50)), 200)  # Cap at 200
+        try:
+            limit = min(int(request.args.get("limit", 50)), 200)  # Cap at 200
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("limit must be an integer")
 
         # CRITICAL FIX: Use FieldFilter to avoid positional argument warning
         from google.cloud.firestore import FieldFilter
@@ -247,7 +250,10 @@ def feedback_stats():
             return APIResponse.forbidden('Admin access required')
 
         # Get date range parameters
-        days = min(int(request.args.get("days", 30)), 365)  # Cap at 1 year
+        try:
+            days = min(int(request.args.get("days", 30)), 365)  # Cap at 1 year
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("days must be an integer")
         start_date = datetime.now(UTC) - timedelta(days=days)
 
         # CRITICAL FIX: Use FieldFilter to avoid positional argument warning

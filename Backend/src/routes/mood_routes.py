@@ -111,7 +111,7 @@ def cached_mood_data(ttl: int = MOOD_CACHE_TTL) -> Callable[[Callable], Callable
             if redis_client:
                 try:
                     cached_data = redis_client.get(cache_key)
-                    if cached_data and isinstance(cached_data, (str, bytes)):
+                    if cached_data and isinstance(cached_data, str | bytes):
                         cached_response = json.loads(str(cached_data))
                         # Store in memory for faster access next time
                         _mood_cache[cache_key] = (cached_response, time.time())
@@ -343,7 +343,7 @@ def log_mood() -> Response | tuple[Response, int]:
                     tags = [tags]
             else:
                 tags = [tags] if tags else []
-        tags = [str(t).strip()[:50] for t in tags[:10] if isinstance(t, (str, int, float)) and str(t).strip()]
+        tags = [str(t).strip()[:50] for t in tags[:10] if isinstance(t, str | int | float) and str(t).strip()]
 
         # Get user-submitted score (1-10 scale)
         user_score = data.get('score') if data else None
@@ -753,13 +753,16 @@ def get_moods() -> dict[str, Any] | tuple[dict[str, Any], int]:
             return {'error': 'User ID missing from context'}, 401
 
         # Query parameters with sensible defaults for performance
-        limit = min(int(request.args.get('limit', 50)), 100)  # Max 100 entries for performance
+        try:
+            limit = min(int(request.args.get('limit', 50)), 100)  # Max 100 entries for performance
+            # Note: Firestore cursor pagination requires document snapshot, not just timestamp value
+            # For now, we use limit/offset pagination which works reliably
+            offset = max(int(request.args.get('offset', 0)), 0)
+        except (TypeError, ValueError):
+            return APIResponse.bad_request("limit and offset must be integers")
         start_date = request.args.get('start_date')  # YYYY-MM-DD format
         end_date = request.args.get('end_date')    # YYYY-MM-DD format
         sentiment_filter = request.args.get('sentiment')  # POSITIVE, NEGATIVE, NEUTRAL
-        # Note: Firestore cursor pagination requires document snapshot, not just timestamp value
-        # For now, we use limit/offset pagination which works reliably
-        offset = max(int(request.args.get('offset', 0)), 0)
 
         # Build Firestore query - OPTIMIZED
         mood_ref = db.collection('users').document(user_id).collection('moods')
