@@ -52,6 +52,10 @@ vi.mock('../../components/Auth/ConsentModal', () => ({
   default: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div>consent-modal</div> : null),
 }));
 
+vi.mock('../../hooks/useDashboardData', () => ({
+  clearDashboardCache: vi.fn(),
+}));
+
 vi.mock('../../utils/logger', () => ({
   logger: {
     debug: vi.fn(),

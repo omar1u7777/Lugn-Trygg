@@ -113,6 +113,13 @@ vi.mock('../WorldClassGamification', () => ({
   default: () => <div data-testid="gamification">gamification</div>,
 }));
 
+// Recommendations is lazy-loaded (heavy component with its own test suite);
+// mock it here so unrelated dashboard tests don't pull its full module graph
+// into coverage every time the section renders.
+vi.mock('../Recommendations', () => ({
+  default: () => <div data-testid="recommendations-panel">recommendations</div>,
+}));
+
 vi.mock('../Wellness/WellnessGoalsOnboarding', () => ({
   default: ({ onComplete, onSkip }: { onComplete: (goals: string[]) => void; onSkip: () => void }) => (
     <div>
