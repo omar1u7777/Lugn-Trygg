@@ -204,6 +204,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   const [isLogging, setIsLogging] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [recentMoods, setRecentMoods] = useState<RecentMood[]>([]);
+  const [isLoadingRecentMoods, setIsLoadingRecentMoods] = useState(false);
   const [limitError, setLimitError] = useState<string | null>(null);
   
   // Voice recording
@@ -243,6 +244,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       abortControllerRef.current.abort();
     }
     abortControllerRef.current = new AbortController();
+    setIsLoadingRecentMoods(true);
 
     try {
       const moodsResponse = await getMoods(user.user_id, abortControllerRef.current.signal);
@@ -287,6 +289,9 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       if (!isMountedRef.current) return;
       logger.error('Failed to load recent moods:', err);
     } finally {
+      if (isMountedRef.current) {
+        setIsLoadingRecentMoods(false);
+      }
       if (abortControllerRef.current?.signal.aborted) {
         abortControllerRef.current = null;
       }
@@ -332,6 +337,9 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   }, []);
 
   const handleDeleteMood = useCallback(async (moodId: string) => {
+    if (!window.confirm(t('moodLogger.confirmDelete', 'Radera det här humörinlägget? Detta går inte att ångra.'))) {
+      return;
+    }
     try {
       await deleteMood(moodId);
       setRecentMoods(prev => prev.filter(m => m.id !== moodId));
@@ -782,12 +790,23 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       </Card>
 
       {/* Recent Moods - Hidden on dashboard to prevent layout shift */}
-      {showRecentMoods && recentMoods.length > 0 && (
+      {showRecentMoods && (
         <div className="mt-6 pt-5 border-t border-gray-200 dark:border-gray-700">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
             <ClockIcon className="w-4 h-4" />
             {t('moodLogger.recentMoods', 'Dina senaste humör')}
           </h3>
+          {isLoadingRecentMoods && recentMoods.length === 0 ? (
+            <div className="space-y-2 animate-pulse" aria-busy="true">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-14 rounded-lg bg-gray-100 dark:bg-gray-800" />
+              ))}
+            </div>
+          ) : recentMoods.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {t('moodLogger.noRecentMoods', 'Inga humörloggar än. Logga ditt första humör ovan!')}
+            </p>
+          ) : (
           <div className="space-y-3">
             <div className="space-y-4">
               {groupedMoods.map(group => (
@@ -859,6 +878,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
               ))}
             </div>
           </div>
+          )}
         </div>
       )}
     </div>

@@ -610,6 +610,8 @@
     "required": "Required",
     "resetAdvanced": "Reset advanced",
     "delete": "Delete",
+    "confirmDelete": "Delete this mood entry? This cannot be undone.",
+    "noRecentMoods": "No mood logs yet. Log your first mood above!",
     "moodDeleted": "Mood entry deleted",
     "deleteFailed": "Could not delete mood entry",
     "today": "Today",

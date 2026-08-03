@@ -1085,6 +1085,7 @@ def test_log_mood_duplicate_blocked(
 
     moods = MagicMock()
     moods.where.return_value = moods
+    moods.order_by.return_value = moods
     moods.limit.return_value = moods
     moods.stream.return_value = [duplicate_doc]
 

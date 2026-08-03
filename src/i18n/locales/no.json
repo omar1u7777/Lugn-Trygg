@@ -665,6 +665,8 @@
     "required": "Obligatorisk",
     "resetAdvanced": "Tilbakestill avansert",
     "delete": "Slett",
+    "confirmDelete": "Slette dette humørinnlegget? Dette kan ikke angres.",
+    "noRecentMoods": "Ingen humørlogger ennå. Logg ditt første humør ovenfor!",
     "moodDeleted": "Humørinnlegg slettet",
     "deleteFailed": "Kunne ikke slette humørinnlegg",
     "today": "I dag",

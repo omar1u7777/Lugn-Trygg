@@ -71,14 +71,16 @@ vi.mock('../ui/tailwind', () => ({
   ),
 }));
 
-const { logMoodMock, getMoodsMock } = vi.hoisted(() => ({
+const { logMoodMock, getMoodsMock, deleteMoodMock } = vi.hoisted(() => ({
   logMoodMock: vi.fn(),
   getMoodsMock: vi.fn(),
+  deleteMoodMock: vi.fn(),
 }));
 
 vi.mock('../../api/api', () => ({
   logMood: logMoodMock,
   getMoods: getMoodsMock,
+  deleteMood: deleteMoodMock,
 }));
 
 vi.mock('../../api/client', () => ({
@@ -120,6 +122,7 @@ const setupMocks = (options: { moods?: unknown[]; canLog?: boolean } = {}) => {
   });
   getMoodsMock.mockResolvedValue(options.moods ?? []);
   logMoodMock.mockResolvedValue({ id: 'new-mood-1', score: 7 });
+  deleteMoodMock.mockResolvedValue(undefined);
 };
 
 describe('SuperMoodLogger', () => {
@@ -478,6 +481,41 @@ describe('SuperMoodLogger', () => {
     }]);
     render(<SuperMoodLogger showRecentMoods />);
     await waitFor(() => expect(screen.getByText('9/10')).toBeInTheDocument());
+  });
+
+  it('shows an empty-state message when there are no recent moods', async () => {
+    getMoodsMock.mockResolvedValueOnce([]);
+    render(<SuperMoodLogger showRecentMoods />);
+    await waitFor(() => expect(getMoodsMock).toHaveBeenCalled());
+    expect(screen.getByText(/Inga humörloggar än/i)).toBeInTheDocument();
+  });
+
+  it('asks for confirmation and deletes on confirm', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    getMoodsMock.mockResolvedValueOnce([{
+      id: 'd1', score: 7, mood_text: 'Bra',
+      timestamp: new Date().toISOString(),
+    }]);
+    render(<SuperMoodLogger showRecentMoods />);
+    const deleteButton = await screen.findByRole('button', { name: /radera/i });
+    fireEvent.click(deleteButton);
+    expect(confirmSpy).toHaveBeenCalled();
+    await waitFor(() => expect(deleteMoodMock).toHaveBeenCalledWith('d1'));
+    confirmSpy.mockRestore();
+  });
+
+  it('does not delete when confirmation is cancelled', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    getMoodsMock.mockResolvedValueOnce([{
+      id: 'd2', score: 7, mood_text: 'Bra',
+      timestamp: new Date().toISOString(),
+    }]);
+    render(<SuperMoodLogger showRecentMoods />);
+    const deleteButton = await screen.findByRole('button', { name: /radera/i });
+    fireEvent.click(deleteButton);
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(deleteMoodMock).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
   });
 
   describe('Voice recording', () => {

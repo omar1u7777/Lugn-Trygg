@@ -693,6 +693,8 @@
     "required": "Obligatoriskt",
     "resetAdvanced": "Återställ avancerat",
     "delete": "Radera",
+    "confirmDelete": "Radera det här humörinlägget? Detta går inte att ångra.",
+    "noRecentMoods": "Inga humörloggar än. Logga ditt första humör ovan!",
     "moodDeleted": "Humörinlägg raderat",
     "deleteFailed": "Kunde inte radera humörinlägg",
     "today": "Idag",
