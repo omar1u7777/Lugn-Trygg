@@ -6,7 +6,7 @@ Advanced analytics endpoints for mood tracking including correlation analysis an
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from flask import Blueprint, Response, g, request
 
@@ -56,7 +56,7 @@ def get_correlation_analysis() -> Response | tuple[Response, int]:
             return APIResponse.bad_request('min_occurrences must be between 2 and 10')
 
         # Fetch mood entries from Firestore
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days)
         mood_ref = db.collection('users').document(user_id).collection('moods')
 
         # Query moods within date range
@@ -74,7 +74,7 @@ def get_correlation_analysis() -> Response | tuple[Response, int]:
                     try:
                         data['timestamp'] = datetime.fromisoformat(ts.replace('Z', '+00:00'))
                     except Exception:
-                        data['timestamp'] = datetime.utcnow()
+                        data['timestamp'] = datetime.now(UTC)
 
                 mood_entries.append(data)
 
@@ -117,7 +117,7 @@ def get_clinical_flags() -> Response | tuple[Response, int]:
             return APIResponse.unauthorized('User ID missing from context')
 
         # Fetch recent mood entries (last 30 days)
-        cutoff_date = datetime.utcnow() - timedelta(days=30)
+        cutoff_date = datetime.now(UTC) - timedelta(days=30)
         mood_ref = db.collection('users').document(user_id).collection('moods')
 
         query = mood_ref.where('timestamp', '>=', cutoff_date.isoformat()).order_by('timestamp', direction='DESCENDING')
@@ -134,7 +134,7 @@ def get_clinical_flags() -> Response | tuple[Response, int]:
                     try:
                         data['timestamp'] = datetime.fromisoformat(ts.replace('Z', '+00:00'))
                     except Exception:
-                        data['timestamp'] = datetime.utcnow()
+                        data['timestamp'] = datetime.now(UTC)
 
                 mood_entries.append(data)
 
@@ -180,9 +180,11 @@ def get_impact_analysis() -> Response | tuple[Response, int]:
             days = int(request.args.get('days', 30))
         except (TypeError, ValueError):
             return APIResponse.bad_request("days must be an integer")
+        if days < 1 or days > 365:
+            return APIResponse.bad_request('days must be between 1 and 365')
 
         # Fetch mood entries
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days)
         mood_ref = db.collection('users').document(user_id).collection('moods')
 
         query = mood_ref.where('timestamp', '>=', cutoff_date.isoformat()).order_by('timestamp', direction='DESCENDING')
@@ -197,7 +199,7 @@ def get_impact_analysis() -> Response | tuple[Response, int]:
                     try:
                         data['timestamp'] = datetime.fromisoformat(ts.replace('Z', '+00:00'))
                     except Exception:
-                        data['timestamp'] = datetime.utcnow()
+                        data['timestamp'] = datetime.now(UTC)
                 mood_entries.append(data)
 
         # Run both analyses

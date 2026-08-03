@@ -116,6 +116,23 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
     };
   }, []);
 
+  useEffect(() => {
+    // Abort synchronously on logout so an in-flight fetch can't repopulate
+    // dashboardCache for this user after clearDashboardCache() has run -
+    // dispatchEvent runs listeners synchronously, unlike React's unmount timing.
+    const abortOnLogout = () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+    window.addEventListener('auth:logout', abortOnLogout);
+    window.addEventListener('auth:force-logout', abortOnLogout);
+    return () => {
+      window.removeEventListener('auth:logout', abortOnLogout);
+      window.removeEventListener('auth:force-logout', abortOnLogout);
+    };
+  }, []);
+
   const loadDashboardData = useCallback(async (forceRefresh = false) => {
     if (!userId) {
       setLoading(false);

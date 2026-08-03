@@ -26,6 +26,10 @@ const MOOD_LABEL_SCORES: Record<string, number> = {
   super: 10,
 };
 
+// Kept in sync with Backend/src/services/ml_sentiment_service.py's _keyword_fallback negation list
+const NEGATION_WORDS = ['inte', 'aldrig', 'ingen', 'inget', 'ej', 'inga'];
+const NEGATION_LOOKBACK_WORDS = 3;
+
 const extractMoodScore = (description: string): number | null => {
   // Match decimal scores like 8.5/10, 8.55/10, or integer scores like 8/10
   const explicitScoreMatch = description.match(/(\d{1,2}(?:\.\d+)?)\s*\/\s*10/);
@@ -36,12 +40,18 @@ const extractMoodScore = (description: string): number | null => {
     }
   }
 
-  const normalized = description.toLowerCase();
-  const matchedLabel = Object.keys(MOOD_LABEL_SCORES).find((label) =>
-    normalized.includes(label)
-  );
-  if (matchedLabel && matchedLabel in MOOD_LABEL_SCORES) {
-    return MOOD_LABEL_SCORES[matchedLabel] ?? null;
+  // Tokenize into whole words so "ingenjör"/"vinter" can't be mistaken for the
+  // negation words "ingen"/"inte", and scan every occurrence (not just the
+  // first) so a later, non-negated mention of the same mood word is still found.
+  const words = description.toLowerCase().split(/[^a-zA-ZåäöÅÄÖ]+/).filter(Boolean);
+  for (let i = 0; i < words.length; i += 1) {
+    const word = words[i];
+    if (!(word in MOOD_LABEL_SCORES)) continue;
+    const precedingWords = words.slice(Math.max(0, i - NEGATION_LOOKBACK_WORDS), i);
+    const isNegated = precedingWords.some((w) => NEGATION_WORDS.includes(w));
+    if (!isNegated) {
+      return MOOD_LABEL_SCORES[word];
+    }
   }
 
   return null;

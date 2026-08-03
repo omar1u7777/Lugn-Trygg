@@ -41,16 +41,19 @@ const MoodChart: React.FC<MoodChartProps> = ({ data, className }) => {
       return filteredData;
     }
 
-    const now = new Date();
-    return Array.from({ length: 7 }, (_, index) => {
-      const day = new Date(now);
-      day.setDate(now.getDate() - (6 - index));
-      return {
-        label: day.toLocaleDateString('sv-SE', { weekday: 'short' }),
-        score: 5 + Math.sin(index / 1.5) * 1.2,
-      };
-    });
+    return [];
   }, [data]);
+
+  if (chartData.length === 0) {
+    return (
+      <div className={`rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 ${className ?? ''}`}>
+        <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Humörutveckling</h4>
+        <div className="h-64 flex items-center justify-center text-sm text-slate-400 dark:text-slate-500">
+          Ingen humördata än
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 ${className ?? ''}`}>

@@ -93,15 +93,17 @@ class CrisisInterventionService:
             # Create synthetic indicators from semantic detection
             active_indicators = []
             for concept in semantic_result.detected_concepts:
+                description = concept.get('description', concept.get('name', 'unknown'))
+                category = concept.get('category', 'unknown')
                 indicator = CrisisIndicator(
-                    indicator_id=concept['name'],
-                    name=concept['description'][:50],
-                    category=concept['category'],
+                    indicator_id=concept.get('name', 'unknown'),
+                    name=description[:50],
+                    category=category,
                     severity_level=self._semantic_to_indicator_level(semantic_result.risk_level),
-                    detection_rules={'semantic_score': concept['score']},
-                    intervention_triggers=[f"semantic_{concept['category']}"],
-                    swedish_description=concept['description'],
-                    risk_weight=concept['weight']
+                    detection_rules={'semantic_score': concept.get('score', 0.0)},
+                    intervention_triggers=[f"semantic_{category}"],
+                    swedish_description=description,
+                    risk_weight=concept.get('weight', 0.0)
                 )
                 active_indicators.append(indicator)
 

@@ -687,6 +687,8 @@ def get_meditation_sessions():
             limit = int(request.args.get('limit', 50))
         except (TypeError, ValueError):
             return APIResponse.bad_request("limit must be an integer")
+        if limit < 1:
+            return APIResponse.bad_request("limit must be a positive integer")
         start_date_str = request.args.get('startDate')
         end_date_str = request.args.get('endDate')
 
@@ -724,7 +726,14 @@ def get_meditation_sessions():
 
         # Calculate statistics
         total_sessions = len(sessions)
-        total_minutes = sum(int(session.get('duration', 0)) for session in sessions)
+
+        def _safe_duration(session: dict) -> int:
+            try:
+                return int(session.get('duration', 0))
+            except (TypeError, ValueError):
+                return 0
+
+        total_minutes = sum(_safe_duration(session) for session in sessions)
         avg_session_length = total_minutes / total_sessions if total_sessions > 0 else 0
 
         audit_log(

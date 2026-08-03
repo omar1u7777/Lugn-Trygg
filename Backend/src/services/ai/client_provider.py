@@ -5,6 +5,7 @@ availability flags are stored on the facade (svc) so tests that mock
 `ai_services.client` or `_openai_available` keep working unchanged.
 """
 
+import json
 import logging
 import os
 
@@ -13,6 +14,25 @@ from src.utils.telemetry import telemetry
 logger = logging.getLogger(__name__)
 
 _IS_PRODUCTION = os.getenv('FLASK_ENV', 'development').lower() == 'production'
+
+
+def get_google_nlp_credentials():
+    """Build explicit credentials for google-cloud-language from the same
+    service account JSON already used for Firebase (FIREBASE_CREDENTIALS),
+    since Application Default Credentials aren't configured on Render.
+
+    Returns None if no usable credential source is found, in which case the
+    caller falls back to ADC (which will raise its own clear error).
+    """
+    raw = os.getenv("FIREBASE_CREDENTIALS", "").strip()
+    if not raw.startswith("{"):
+        return None
+    try:
+        from google.oauth2 import service_account
+        return service_account.Credentials.from_service_account_info(json.loads(raw))
+    except Exception as exc:
+        logger.warning(f"Could not derive Google NLP credentials from FIREBASE_CREDENTIALS: {exc}")
+        return None
 
 
 class AIClientProvider:
@@ -34,13 +54,33 @@ class AIClientProvider:
         return svc.client
 
     def check_google_nlp(self) -> bool:
-        """Check if Google Cloud Natural Language API is available"""
+        """Check if Google Cloud Natural Language API is available.
+
+        Package importability alone isn't enough -- LanguageServiceClient()
+        resolves credentials at construction time, so without a usable
+        credential source every call fails with "default credentials were
+        not found", one failed API round-trip per request.
+        """
         try:
             from google.cloud import language_v1  # noqa: F401
-            return True
         except ImportError:
             logger.warning("Google Cloud Natural Language API not available")
             return False
+
+        if get_google_nlp_credentials() is None and not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+            if _IS_PRODUCTION:
+                telemetry.degraded(
+                    "google_nlp",
+                    "unconfigured_in_production",
+                    consequence="Sentiment analysis falls through to OpenAI/ML fallback",
+                )
+            logger.warning(
+                "No Google Cloud credentials configured (FIREBASE_CREDENTIALS / "
+                "GOOGLE_APPLICATION_CREDENTIALS) — Google NLP sentiment analysis disabled"
+            )
+            return False
+
+        return True
 
     def get_model_name(self) -> str:
         """Get the model/deployment name for API calls.

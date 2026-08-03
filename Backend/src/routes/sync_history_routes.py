@@ -55,6 +55,8 @@ def get_sync_history():
             limit = min(int(request.args.get('limit', 50)), 100)
         except (TypeError, ValueError):
             return APIResponse.bad_request("days and limit must be integers")
+        if days < 1 or limit < 1:
+            return APIResponse.bad_request("days and limit must be positive integers")
 
         # Calculate date cutoff
         cutoff_date = datetime.now(UTC) - timedelta(days=days)
