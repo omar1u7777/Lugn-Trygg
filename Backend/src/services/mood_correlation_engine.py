@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
@@ -275,14 +275,17 @@ class MoodCorrelationEngine:
         if not mood_entries:
             return {'start': None, 'end': None, 'days': 0}
 
+        # Normalize every timestamp to timezone-aware (UTC) before min()/max() --
+        # a mix of naive and aware datetimes raises TypeError, not a graceful skip.
         timestamps = []
         for entry in mood_entries:
             ts = entry.get('timestamp')
             if isinstance(ts, datetime):
-                timestamps.append(ts)
+                timestamps.append(ts if ts.tzinfo else ts.replace(tzinfo=UTC))
             elif isinstance(ts, str):
                 try:
-                    timestamps.append(datetime.fromisoformat(ts.replace('Z', '+00:00')))
+                    parsed = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                    timestamps.append(parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC))
                 except Exception:
                     continue
 

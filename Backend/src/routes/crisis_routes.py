@@ -305,6 +305,8 @@ def get_assessment_history():
             limit = int(request.args.get('limit', 10))
         except (TypeError, ValueError):
             return APIResponse.bad_request("limit must be an integer")
+        if limit < 1:
+            return APIResponse.bad_request("limit must be a positive integer")
 
         # Get recent assessments
         assessments_query = db.collection('crisis_assessments')\

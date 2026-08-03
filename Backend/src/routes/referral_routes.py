@@ -295,6 +295,8 @@ def get_leaderboard():
             limit = int(request.args.get("limit", 10))
         except (TypeError, ValueError):
             return APIResponse.bad_request("limit must be an integer")
+        if limit < 1:
+            return APIResponse.bad_request("limit must be a positive integer")
         limit = min(limit, 100)  # Max 100 results
 
         # Query top referrers by successful_referrals
