@@ -487,7 +487,8 @@ def log_mood() -> Response | tuple[Response, int]:
             try:
                 five_min_ago = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
                 recent_moods = db.collection('users').document(user_id).collection('moods')
-                recent_query = recent_moods.where(filter=FieldFilter('timestamp', '>=', five_min_ago)).limit(10)
+                recent_query = recent_moods.where(filter=FieldFilter('timestamp', '>=', five_min_ago)) \
+                    .order_by('timestamp', direction='DESCENDING').limit(10)
                 for doc in recent_query.stream():
                     existing = doc.to_dict()
                     if existing.get('score') == user_score:
@@ -763,6 +764,8 @@ def get_moods() -> dict[str, Any] | tuple[dict[str, Any], int]:
             offset = max(int(request.args.get('offset', 0)), 0)
         except (TypeError, ValueError):
             return APIResponse.bad_request("limit and offset must be integers")
+        if limit < 1:
+            return APIResponse.bad_request("limit must be a positive integer")
         start_date = request.args.get('start_date')  # YYYY-MM-DD format
         end_date = request.args.get('end_date')    # YYYY-MM-DD format
         sentiment_filter = request.args.get('sentiment')  # POSITIVE, NEGATIVE, NEUTRAL
