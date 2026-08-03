@@ -276,7 +276,7 @@ def log_mood() -> Response | tuple[Response, int]:
             logger.info(
                 "Mood log denied due to quota: user=%s limit=%s", user_id, limit_value
             )
-            return APIResponse.error('Daily mood log limit reached', status_code=429)
+            return APIResponse.error('Daily mood log limit reached', 'QUOTA_EXCEEDED', 429)
 
         # --- Unified payload handling for both JSON and multipart/form-data ---
         # If frontend sends audio, it uses multipart/form-data; otherwise JSON
@@ -492,7 +492,10 @@ def log_mood() -> Response | tuple[Response, int]:
                     existing = doc.to_dict()
                     if existing.get('score') == user_score:
                         logger.info(f"🔄 Duplicate mood blocked: user={user_id} score={user_score}")
-                        return APIResponse.error('Duplicate mood within 5 minutes. Please wait before logging the same mood again.', status_code=409)
+                        return APIResponse.error(
+                            'Duplicate mood within 5 minutes. Please wait before logging the same mood again.',
+                            'DUPLICATE_MOOD', 409
+                        )
             except Exception as dedup_err:
                 logger.warning(f"Dedup check failed (non-blocking): {dedup_err}")
 
