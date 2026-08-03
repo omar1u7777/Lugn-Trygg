@@ -38,16 +38,19 @@ const MemoryChart: React.FC<MemoryChartProps> = ({ data, className }) => {
       return filteredData;
     }
 
-    const now = new Date();
-    return Array.from({ length: 7 }, (_, index) => {
-      const day = new Date(now);
-      day.setDate(now.getDate() - (6 - index));
-      return {
-        label: day.toLocaleDateString('sv-SE', { weekday: 'short' }),
-        entries: Math.max(0, Math.round(2 + Math.cos(index / 1.4) * 1.5 + index * 0.2)),
-      };
-    });
+    return [];
   }, [data]);
+
+  if (chartData.length === 0) {
+    return (
+      <div className={`rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 ${className ?? ''}`}>
+        <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Minnesaktivitet</h4>
+        <div className="h-64 flex items-center justify-center text-sm text-slate-400 dark:text-slate-500">
+          Ingen data än
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 ${className ?? ''}`}>

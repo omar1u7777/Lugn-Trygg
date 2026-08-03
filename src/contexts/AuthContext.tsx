@@ -5,6 +5,7 @@ import ConsentModal from "../components/Auth/ConsentModal";
 import type { AuthContextProps, User } from "../types/index";
 import { tokenStorage, secureStorage, purgeUserScopedStorage } from "../utils/secureStorage";
 import { logger } from '../utils/logger';
+import { clearDashboardCache } from "../hooks/useDashboardData";
 
 // 🎯 Skapa AuthContext för att hantera autentisering globalt i appen
 export const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -198,6 +199,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Purge per-user feature caches (chat analytics, challenges, …) so no
       // sensitive data survives on a shared device.
       purgeUserScopedStorage();
+      clearDashboardCache();
+      window.dispatchEvent(new Event('auth:logout'));
       navigate("/login");
     }
   }, [navigate]);
@@ -209,6 +212,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUserState(null);
       tokenStorage.clearTokens();
       purgeUserScopedStorage();
+      clearDashboardCache();
       navigate('/login');
     };
     window.addEventListener('auth:force-logout', handleForceLogout);

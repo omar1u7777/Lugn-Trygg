@@ -141,13 +141,11 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { hasFeature, plan, refreshSubscription } = useSubscription();
+  const { hasFeature, plan, isPremium, refreshSubscription } = useSubscription();
   const moodLogLimit = plan?.limits?.moodLogsPerDay ?? 5;
   const chatMessageLimit = plan?.limits?.chatMessagesPerDay ?? 10;
   const hasUnlimitedUsage = moodLogLimit === -1 && chatMessageLimit === -1;
-  const planName = typeof plan === 'string' ? plan : plan?.name;
-  const isPremiumPlan = planName === 'premium' || planName === 'enterprise';
-  const isPremiumUser = isPremiumPlan || hasUnlimitedUsage || hasFeature('premium') || hasFeature('unlimited_usage');
+  const isPremiumUser = isPremium || hasUnlimitedUsage || hasFeature('premium') || hasFeature('unlimited_usage');
 
   const resolvedUserId = user?.user_id || userId;
 
@@ -155,7 +153,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   const { stats: dashboardStats, loading, error, refresh } = useDashboardData(resolvedUserId);
 
   // Debug flag to surface internal dashboard state in the UI (dev only)
-  const isDashboardDebug = import.meta.env.VITE_DEBUG_DASHBOARD === 'true';
+  const isDashboardDebug = import.meta.env.DEV && import.meta.env.VITE_DEBUG_DASHBOARD === 'true';
 
   const [activeView, setActiveView] = useState<'overview' | 'mood-basic' | 'mood-list' | 'chat' | 'analytics' | 'gamification'>('overview');
   const [showWellnessOnboarding, setShowWellnessOnboarding] = useState(false);
@@ -232,7 +230,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
   const hasWellnessGoals = Array.isArray(safeDashboardStats.wellnessGoals) && safeDashboardStats.wellnessGoals.length > 0;
   const shouldRenderWellnessSkeleton = loading && !hasWellnessGoals;
-  const shouldReserveRecommendationsSection = loading || hasWellnessGoals;
 
   // Memoize goal steps to prevent re-render changes
   const goalStepsMap = useMemo(() => {
@@ -346,8 +343,15 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
       const maxAttempts = 5;
 
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        if (cancelled) {
+          return;
+        }
+
         try {
           const status = await getSubscriptionStatus(resolvedUserId);
+          if (cancelled) {
+            return;
+          }
           if (status.isPremium || status.isTrial || status.plan === 'enterprise') {
             await refreshSubscription();
 
@@ -371,6 +375,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         }
 
         await new Promise((resolve) => setTimeout(resolve, 1200 * (attempt + 1)));
+      }
+
+      if (cancelled) {
+        return;
       }
 
       await refreshSubscription();
@@ -507,6 +515,11 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         <Button onClick={() => handleRefresh('manual')} variant="primary">
           {t('worldDashboard.tryAgain')}
         </Button>
+        {resolvedUserId && (
+          <div className="mt-6">
+            <SuperMoodLogger onMoodLogged={() => handleRefresh('auto')} />
+          </div>
+        )}
       </div>
     );
   }
@@ -729,42 +742,40 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         )}
 
         {/* Personalized Recommendations */}
-        {shouldReserveRecommendationsSection && (
-          <Card className="mb-6" aria-busy={loading} aria-live="polite">
-            <div className="p-4 sm:p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-2xl sm:text-3xl" aria-hidden="true">💡</span>
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
-                  {t('worldDashboard.personalRecommendations')}
-                </h2>
-                {/* Subtle refresh indicator */}
-                {loading && (
-                  <span className="ml-auto text-xs text-gray-400 animate-pulse">
-                    {t('common.updating')}
-                  </span>
-                )}
-              </div>
-
-              {hasWellnessGoals && resolvedUserId && (
-                <ErrorBoundary>
-                  <Suspense fallback={<RecommendationsSkeleton />}>
-                    <RecommendationsPanel
-                      userId={resolvedUserId}
-                      wellnessGoals={safeDashboardStats.wellnessGoals}
-                      compact={true}
-                    />
-                  </Suspense>
-                </ErrorBoundary>
-              )}
-
-              {!hasWellnessGoals && (
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {t('worldDashboard.addGoalsForRecs')}
-                </p>
+        <Card className="mb-6" aria-busy={loading} aria-live="polite">
+          <div className="p-4 sm:p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-2xl sm:text-3xl" aria-hidden="true">💡</span>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                {t('worldDashboard.personalRecommendations')}
+              </h2>
+              {/* Subtle refresh indicator */}
+              {loading && (
+                <span className="ml-auto text-xs text-gray-400 animate-pulse">
+                  {t('common.updating')}
+                </span>
               )}
             </div>
-          </Card>
-        )}
+
+            {hasWellnessGoals && resolvedUserId && (
+              <ErrorBoundary>
+                <Suspense fallback={<RecommendationsSkeleton />}>
+                  <RecommendationsPanel
+                    userId={resolvedUserId}
+                    wellnessGoals={safeDashboardStats.wellnessGoals}
+                    compact={true}
+                  />
+                </Suspense>
+              </ErrorBoundary>
+            )}
+
+            {!loading && !hasWellnessGoals && (
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {t('worldDashboard.addGoalsForRecs')}
+              </p>
+            )}
+          </div>
+        </Card>
 
         {/* Statistics Grid */}
         <DashboardStats stats={stats} isLoading={loading} />
