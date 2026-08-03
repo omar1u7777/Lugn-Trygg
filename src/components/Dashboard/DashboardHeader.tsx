@@ -14,13 +14,15 @@ interface DashboardHeaderProps {
   averageMood?: number;
 }
 
+const GREETING_BOUNDARY_HOURS = [10, 14, 18];
+
 const getGreeting = (t: TFunction, moodContext?: string): string => {
   const hour = new Date().getHours();
   let baseGreeting: string;
-  
-  if (hour < 10) baseGreeting = t('greeting.morning');
-  else if (hour < 14) baseGreeting = t('greeting.day');
-  else if (hour < 18) baseGreeting = t('greeting.afternoon');
+
+  if (hour < GREETING_BOUNDARY_HOURS[0]) baseGreeting = t('greeting.morning');
+  else if (hour < GREETING_BOUNDARY_HOURS[1]) baseGreeting = t('greeting.day');
+  else if (hour < GREETING_BOUNDARY_HOURS[2]) baseGreeting = t('greeting.afternoon');
   else baseGreeting = t('greeting.evening');
   
   if (moodContext) {
@@ -42,7 +44,7 @@ const getGreeting = (t: TFunction, moodContext?: string): string => {
 const getDailyFocusContent = (t: TFunction) => {
   const hour = new Date().getHours();
 
-  if (hour < 10) {
+  if (hour < GREETING_BOUNDARY_HOURS[0]) {
     return {
       title: t('dashboardHeader.morningFocus'),
       description: t('dashboardHeader.morningDesc'),
@@ -50,7 +52,7 @@ const getDailyFocusContent = (t: TFunction) => {
     };
   }
 
-  if (hour < 18) {
+  if (hour < GREETING_BOUNDARY_HOURS[2]) {
     return {
       title: t('dashboardHeader.dayFocus'),
       description: t('dashboardHeader.dayDesc'),
@@ -63,6 +65,27 @@ const getDailyFocusContent = (t: TFunction) => {
     description: t('dashboardHeader.eveningDesc'),
     actionLabel: t('dashboardHeader.startBreathing'),
   };
+};
+
+const calculateMsToNextBoundary = (): number => {
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const currentSecond = now.getSeconds();
+  const currentMs = now.getMilliseconds();
+
+  let nextBoundaryHour = GREETING_BOUNDARY_HOURS.find(h => h > currentHour);
+  if (!nextBoundaryHour) {
+    nextBoundaryHour = GREETING_BOUNDARY_HOURS[0];
+  }
+
+  let hoursUntilBoundary = nextBoundaryHour - currentHour;
+  if (hoursUntilBoundary < 0) {
+    hoursUntilBoundary += 24;
+  }
+
+  const minutesUntilBoundary = (hoursUntilBoundary * 60) - currentMinute;
+  return (minutesUntilBoundary * 60 * 1000) - (currentSecond * 1000) - currentMs;
 };
 
 type BreathingPhase = 'inhale' | 'exhale' | 'hold' | 'done';
@@ -145,38 +168,6 @@ export const BreathingFocusCard: React.FC<{
 
   useEffect(() => {
     // Update greeting only at hour boundaries (10:00, 14:00, 18:00) when greeting changes
-    const calculateMsToNextBoundary = (): number => {
-      const now = new Date();
-      const currentHour = now.getHours();
-      const currentMinute = now.getMinutes();
-      const currentSecond = now.getSeconds();
-      const currentMs = now.getMilliseconds();
-      
-      // Define greeting change hours
-      const boundaryHours = [10, 14, 18];
-      
-      // Find next boundary hour
-      let nextBoundaryHour = boundaryHours.find(h => h > currentHour);
-      
-      // If no boundary today, next is 10:00 tomorrow
-      if (!nextBoundaryHour) {
-        nextBoundaryHour = 10;
-      }
-      
-      // Calculate time until next boundary
-      let hoursUntilBoundary = nextBoundaryHour - currentHour;
-      if (hoursUntilBoundary < 0) {
-        hoursUntilBoundary += 24; // Next day
-      }
-      
-      const minutesUntilBoundary = (hoursUntilBoundary * 60) - currentMinute;
-      const msUntilBoundary = (minutesUntilBoundary * 60 * 1000) 
-        - (currentSecond * 1000) 
-        - currentMs;
-      
-      return msUntilBoundary;
-    };
-    
     let timeoutId: number;
     
     const scheduleNextUpdate = () => {
@@ -398,7 +389,13 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     if (mood) {
       if (lastMoodTimestamp) {
         const now = new Date();
-        const diffDays = Math.floor((now.getTime() - lastMoodTimestamp.getTime()) / (1000 * 60 * 60 * 24));
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfMoodDay = new Date(
+          lastMoodTimestamp.getFullYear(),
+          lastMoodTimestamp.getMonth(),
+          lastMoodTimestamp.getDate()
+        );
+        const diffDays = Math.round((startOfToday.getTime() - startOfMoodDay.getTime()) / (1000 * 60 * 60 * 24));
         if (diffDays === 0) {
           return t('dashboardHeader.todayMood', { mood });
         } else if (diffDays === 1) {
@@ -420,20 +417,6 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   }, [recentMood, t]);
 
   useEffect(() => {
-    const calculateMsToNextBoundary = (): number => {
-      const now = new Date();
-      const currentHour = now.getHours();
-      const currentMinute = now.getMinutes();
-      const currentSecond = now.getSeconds();
-      const currentMs = now.getMilliseconds();
-      const boundaryHours = [10, 14, 18];
-      let nextBoundaryHour = boundaryHours.find(h => h > currentHour);
-      if (!nextBoundaryHour) nextBoundaryHour = 10;
-      let hoursUntilBoundary = nextBoundaryHour - currentHour;
-      if (hoursUntilBoundary < 0) hoursUntilBoundary += 24;
-      const minutesUntilBoundary = (hoursUntilBoundary * 60) - currentMinute;
-      return (minutesUntilBoundary * 60 * 1000) - (currentSecond * 1000) - currentMs;
-    };
     let timeoutId: number;
     const scheduleNextUpdate = () => {
       timeoutId = window.setTimeout(() => {
