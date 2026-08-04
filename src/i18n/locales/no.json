@@ -1909,6 +1909,7 @@
   "clinicalAssessment": {
     "title": "Klinisk selvbedømmelse",
     "subtitle": "Validerte skalaer for depresjon (PHQ-9) og angst (GAD-7)",
+    "disclaimer": "Dette er et selvvurderingsverktøy og erstatter ikke en vurdering fra lege, psykolog eller annet legitimert helsepersonell. Resultatet er ingen diagnose. Ved bekymring for helsen din, kontakt helsevesenet.",
     "tabs": {
       "phq9": "PHQ-9 (Depresjon)",
       "gad7": "GAD-7 (Angst)",

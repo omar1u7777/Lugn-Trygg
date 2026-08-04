@@ -1966,6 +1966,7 @@
   "clinicalAssessment": {
     "title": "Clinical Self-Assessment",
     "subtitle": "Validated scales for depression (PHQ-9) and anxiety (GAD-7)",
+    "disclaimer": "This is a self-assessment tool and does not replace an evaluation by a physician, psychologist, or other licensed healthcare provider. The result is not a diagnosis. If you're concerned about your health, contact a healthcare provider.",
     "tabs": {
       "phq9": "PHQ-9 (Depression)",
       "gad7": "GAD-7 (Anxiety)",

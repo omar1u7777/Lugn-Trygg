@@ -118,7 +118,7 @@ class PHQ9Assessment:
         suicidal_ideation = self_harm_score > 0
 
         # Generate recommendations
-        recommendations = cls._generate_recommendations(total, suicidal_ideation, risk_level)
+        recommendations = cls._generate_recommendations(total, suicidal_ideation, risk_level, self_harm_score)
 
         # Determine follow-up timeframe
         follow_up = cls._follow_up_timeframe(risk_level, suicidal_ideation, self_harm_score)
@@ -157,13 +157,21 @@ class PHQ9Assessment:
         return 'routine'
 
     @classmethod
-    def _generate_recommendations(cls, total: int, suicidal: bool, risk: RiskLevel) -> list[str]:
+    def _generate_recommendations(cls, total: int, suicidal: bool, risk: RiskLevel, self_harm_score: int = 0) -> list[str]:
         """Generate evidence-based recommendations."""
         recs = []
 
-        if suicidal:
+        # Match the same self_harm_score >= 2 threshold _follow_up_timeframe uses
+        # for '24_hours' urgency, and that the frontend uses for q9HighRisk vs.
+        # q9ModerateRisk -- otherwise a Q9 score of 1 ("several days") gets the
+        # most alarming "ring 112 now" text while every other signal in the UI
+        # (follow-up timeframe, risk-level framing) treats it as moderate.
+        if suicidal and self_harm_score >= 2:
             recs.append('⚠️ Omedelbar risk: Kontakta psykiatrisk akutmottagning eller ring 112')
             recs.append('📞 Krisstöd: Jourtelefon 90101 (dygnet runt)')
+        elif suicidal:
+            recs.append('💬 Du har uppgett tankar om död eller självskada — prata med någon du litar på eller kontakta din vårdcentral')
+            recs.append('📞 Krisstöd finns dygnet runt: Jourtelefon 90101')
 
         if risk in [RiskLevel.SEVERE, RiskLevel.CRISIS]:
             recs.append('🏥 Kontakta vårdcentral eller psykiatri inom 24 timmar')
@@ -428,24 +436,34 @@ class ClinicalRiskStratification:
         phq9_level = phq9.risk_level if phq9 else RiskLevel.NONE
         gad7_level = gad7.risk_level if gad7 else RiskLevel.NONE
 
-        # Take maximum
+        # risk_priority is ordered most-severe-first, so index 0 = CRISIS.
         risk_priority = [
             RiskLevel.CRISIS, RiskLevel.SEVERE, RiskLevel.MODERATE,
             RiskLevel.MILD, RiskLevel.NONE
         ]
 
-        max_risk_idx = max(
+        # Take the more severe (lower index) of the two component risk levels --
+        # max() here would pick the *less* severe one whenever they disagree,
+        # e.g. a SEVERE PHQ-9 with no GAD-7 taken (defaults to NONE) would
+        # silently report a composite risk of NONE.
+        max_risk_idx = min(
             risk_priority.index(phq9_level),
             risk_priority.index(gad7_level)
         )
 
-        # Adjust based on number of risk factors
-        if len(risk_factors) >= 4 and max_risk_idx < risk_priority.index(RiskLevel.SEVERE):
-            max_risk_idx += 1
+        # Adjust based on number of risk factors: escalate toward more severe
+        # (lower index), capped at SEVERE -- only an explicit immediate concern
+        # above should ever produce CRISIS.
+        if len(risk_factors) >= 4 and max_risk_idx > risk_priority.index(RiskLevel.SEVERE):
+            max_risk_idx -= 1
 
-        # Protective factors can reduce risk (but not below MODERATE if any immediate concern)
-        if len(protective) >= 3 and 'consecutive_negative_days' not in immediate:
-            max_risk_idx = max(0, max_risk_idx - 1)
+        # Protective factors can reduce risk (move toward less severe / higher
+        # index), but not when a consecutive-negative-days streak was flagged --
+        # that concern is stored as "<N>_consecutive_negative_days", so match by
+        # suffix rather than exact string equality.
+        has_negative_streak_concern = any(c.endswith('_consecutive_negative_days') for c in immediate)
+        if len(protective) >= 3 and not has_negative_streak_concern:
+            max_risk_idx = min(len(risk_priority) - 1, max_risk_idx + 1)
 
         return risk_priority[max_risk_idx]
 

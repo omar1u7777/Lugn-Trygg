@@ -53,6 +53,7 @@ vi.mock('../../services/offlineStorage', () => ({
 
 import { api, API_BASE_URL, unwrapApiResponse } from '../client';
 import { tokenStorage } from '../../utils/secureStorage';
+import { ApiError } from '../errors';
 
 describe('API client', () => {
   describe('configuration', () => {
@@ -296,6 +297,21 @@ describe('response interceptor', () => {
         isAxiosError: true,
       };
       await expect(rejected(error)).rejects.toBeDefined();
+    });
+  });
+
+  describe('error handling — rejection with no config', () => {
+    it('propagates the original error instead of crashing on originalRequest.startTime', async () => {
+      // The CSRF-unavailable guard in the request interceptor rejects with a
+      // plain ApiError before axios ever attaches a config, so error.config
+      // is undefined here -- this must not crash while trying to read
+      // originalRequest.startTime, which would replace this informative
+      // error with an opaque TypeError.
+      const { rejected } = getResponseInterceptorHandlers();
+      const error = new ApiError('CSRF token unavailable. Request blocked for security.', {
+        code: 'CSRF_UNAVAILABLE',
+      });
+      await expect(rejected(error)).rejects.toBe(error);
     });
   });
 

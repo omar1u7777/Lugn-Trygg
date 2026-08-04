@@ -386,7 +386,16 @@ const handle401Error = async (error: AxiosError, originalRequest: ApiConfig): Pr
 };
 
 const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | never> => {
-  const originalRequest = error.config as ApiConfig;
+  const originalRequest = error.config as ApiConfig | undefined;
+
+  // A rejection from the request interceptor itself (e.g. the CSRF-unavailable
+  // guard below) never reaches axios's dispatch, so it carries no config --
+  // nothing here to retry or attribute a duration to. Propagate it as-is
+  // instead of crashing on originalRequest.startTime below, which would
+  // replace the original, informative error with a raw TypeError.
+  if (!originalRequest) {
+    throw error;
+  }
 
   // Track failed API call
   const startTime = originalRequest.startTime;

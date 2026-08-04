@@ -294,6 +294,11 @@ class TestChatStream:
 
         resp = client.post(f"{BASE}/chat/stream", json={"message": "Hej"})
         assert resp.status_code == 200
+        # A stream_with_context response must be drained (or closed) or the
+        # Flask request context it pushed leaks past this test and corrupts
+        # whichever test runs next — see test_chat_stream_award_xp_exception's
+        # xfail note for the class of failure this causes.
+        resp.get_data(as_text=True)
 
     @patch("src.routes.chatbot_routes.db")
     @patch("src.routes.chatbot_routes.SubscriptionService")
@@ -359,6 +364,7 @@ class TestChatStream:
             )
 
         assert resp.status_code == 200
+        resp.get_data(as_text=True)  # drain the stream_with_context response, see above
         mock_enqueue.assert_called_once()
         enqueued_alert = mock_enqueue.call_args.args[0]
         assert enqueued_alert.risk_level == "high"
@@ -403,6 +409,7 @@ class TestChatStream:
         # The endpoint still returns 200 with an interrupted-stream message
         # (existing crash-resilience behavior)...
         assert resp.status_code == 200
+        resp.get_data(as_text=True)  # drain the stream_with_context response, see above
         # ...but critically, the escalation was NOT lost.
         mock_enqueue.assert_called_once()
         assert mock_enqueue.call_args.args[0].risk_level == "critical"
@@ -1457,8 +1464,8 @@ class TestChatStreamAdditionalBranches:
 
         resp = client.post(f"{BASE}/chat/stream", json={"message": "Hej"})
         assert resp.status_code == 200
+        resp.get_data(as_text=True)  # drain the stream_with_context response, see below
 
-    @pytest.mark.xfail(strict=False, reason="Flask stream_with_context context cleanup issue in test env — not a production bug")
     @patch("src.routes.chatbot_routes.db")
     @patch("src.routes.chatbot_routes.SubscriptionService")
     @patch("src.services.ai_service.ai_services")
@@ -1591,6 +1598,7 @@ class TestChatbotErrorBranches:
         mock_ai.generate_therapeutic_conversation_stream.return_value = _stream()
         resp = client.post(f"{BASE}/chat/stream", json={"message": "Hej"})
         assert resp.status_code == 200
+        resp.get_data(as_text=True)  # drain the stream_with_context response, see above
 
     @patch("src.routes.chatbot_routes.db")
     @patch("src.services.session_summary_service.SessionSummaryService")

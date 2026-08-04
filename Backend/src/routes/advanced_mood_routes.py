@@ -475,6 +475,8 @@ def get_assessment_history():
             limit = min(int(request.args.get('limit', 20)), 50)
         except (ValueError, TypeError):
             limit = 20
+        if limit < 1:
+            limit = 20
 
         # Build query: apply .where() BEFORE .limit() — Firestore does not allow
         # chaining .where() after .limit() has already been applied.
