@@ -101,6 +101,14 @@ export const useErrorRecovery = (config: Partial<RetryConfig> = {}) => {
 
     logger.info(`Retrying request: ${id} (attempt ${retryCount + 1}/${retryConfig.maxRetries})`);
 
+    // Cancel any retry already scheduled for this id so a re-triggered
+    // retryFailedRequests() pass (e.g. from the failedRequests-change effect)
+    // can't leave two overlapping timers both calling retry() for the same request.
+    const existingTimeout = retryTimeouts.current.get(id);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
     // Schedule retry
     const timeoutId = setTimeout(async () => {
       try {

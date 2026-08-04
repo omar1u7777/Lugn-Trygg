@@ -1147,6 +1147,8 @@ def get_chat_history():
             limit = min(int(request.args.get("limit", 50)), 200)
         except (TypeError, ValueError):
             return APIResponse.bad_request("limit must be an integer")
+        if limit < 1:
+            return APIResponse.bad_request("limit must be a positive integer")
         raw = list(conversation_ref.order_by("timestamp", direction="DESCENDING").limit(limit + 1).stream())
         has_more = len(raw) > limit
         raw = raw[:limit]
