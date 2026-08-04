@@ -64,6 +64,7 @@ const DOMAIN_KEYS: readonly string[] = [
 ] as const;
 
 const GENERATE_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes — backend already caches via _already_generated_today
+const RETRY_COOLDOWN_MS = 30 * 1000; // 30 seconds — re-enable the retry button after hitting MAX_RETRIES
 
 export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   const { t } = useTranslation();
@@ -81,7 +82,10 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const MAX_RETRIES = 3;
-  const GENERATE_CACHE_KEY = 'insights_last_generate';
+  // Scoped per user -- a flat key would let one account's cooldown silently
+  // suppress generation for the next account that logs in on the same
+  // browser (shared/family computer, quick account switching).
+  const generateCacheKey = `insights_last_generate_${userId}`;
 
   const loadInsights = useCallback(async () => {
     if (!userId) return;
@@ -104,7 +108,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
       // Backend already caches via _already_generated_today(), so frontend cooldown
       // is just a short anti-spam guard, not a hard 12h block.
       if (pending.length === 0 && !controller.signal.aborted) {
-        const lastGenerate = localStorage.getItem(GENERATE_CACHE_KEY);
+        const lastGenerate = localStorage.getItem(generateCacheKey);
         const now = Date.now();
         const shouldGenerate = !lastGenerate || (now - parseInt(lastGenerate, 10)) > GENERATE_COOLDOWN_MS;
 
@@ -112,7 +116,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
           setGenerating(true);
           const generated = await generateInsights(userId, controller.signal);
           pending = generated;
-          localStorage.setItem(GENERATE_CACHE_KEY, String(now));
+          localStorage.setItem(generateCacheKey, String(now));
         }
       }
 
@@ -134,7 +138,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
         setGenerating(false);
       }
     }
-  }, [userId, t]);
+  }, [userId, t, generateCacheKey]);
 
   useEffect(() => {
     loadInsights();
@@ -151,6 +155,19 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
       timeoutRef.current = {};
     };
   }, []);
+
+  // The retry button disables once MAX_RETRIES is hit to stop spam-clicking a
+  // clearly broken endpoint -- but without this, that disable is permanent
+  // for the rest of the session (retryCount only resets on success), leaving
+  // the user stuck on a dead button even after a transient issue clears.
+  // Auto re-enable after a cooldown instead of requiring a full page reload.
+  useEffect(() => {
+    if (retryCount < MAX_RETRIES) return;
+    const timeoutId = setTimeout(() => {
+      if (isMounted.current) setRetryCount(0);
+    }, RETRY_COOLDOWN_MS);
+    return () => clearTimeout(timeoutId);
+  }, [retryCount]);
 
   const handleDismiss = async (insightId: string) => {
     if (!userId) return;
@@ -176,7 +193,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
       trackEvent('insight_action_taken', { userId, insightId, action });
 
       // Navigate to mood logging if action suggests it (multilingual)
-      const moodNavKeywords = ['logga', 'månde', 'mood', 'log', 'humør', 'logg'];
+      const moodNavKeywords = ['logga', 'mående', 'mood', 'log', 'humør', 'logg'];
       if (moodNavKeywords.some(kw => action.toLowerCase().includes(kw))) {
         navigate('/mood-basic');
       }
