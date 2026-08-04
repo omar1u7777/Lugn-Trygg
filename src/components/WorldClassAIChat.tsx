@@ -593,7 +593,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
             </div>
             <div className="min-w-0">
               <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 font-display truncate">{t('aiChat.sanctuary')}</h1>
-              <p className="text-[10px] sm:text-xs text-teal-700 dark:text-teal-300 font-medium uppercase tracking-wider flex items-center gap-2">
+              <div className="text-[10px] sm:text-xs text-teal-700 dark:text-teal-300 font-medium uppercase tracking-wider flex items-center gap-2">
                 {isTyping || isStreaming ? t('aiChat.thinking') : t('aiChat.alwaysHere')}
                 {!isOnline && (
                   <span className="flex items-center gap-1 text-amber-600">
@@ -607,7 +607,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                     <span className="hidden sm:inline">{t('aiChat.reconnecting')}</span>
                   </span>
                 )}
-              </p>
+              </div>
             </div>
           </div>
 
