@@ -1964,6 +1964,7 @@
   "clinicalAssessment": {
     "title": "Klinisk självbedömning",
     "subtitle": "Validerade skalor för depression (PHQ-9) och ångest (GAD-7)",
+    "disclaimer": "Detta är ett självskattningsverktyg och ersätter inte en bedömning av läkare, psykolog eller annan legitimerad vårdpersonal. Resultatet är ingen diagnos. Vid oro för din hälsa, kontakta vården.",
     "tabs": {
       "phq9": "PHQ-9 (Depression)",
       "gad7": "GAD-7 (Ångest)",

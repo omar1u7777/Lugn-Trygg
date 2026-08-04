@@ -289,6 +289,10 @@ export const ClinicalAssessment: React.FC = () => {
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           {t('clinicalAssessment.subtitle')}
         </p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 flex items-start gap-1.5">
+          <InformationCircleIcon className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" aria-hidden="true" />
+          {t('clinicalAssessment.disclaimer')}
+        </p>
       </div>
 
       {/* Tabs */}
