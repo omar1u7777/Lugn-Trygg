@@ -961,8 +961,8 @@ class DailyInsightGeneratorV2:
 
         messages = {
             0: "Välkommen! Logga ditt mående dagligen för att få personliga insikter baserade på dina mönster.",
-            1: "Bra start! Logga ditt månde en gång till för att börja se dina första insikter.",
-            2: "Du är nära! Logga ditt månde en gång till för att få dina första personliga insikter.",
+            1: "Bra start! Logga ditt mående en gång till för att börja se dina första insikter.",
+            2: "Du är nära! Logga ditt mående en gång till för att få dina första personliga insikter.",
         }
 
         message = messages.get(current_count, messages[2])
@@ -974,7 +974,7 @@ class DailyInsightGeneratorV2:
             domain=TherapeuticDomain.BEHAVIORAL_ACTIVATION,
             title="Kom igång med daglig loggning",
             message=message,
-            recommendation=f"Logga ditt månde {needed} gång(er) till för att aktivera insikter",
+            recommendation=f"Logga ditt mående {needed} gång(er) till för att aktivera insikter",
             evidence={},
             urgency="low",
             suggested_action="Logga mående nu",
