@@ -957,6 +957,9 @@
       "unmute": "Unmute",
       "generateError": "Could not generate story",
       "loginRequired": "Log in to view your AI stories.",
+      "loginRequiredGenerate": "You must be logged in to generate stories",
+      "noContent": "No content available",
+      "noContentForStory": "No content available for this story.",
       "empty": "No stories yet. Generate your first AI story!",
       "addFavorite": "Add to favorites",
       "removeFavorite": "Remove from favorites"
