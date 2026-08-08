@@ -285,6 +285,11 @@ def get_challenges():
                 page_size = min(int(request.args.get('limit', 50)), 100)
             except (TypeError, ValueError):
                 page_size = 50
+            if page_size < 1:
+                # .limit(page_size + 1) below would pass Firestore a negative
+                # bound and raise InvalidArgument, i.e. a 500 for what is
+                # really bad input.
+                page_size = 50
             page_token = request.args.get('page_token')
 
             query = (

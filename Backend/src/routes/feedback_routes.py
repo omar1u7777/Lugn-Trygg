@@ -196,6 +196,10 @@ def list_feedback():
             limit = min(int(request.args.get("limit", 50)), 200)  # Cap at 200
         except (TypeError, ValueError):
             return APIResponse.bad_request("limit must be an integer")
+        if limit < 1:
+            # Firestore raises InvalidArgument on a negative .limit(), which
+            # surfaces as a 500 rather than a clean bad request.
+            return APIResponse.bad_request("limit must be a positive integer")
 
         # CRITICAL FIX: Use FieldFilter to avoid positional argument warning
         from google.cloud.firestore import FieldFilter
