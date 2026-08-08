@@ -1510,7 +1510,8 @@
     "deleteItem4": "Account settings and preferences",
     "deleteItem5": "Wellness goals and progress",
     "deleteNote": "Your data will be permanently deleted within 30 days. You can cancel by contacting support within that time.",
-    "deleting": "Deleting..."
+    "deleting": "Deleting...",
+    "settingsLoadFailed": "Could not load your saved settings. Reload the page before changing anything."
   },
   "wellnessGoalLabels": {
     "Hantera stress": {
