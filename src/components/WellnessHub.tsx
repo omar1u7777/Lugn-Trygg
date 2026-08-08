@@ -319,6 +319,15 @@ const WellnessHub: React.FC = () => {
       const sessions = sessionData.sessions || [];
       const activeGoals = goalsResult.status === 'fulfilled' ? goalsResult.value : [];
 
+      // Promise.allSettled never rejects, so on its own this silently
+      // degrades a real failure (e.g. getMeditationSessions throwing on a
+      // network/auth error) into "0 minutes, no goals" with no indication
+      // anything went wrong. Surface it through the same error banner used
+      // for a total failure, while still rendering whatever data did load.
+      if ([moodsResult, sessionsResult, goalsResult].some(r => r.status === 'rejected')) {
+        setError(t('wellnessHub.loadError', 'Kunde inte ladda wellness-data.'));
+      }
+
       setUserGoals(activeGoals);
 
       // Calculate Stats

@@ -1434,7 +1434,7 @@
     "noWellnessData": "No data available yet",
     "sleepStory": "Sleep Story",
     "streakDays_one": "{{count}} day streak",
-    "streakDays_other": "{{count}} day streak"
+    "streakDays_other": "{{count}} days streak"
   },
   "profileHub": {
     "guest": "Guest",
