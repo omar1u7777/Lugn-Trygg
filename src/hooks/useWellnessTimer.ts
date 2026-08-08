@@ -54,6 +54,16 @@ export function useWellnessTimer(options: UseWellnessTimerOptions = {}): Wellnes
     intervalRef.current = window.setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
+          // Stop the interval BEFORE firing onComplete, not after -- otherwise
+          // "exactly once" only holds if the consumer's onComplete handler
+          // itself happens to stop the timer synchronously. Left to the tick
+          // callback alone, prev stays <= 1 forever and onComplete re-fires
+          // every second until something else calls pause()/stop().
+          if (intervalRef.current !== null) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          setIsRunning(false);
           onCompleteRef.current?.();
           return 0;
         }
