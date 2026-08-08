@@ -765,6 +765,10 @@ def get_voice_recordings():
             limit = min(int(request.args.get('limit', 50)), 100)
         except (TypeError, ValueError):
             limit = 50
+        if limit < 1:
+            # Firestore raises InvalidArgument on a negative .limit(); fall
+            # back to the default, matching how this route treats bad input.
+            limit = 50
 
         recordings_ref = db.collection('users').document(user_id)\
             .collection('voice_recordings')\
