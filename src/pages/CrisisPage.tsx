@@ -33,7 +33,7 @@ const CrisisPage: React.FC = () => {
       borderColor: 'border-red-500',
       action: 'Ring 112',
       href: 'tel:112',
-      description: 'Vid akuta självmordstankter eller livshotande situation',
+      description: 'Vid akuta självmordstankar eller livshotande situation',
       available: 'Dygnet runt'
     },
     {
@@ -47,7 +47,7 @@ const CrisisPage: React.FC = () => {
       borderColor: 'border-rose-500',
       action: 'Ring 90101',
       href: 'tel:90101',
-      description: 'Samtal om självmordstankter och existentiell ångest',
+      description: 'Samtal om självmordstankar och existentiell ångest',
       available: 'Dygnet runt'
     },
     {
@@ -60,10 +60,13 @@ const CrisisPage: React.FC = () => {
       textColor: 'text-purple-600',
       borderColor: 'border-purple-500',
       action: 'Öppna chatt',
-      href: 'https://www.mind.se/hjalp-och-stod/att-beratta-och-be-om-hjalp/sjalvmordslinjen-chatt/',
+      // The old deep link (/hjalp-och-stod/att-beratta-och-be-om-hjalp/...)
+      // 404s — Mind restructured their site. Verified live: mind.se/chatt/
+      // serves the chat and states it is staffed around the clock, every day.
+      href: 'https://mind.se/chatt/',
       external: true,
-      description: 'Anonym chatt för dig med självmordstankter',
-      available: 'Mån-fre 13-21, Lör 13-17'
+      description: 'Anonym chatt för dig med självmordstankar',
+      available: 'Dygnet runt'
     },
     {
       id: 'healthcare-1177',
