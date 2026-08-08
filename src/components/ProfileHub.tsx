@@ -97,6 +97,10 @@ const ProfileHub: React.FC = () => {
     }
   );
   const { data: settings, updateData: updateSettings, isSaving: isSavingSettings, hasUnsavedChanges, cancelSave } = settingsManager;
+  // True when the saved preferences could not be fetched. The toggles then
+  // show the hardcoded defaults rather than the user's real settings, so
+  // writing them back would silently overwrite what they actually chose.
+  const [settingsLoadFailed, setSettingsLoadFailed] = useState(false);
   const [profileStats, setProfileStats] = useState<ProfileStats>({
     totalMoods: 0,
     totalConversations: 0,
@@ -153,6 +157,26 @@ const ProfileHub: React.FC = () => {
           getUserProfile(),
         ]);
 
+        // Promise.allSettled never rejects, so the catch below cannot see a
+        // failed fetch. Without this the profile call could fail, the saved
+        // preferences would never load, and the toggles would silently render
+        // the hardcoded defaults above (emailNotifications: true) as if they
+        // were the user's own settings. Touching any toggle then triggers the
+        // debounced save, writing all four defaults back over what they
+        // actually chose -- e.g. re-enabling email for someone who opted out.
+        const profileFailed = profileResult.status === 'rejected';
+        setSettingsLoadFailed(profileFailed);
+        if (profileFailed) {
+          logger.error('❌ PROFILE HUB - Could not load saved preferences', profileResult.reason);
+          showSnackbar(
+            t('profileHub.settingsLoadFailed', 'Kunde inte hämta dina sparade inställningar. Ladda om sidan innan du ändrar något.'),
+            'error'
+          );
+        }
+        if (statsResult.status === 'rejected') {
+          logger.error('❌ PROFILE HUB - Could not load stats', statsResult.reason);
+        }
+
         // Load saved settings from profile
         const profile = profileResult.status === 'fulfilled' ? profileResult.value : null;
         if (profile?.preferences) {
@@ -199,7 +223,7 @@ const ProfileHub: React.FC = () => {
     };
 
     fetchProfileData();
-  }, [updateSettings, user?.createdAt, user?.user_id, cancelSave, showSnackbar]);
+  }, [updateSettings, user?.createdAt, user?.user_id, cancelSave, showSnackbar, t]);
 
   const _handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     logger.debug('👤 PROFILE HUB - Tab changed', { newTab: newValue });
@@ -207,6 +231,16 @@ const ProfileHub: React.FC = () => {
   };
 
   const handleSettingChange = (setting: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Refuse to save when the stored preferences never loaded — the values in
+    // state are defaults, not the user's, and persisting them would overwrite
+    // real choices with guesses.
+    if (settingsLoadFailed) {
+      showSnackbar(
+        t('profileHub.settingsLoadFailed', 'Kunde inte hämta dina sparade inställningar. Ladda om sidan innan du ändrar något.'),
+        'error'
+      );
+      return;
+    }
     const checked = event.target.checked;
     // DEBOUNCED: Update settings with automatic save
     updateSettings(prev => ({ ...prev, [setting]: checked }));

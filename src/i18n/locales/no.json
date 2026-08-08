@@ -1509,7 +1509,8 @@
     "deleteItem4": "Kontoinnstillinger og preferanser",
     "deleteItem5": "Velværemål og fremgang",
     "deleteNote": "Dataene dine vil bli permanent slettet innen 30 dager. Du kan avbryte ved å kontakte support i løpet av den tiden.",
-    "deleting": "Sletter..."
+    "deleting": "Sletter...",
+    "settingsLoadFailed": "Kunne ikke hente dine lagrede innstillinger. Last inn siden på nytt før du endrer noe."
   },
   "wellnessGoalLabels": {
     "Hantera stress": {
