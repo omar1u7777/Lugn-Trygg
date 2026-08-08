@@ -33,6 +33,23 @@ logger = logging.getLogger(__name__)
 cbt_bp = Blueprint("cbt", __name__)
 
 
+def _coerce_number(value, default, cast):
+    """Cast a client-supplied value, falling back to `default` if it can't be.
+
+    dict.get(key, default) only supplies the default when the key is ABSENT.
+    A client sending an explicit JSON null gets None back, and int(None) then
+    raises "int() argument must be ... not 'NoneType'" — which is exactly how
+    this endpoint was failing in production. Non-numeric strings are the same
+    class of problem, so treat any uncastable value as "not supplied".
+    """
+    if value is None:
+        return default
+    try:
+        return cast(value)
+    except (TypeError, ValueError):
+        return default
+
+
 _cbt_access_cache: dict[str, tuple[bool, str, float]] = {}
 _CBT_ACCESS_CACHE_TTL: float = 300.0  # 5 minutes
 _CBT_ACCESS_CACHE_MAX_SIZE: int = 10000  # Prevent unbounded memory growth
@@ -442,9 +459,9 @@ def update_progress():
         exercise_entry = {
             "exerciseId": exercise_id,
             "completedAt": datetime.now(UTC).isoformat(),
-            "successRate": min(1.0, max(0.0, float(data.get("successRate", 0.5)))),
-            "timeSpent": int(data.get("timeSpent", 0)),
-            "difficultyRating": min(5, max(1, int(data.get("difficultyRating", 3)))),
+            "successRate": min(1.0, max(0.0, _coerce_number(data.get("successRate"), 0.5, float))),
+            "timeSpent": _coerce_number(data.get("timeSpent"), 0, int),
+            "difficultyRating": min(5, max(1, _coerce_number(data.get("difficultyRating"), 3, int))),
             "notes": sanitize_text(data.get("notes", ""), max_length=2000),
         }
         user_progress.exercise_history.append(exercise_entry)
