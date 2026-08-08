@@ -1508,7 +1508,8 @@
     "deleteItem4": "Kontoinställningar och preferenser",
     "deleteItem5": "Wellness-mål och framsteg",
     "deleteNote": "Din data kommer att raderas permanent inom 30 dagar. Du kan avbryta genom att kontakta support inom den tiden.",
-    "deleting": "Raderar..."
+    "deleting": "Raderar...",
+    "settingsLoadFailed": "Kunde inte hämta dina sparade inställningar. Ladda om sidan innan du ändrar något."
   },
   "wellnessGoalLabels": {
     "Hantera stress": {
