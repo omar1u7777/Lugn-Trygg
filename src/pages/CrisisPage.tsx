@@ -145,7 +145,17 @@ const CrisisPage: React.FC = () => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => {
+                // A user can land here directly (deep link, bookmark, a link
+                // shared with someone in distress), in which case there is no
+                // history entry to go back to and navigate(-1) leaves the
+                // button doing nothing. Fall back to the dashboard.
+                if (window.history.state?.idx > 0) {
+                  navigate(-1);
+                } else {
+                  navigate('/dashboard');
+                }
+              }}
               className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
             >
               <ArrowLeftIcon className="w-5 h-5" />
