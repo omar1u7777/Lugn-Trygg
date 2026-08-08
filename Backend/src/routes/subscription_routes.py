@@ -24,6 +24,14 @@ from ..config.subscription_config import load_subscription_plans
 from ..firebase_config import db
 
 STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', '')
+
+# Fallback values the STRIPE_PRICE_* settings take when their env vars are
+# unset. They look like price IDs but are not, so they must never reach Stripe.
+_PLACEHOLDER_PRICE_IDS = frozenset({
+    'price_premium',
+    'price_premium_yearly',
+    'price_enterprise',
+})
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint, rate_limiter
@@ -121,6 +129,24 @@ def create_checkout_session():
         else:
             logger.warning(f"❌ Invalid plan: {plan}")
             return APIResponse.bad_request("Ogiltig prenumerationsplan")
+
+        # The STRIPE_PRICE_* settings fall back to literal placeholders
+        # ("price_premium", "price_premium_yearly", "price_enterprise") when the
+        # env vars are unset. Those are not real Stripe price IDs, so forwarding
+        # one produces an opaque "No such price" from Stripe and a failed
+        # checkout the user can do nothing about. Catch the misconfiguration
+        # here instead, and say plainly that it is a server-side config problem.
+        if price_id in _PLACEHOLDER_PRICE_IDS or not price_id:
+            logger.error(
+                "❌ Stripe price ID for plan '%s' (billing_cycle '%s') is not configured — "
+                "resolved to placeholder %r. Set the STRIPE_PRICE_* environment variables.",
+                plan, billing_cycle, price_id,
+            )
+            return APIResponse.error(
+                "Betalning är inte konfigurerad just nu. Försök igen senare.",
+                "STRIPE_PRICE_NOT_CONFIGURED",
+                503,
+            )
 
         # Create Stripe checkout session
         logger.info(f"💳 Creating Stripe checkout session with price_id: {price_id} for plan: {plan}")
