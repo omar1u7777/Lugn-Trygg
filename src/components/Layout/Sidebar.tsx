@@ -26,6 +26,7 @@ import {
   ArrowPathRoundedSquareIcon,
   GiftIcon,
   ChatBubbleOvalLeftEllipsisIcon,
+  LifebuoyIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
@@ -46,6 +47,7 @@ import {
   CalendarDaysIcon as CalendarDaysIconSolid,
   ClipboardDocumentCheckIcon as ClipboardDocumentCheckIconSolid,
   StarIcon as StarIconSolid,
+  LifebuoyIcon as LifebuoyIconSolid,
 } from '@heroicons/react/24/solid';
 
 interface NavItem {
@@ -73,6 +75,11 @@ const FREE_NAV_ITEMS: NavItem[] = [
   { path: '/ai-chat', labelKey: 'sidebar.aiSupport', labelDefault: 'AI Stöd', icon: ChatBubbleLeftRightIcon, iconActive: ChatBubbleLeftRightIconSolid },
   { path: '/mood/assessment', labelKey: 'sidebar.clinicalAssessment', labelDefault: 'Klinisk bedömning', icon: ClipboardDocumentCheckIcon, iconActive: ClipboardDocumentCheckIconSolid },
   { path: '/daily-insights', labelKey: 'sidebar.dailyInsights', labelDefault: 'Dagliga insikter', icon: LightBulbIcon, iconActive: LightBulbIconSolid },
+  // The crisis page (Självmordslinjen, BRIS, 1177, jourhavande medmänniska)
+  // was a registered route that nothing in the UI linked to -- reachable only
+  // by typing the URL. Free-tier and always last so it sits in a predictable
+  // place regardless of plan.
+  { path: '/crisis', labelKey: 'sidebar.crisis', labelDefault: 'Hjälp och stöd', icon: LifebuoyIcon, iconActive: LifebuoyIconSolid },
 ];
 
 /** Premium items grouped separately — free users see a collapsed section instead of 10+ cluttered items. */
