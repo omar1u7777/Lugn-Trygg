@@ -330,6 +330,10 @@ def get_messages(room_id: str):
             limit = min(int(request.args.get('limit', 20)), 50)  # Cap at 50
         except (TypeError, ValueError):
             return APIResponse.bad_request("limit must be an integer")
+        if limit < 1:
+            # Firestore raises InvalidArgument on a negative .limit(), which
+            # surfaces as a 500 rather than a clean bad request.
+            return APIResponse.bad_request("limit must be a positive integer")
         session_id = request.args.get('session_id')
 
         if not session_id:

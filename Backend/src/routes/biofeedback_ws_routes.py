@@ -305,6 +305,11 @@ def get_session_history():
             page_size = min(int(request.args.get('limit', 30)), 100)
         except (TypeError, ValueError):
             page_size = 30
+        if page_size < 1:
+            # Guard the negative case too: .limit(page_size + 1) below would
+            # hand Firestore a negative bound and raise InvalidArgument,
+            # surfacing as a 500 instead of degrading to the default.
+            page_size = 30
         page_token = request.args.get('page_token')
 
         query = (
