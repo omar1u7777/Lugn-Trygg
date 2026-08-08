@@ -23,6 +23,23 @@ logger = logging.getLogger(__name__)
 mood_analytics_bp = Blueprint('mood_analytics', __name__)
 
 
+def _parse_mood_timestamp(ts: str) -> datetime:
+    """Parse a stored mood timestamp into a timezone-AWARE UTC datetime.
+
+    datetime.fromisoformat() returns a naive datetime whenever the stored
+    string carries no offset (e.g. "2026-08-01T10:00:00"). Those naive values
+    then blew up downstream with "can't compare offset-naive and offset-aware
+    datetimes" as soon as the analytics engines compared them against aware
+    ones. Older rows predate the timezone-suffixed writes, so both shapes are
+    present -- normalise every parsed value to UTC here.
+    """
+    try:
+        parsed = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+    except (ValueError, TypeError):
+        return datetime.now(UTC)
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
 @mood_analytics_bp.route('/correlation-analysis', methods=['GET', 'OPTIONS'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
@@ -71,10 +88,7 @@ def get_correlation_analysis() -> Response | tuple[Response, int]:
                 # Parse timestamp
                 ts = data.get('timestamp')
                 if isinstance(ts, str):
-                    try:
-                        data['timestamp'] = datetime.fromisoformat(ts.replace('Z', '+00:00'))
-                    except Exception:
-                        data['timestamp'] = datetime.now(UTC)
+                    data['timestamp'] = _parse_mood_timestamp(ts)
 
                 mood_entries.append(data)
 
@@ -131,10 +145,7 @@ def get_clinical_flags() -> Response | tuple[Response, int]:
                 # Parse timestamp
                 ts = data.get('timestamp')
                 if isinstance(ts, str):
-                    try:
-                        data['timestamp'] = datetime.fromisoformat(ts.replace('Z', '+00:00'))
-                    except Exception:
-                        data['timestamp'] = datetime.now(UTC)
+                    data['timestamp'] = _parse_mood_timestamp(ts)
 
                 mood_entries.append(data)
 
@@ -196,10 +207,7 @@ def get_impact_analysis() -> Response | tuple[Response, int]:
             if data:
                 ts = data.get('timestamp')
                 if isinstance(ts, str):
-                    try:
-                        data['timestamp'] = datetime.fromisoformat(ts.replace('Z', '+00:00'))
-                    except Exception:
-                        data['timestamp'] = datetime.now(UTC)
+                    data['timestamp'] = _parse_mood_timestamp(ts)
                 mood_entries.append(data)
 
         # Run both analyses
