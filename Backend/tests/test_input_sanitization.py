@@ -107,6 +107,41 @@ class TestInputSanitizer:
         assert result["age"] == "25"
 
 
+class TestSanitizeRequestData:
+    """sanitize_request_data() runs as a global before_request hook on every
+    POST/PUT/PATCH -- it must never raise on a malformed body, or every route
+    in the app inherits that crash risk regardless of its own JSON handling."""
+
+    def test_malformed_json_body_does_not_raise(self):
+        from flask import Flask
+
+        from src.utils.input_sanitization import input_sanitizer
+
+        app = Flask(__name__)
+        with app.test_request_context(
+            "/api/v1/insights/action/some-id",
+            method="POST",
+            data=b"{not valid json",
+            content_type="application/json",
+        ):
+            result = input_sanitizer.sanitize_request_data()
+        assert "json" not in result
+
+    def test_valid_json_body_is_sanitized(self):
+        from flask import Flask
+
+        from src.utils.input_sanitization import input_sanitizer
+
+        app = Flask(__name__)
+        with app.test_request_context(
+            "/api/v1/insights/action/some-id",
+            method="POST",
+            json={"action": "<script>bad</script>Logga mående nu"},
+        ):
+            result = input_sanitizer.sanitize_request_data()
+        assert "<script>" not in str(result.get("json", {}))
+
+
 class TestValidateMoodInput:
     """Tests for mood input validation."""
 
