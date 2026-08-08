@@ -1089,15 +1089,25 @@ def analyze_health_mood_correlation(user_id, health_data):
         from datetime import datetime, timedelta
         # Fetch last 30 days of moods
         thirty_days_ago = (datetime.now(UTC) - timedelta(days=30)).isoformat()
+        # Read the users/{uid}/moods subcollection keyed on 'timestamp' -- the
+        # path every other mood reader in the app uses, and the only one the
+        # logging path actually writes to. This previously queried a top-level
+        # 'moods' collection on 'created_at', which is the schema of
+        # MoodRepository -- a class no route or service imports. That
+        # collection is therefore always empty, so this function could only
+        # ever fall through to "Not enough data", and the health-mood
+        # correlation never produced a real result for anyone.
         moods_ref = (
-            db.collection('moods')
-            .where(filter=FieldFilter('user_id', '==', user_id))
-            .where(filter=FieldFilter('created_at', '>=', thirty_days_ago))
-            .order_by('created_at')
+            db.collection('users').document(user_id).collection('moods')
+            .where(filter=FieldFilter('timestamp', '>=', thirty_days_ago))
+            .order_by('timestamp')
             .limit(200)
             .stream()
         )
-        mood_scores = [m.to_dict().get('mood_score', 5) for m in moods_ref]
+        mood_scores = [
+            m.to_dict().get('mood_score', m.to_dict().get('score', 5))
+            for m in moods_ref
+        ]
 
         if len(mood_scores) < 5:
             return {
