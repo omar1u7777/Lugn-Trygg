@@ -162,6 +162,7 @@ interface StoryHistoryItem {
  * Raw response returned by POST /api/v1/ai/story.
  */
 interface GeneratedStoryResponse {
+  id?: string;
   story?: string;
   locale?: string;
   moodSummary?: Record<string, unknown>;
@@ -209,7 +210,12 @@ const mapGeneratedToAIStory = (raw: GeneratedStoryResponse): AIStory => {
   const content = raw.story || "";
   const mood = deriveMood(raw.moodSummary);
   return {
-    id: `generated-${Date.now()}`,
+    // Prefer the server's real doc id. The old `generated-${Date.now()}`
+    // fallback silently broke favourites: a story favourited right after
+    // generation was keyed to an id the history endpoint never returns, so
+    // the favourite vanished on reload and left an orphaned entry in
+    // localStorage forever.
+    id: raw.id || `generated-${Date.now()}`,
     title: deriveTitle(content),
     content,
     mood,

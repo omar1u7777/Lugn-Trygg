@@ -616,6 +616,9 @@
       "unmute": "Slå på lyd",
       "generateError": "Kunne ikke generere historie",
       "loginRequired": "Logg inn for å se dine AI-historier.",
+      "loginRequiredGenerate": "Du må være innlogget for å generere historier",
+      "noContent": "Ikke noe innhold tilgjengelig",
+      "noContentForStory": "Ikke noe innhold tilgjengelig for denne historien.",
       "empty": "Ingen historier ennå. Generer din første AI-historie!",
       "addFavorite": "Legg til favoritt",
       "removeFavorite": "Fjern favoritt"

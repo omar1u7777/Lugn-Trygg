@@ -616,6 +616,9 @@
       "unmute": "Sätt på ljud",
       "generateError": "Kunde inte generera berättelse",
       "loginRequired": "Logga in för att se dina AI-berättelser.",
+      "loginRequiredGenerate": "Du måste vara inloggad för att generera berättelser",
+      "noContent": "Inget innehåll tillgängligt",
+      "noContentForStory": "Inget innehåll tillgängligt för den här berättelsen.",
       "empty": "Inga berättelser ännu. Generera din första AI-berättelse!",
       "addFavorite": "Lägg till favorit",
       "removeFavorite": "Ta bort favorit"
