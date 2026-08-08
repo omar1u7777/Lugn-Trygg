@@ -616,6 +616,9 @@
       "unmute": "Slå på lyd",
       "generateError": "Kunne ikke generere historie",
       "loginRequired": "Logg inn for å se dine AI-historier.",
+      "loginRequiredGenerate": "Du må være innlogget for å generere historier",
+      "noContent": "Ikke noe innhold tilgjengelig",
+      "noContentForStory": "Ikke noe innhold tilgjengelig for denne historien.",
       "empty": "Ingen historier ennå. Generer din første AI-historie!",
       "addFavorite": "Legg til favoritt",
       "removeFavorite": "Fjern favoritt"
@@ -1394,6 +1397,8 @@
   "wellnessHub": {
     "title": "Velværebibliotek",
     "subtitle": "Finn roen, ett åndedrag om gangen.",
+    "streakDays_one": "{{count}} dags rekke",
+    "streakDays_other": "{{count}} dagers rekke",
     "description": "Her utforsker du hele biblioteket. For personlige forslag, gå til Anbefalinger.",
     "dailyRec": "Dagens anbefaling",
     "dailyRecSubMorning": "Start morgenen din med klarhet",

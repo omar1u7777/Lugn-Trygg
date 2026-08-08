@@ -225,6 +225,20 @@ describe('WellnessHub component', () => {
     expect(screen.getByText('wellnessHub.streakDays')).toBeInTheDocument();
   });
 
+  it('shows the error banner when one of the parallel fetches fails, while still rendering data from the ones that succeeded', async () => {
+    // Promise.allSettled never rejects on its own -- a real failure from any
+    // one of the three calls must not silently render as "everything's fine,
+    // you just have zero data."
+    vi.mocked(getMeditationSessions).mockRejectedValueOnce(new Error('network down'));
+    vi.mocked(getWellnessGoals).mockResolvedValueOnce(['Sova bättre']);
+
+    render(<WellnessHub />);
+
+    expect(await screen.findByText('Kunde inte ladda wellness-data.')).toBeInTheDocument();
+    // The goals fetch succeeded independently, so its data should still show.
+    expect(screen.getByText('Sova bättre')).toBeInTheDocument();
+  });
+
   it('navigates to recommendations when recommendations pill is clicked', async () => {
     render(<WellnessHub />);
 
