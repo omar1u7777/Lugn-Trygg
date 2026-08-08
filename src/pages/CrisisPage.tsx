@@ -88,23 +88,26 @@ const CrisisPage: React.FC = () => {
       color: 'bg-blue-600 hover:bg-blue-700',
       textColor: 'text-blue-600',
       borderColor: 'border-blue-500',
-      action: 'Ring 112',
+      action: 'Ring 112 och be om präst',
       href: 'tel:112',
-      description: 'Samtal om livsfrågor, sorg och existentiell oro',
-      available: 'Dygnet runt'
+      // Reached by calling 112 and asking to be connected — the number alone
+      // gets you emergency dispatch, so the instruction has to be on the card.
+      // The service runs evenings/nights only, NOT around the clock.
+      description: 'Ring 112 och be att bli kopplad. Samtal om livsfrågor, sorg och existentiell oro',
+      available: 'Varje kväll 21–06'
     },
     {
       id: 'bris',
       priority: 'support',
       title: '🧸 BRIS - Barnens hjälptelefon',
-      subtitle: 'Stöd för barn och unga upp till 25 år',
+      subtitle: 'Stöd för barn och unga upp till 18 år',
       icon: <ChatBubbleLeftRightIcon className="w-6 h-6" />,
       color: 'bg-orange-500 hover:bg-orange-600',
       textColor: 'text-orange-500',
       borderColor: 'border-orange-500',
       action: 'Ring 116 111',
       href: 'tel:116111',
-      description: 'Telefon och chatt för barn, unga och unga vuxna',
+      description: 'Telefon och chatt för barn och unga',
       available: 'Dygnet runt'
     },
     {
