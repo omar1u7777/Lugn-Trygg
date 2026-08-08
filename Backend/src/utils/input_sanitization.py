@@ -385,9 +385,12 @@ class InputSanitizer:
         """
         sanitized: dict[str, Any] = {}
 
-        # Sanitize JSON data
-        if request.is_json and request.get_json():
-            json_data = request.get_json()
+        # Sanitize JSON data. silent=True is required here: this runs as a
+        # global before_request hook on every POST/PUT/PATCH, so a malformed
+        # or truncated body (flaky client, miscounted Content-Length) must
+        # not raise BadRequest out of a purely defensive sanitization step.
+        json_data = request.get_json(silent=True) if request.is_json else None
+        if json_data:
             sanitized['json'] = self.sanitize_dict(json_data, content_type_overrides)
 
         # Sanitize form data
@@ -418,8 +421,11 @@ def sanitize_request():
         # Log sanitization
         logger.debug(f"Request data sanitized for {request.endpoint}")
 
-    except Exception as e:
-        logger.error(f"Request sanitization failed: {e}")
+    except Exception:
+        # exception() (not error()) so the traceback is preserved -- a bare
+        # str(e) loses the origin point, making failures like this
+        # unreproducible from Sentry alone.
+        logger.exception("Request sanitization failed")
         g.sanitized_data = {}
 
 def sanitize_request_decorator(f):
