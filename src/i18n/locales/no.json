@@ -1397,6 +1397,8 @@
   "wellnessHub": {
     "title": "Velværebibliotek",
     "subtitle": "Finn roen, ett åndedrag om gangen.",
+    "streakDays_one": "{{count}} dags rekke",
+    "streakDays_other": "{{count}} dagers rekke",
     "description": "Her utforsker du hele biblioteket. For personlige forslag, gå til Anbefalinger.",
     "dailyRec": "Dagens anbefaling",
     "dailyRecSubMorning": "Start morgenen din med klarhet",
