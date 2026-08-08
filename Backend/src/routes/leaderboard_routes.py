@@ -7,7 +7,7 @@ import logging
 import re
 from datetime import UTC, datetime
 
-from flask import Blueprint, request
+from flask import Blueprint, g, request
 from google.cloud.firestore import FieldFilter
 
 from src.firebase_config import db
@@ -243,6 +243,17 @@ def get_user_rank(user_id: str):
     if not _validate_user_id(user_id_clean):
         logger.warning(f"Invalid user_id format attempted: {user_id[:50] if user_id else 'None'}")
         return APIResponse.bad_request('Invalid user ID format')
+
+    # Only let a caller read their own ranking. The leaderboard deliberately
+    # anonymises display names, but it returns each entry's raw userId — so
+    # without this, any signed-in user could take those ids and read every
+    # other user's streak and mood_count, i.e. how much they engage with a
+    # mental-health service. That defeats the anonymisation the leaderboard
+    # is built around. Every other user-scoped route here already checks this.
+    current_user = g.get('user_id')
+    if user_id_clean != current_user:
+        logger.warning("User %s attempted to read rankings for %s", current_user, user_id_clean)
+        return APIResponse.forbidden('Du kan bara se din egen placering')
 
     try:
         if db is None:
