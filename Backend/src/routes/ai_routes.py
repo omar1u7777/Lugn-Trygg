@@ -150,8 +150,14 @@ def generate_therapeutic_story():
         timestamp = datetime.now(UTC).isoformat()
         story_ref = db_handle.collection("users").document(user_id).collection("stories")
 
-        story_ref.document(f"story_{timestamp}").set({
-            "story_content": story_result["story"][:500],  # Store preview
+        story_id = f"story_{timestamp}"
+        story_ref.document(story_id).set({
+            # Store the full story, not a 500-char slice. The history endpoint
+            # is what the user re-reads their saved stories from, so truncating
+            # here permanently lost the tail of every story the moment the page
+            # was reloaded -- and cut it mid-sentence, with nothing in the UI
+            # indicating the text was incomplete.
+            "story_content": story_result["story"],
             "locale": locale,
             "mood_data_points": len(mood_history),
             "ai_generated": story_result.get("ai_generated", False),
@@ -172,6 +178,10 @@ def generate_therapeutic_story():
         )
 
         return APIResponse.success({
+            # Return the real Firestore doc id so the client can key client-side
+            # state (e.g. favourites) to the same id the history endpoint will
+            # later return, instead of inventing a throwaway one.
+            "id": story_id,
             "story": story_result["story"],
             "locale": locale,
             "moodSummary": story_result.get("mood_summary", {}),

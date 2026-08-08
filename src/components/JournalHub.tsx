@@ -52,6 +52,7 @@ const JournalHub: React.FC = () => {
     weekStreak: 0,
   });
   const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState(false);
   // Inline journal form state
   const [journalText, setJournalText] = useState('');
   const [journalPrompt, setJournalPrompt] = useState('');
@@ -66,6 +67,17 @@ const JournalHub: React.FC = () => {
   const calculateStreak = useCallback((moods: Array<{ timestamp?: string | Date | { seconds?: number; toDate?: () => Date } }>) => {
     if (!moods.length) return 0;
     const today = new Date();
+    // Key by the user's LOCAL calendar day, not the UTC day. toISOString()
+    // shifts to UTC, so for any non-UTC user two entries on different local
+    // days (e.g. 23:00 and then 01:00 the next night) collapse into one UTC
+    // day and the streak silently under-counts. This matches the local-date
+    // keying already used by the wellness streak.
+    const toLocalDateKey = (date: Date): string => {
+      const y = date.getFullYear();
+      const m = `${date.getMonth() + 1}`.padStart(2, '0');
+      const d = `${date.getDate()}`.padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
     const getDateKey = (value: unknown): string | null => {
       if (!value) return null;
       let date: Date | undefined;
@@ -78,14 +90,14 @@ const JournalHub: React.FC = () => {
         date = new Date(value);
       }
       if (!date || Number.isNaN(date.getTime())) return null;
-      return date.toISOString().split('T')[0];
+      return toLocalDateKey(date);
     };
 
     let streak = 0;
     for (let i = 0; i < 7; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = toLocalDateKey(date);
       const hasLog = moods.some((m) => getDateKey(m.timestamp) === dateStr);
       if (hasLog) streak++;
       else break;
@@ -103,6 +115,7 @@ const JournalHub: React.FC = () => {
     }
 
     setStatsLoading(true);
+    setStatsError(false);
 
     try {
       const [moodsResult, memoriesResult, journalsResult] = await Promise.allSettled([
@@ -116,6 +129,15 @@ const JournalHub: React.FC = () => {
       const journals = journalsResult.status === 'fulfilled' ? journalsResult.value : [];
 
       if (!mountedRef.current) return;
+
+      // Promise.allSettled never rejects, so without this a failed fetch just
+      // renders "0 Dagboksanteckningar" -- indistinguishable from a genuinely
+      // empty journal. In a journaling app that reads as data loss, so say
+      // plainly that the counts couldn't be loaded rather than showing zeros.
+      if ([moodsResult, memoriesResult, journalsResult].some(r => r.status === 'rejected')) {
+        setStatsError(true);
+      }
+
       setStats({
         moodCount: moods.length,
         memoryCount: memories.length,
@@ -125,6 +147,7 @@ const JournalHub: React.FC = () => {
     } catch (error) {
       logger.error('Failed to load journal stats', { error });
       if (!mountedRef.current) return;
+      setStatsError(true);
       setStats({ moodCount: 0, memoryCount: 0, journalCount: 0, weekStreak: 0 });
     } finally {
       if (mountedRef.current) {
@@ -303,6 +326,21 @@ const JournalHub: React.FC = () => {
         </section>
       )}
 
+      {/* Stats load failure (Hidden in Zen Mode) */}
+      {!zenMode && statsError && !statsLoading && (
+        <div className="mb-6 rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 p-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-rose-700 dark:text-rose-300">
+            Kunde inte hämta din statistik. Siffrorna nedan kan vara ofullständiga — dina anteckningar är kvar.
+          </p>
+          <button
+            onClick={loadJournalStats}
+            className="text-xs px-4 py-2 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-900/60 transition-colors"
+          >
+            Försök igen
+          </button>
+        </div>
+      )}
+
       {/* Stats Bento Grid (Hidden in Zen Mode) */}
       {!zenMode && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
@@ -321,7 +359,7 @@ const JournalHub: React.FC = () => {
               </div>
               <div className="space-y-1">
                 <p className="text-3xl font-bold text-slate-900 dark:text-white">
-                  {statsLoading ? '-' : stat.value}
+                  {statsLoading || statsError ? '–' : stat.value}
                 </p>
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{stat.label}</p>
               </div>

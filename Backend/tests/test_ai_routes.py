@@ -119,6 +119,37 @@ class TestTherapeuticStory:
         assert d["modelUsed"] == "gpt-4"
         assert d["wordCount"] == 250
         assert "generatedAt" in d
+        # The client needs the real doc id to key favourites against, so that a
+        # story favourited right after generation still matches the id the
+        # history endpoint returns on the next page load.
+        assert d["id"].startswith("story_")
+
+    @patch("src.services.ai_service.ai_services")
+    def test_generate_story_persists_full_text_not_a_500_char_preview(self, mock_ai, client, mock_db):
+        """The history endpoint is what users re-read saved stories from, so
+        storing a truncated slice silently lost the tail of every story the
+        moment the page was reloaded."""
+        _, stories_col = _mock_user_subcollections(mock_db, extra_sub="stories")
+        long_story = "Kapitel ett. " * 200  # ~2600 chars, well over the old 500 cap
+
+        mock_ai.generate_personalized_therapeutic_story.return_value = {
+            "story": long_story,
+            "ai_generated": True,
+            "model_used": "gpt-4",
+            "confidence": 0.9,
+            "word_count": 400,
+        }
+
+        resp = client.post(
+            "/api/v1/ai/story",
+            json={"locale": "sv"},
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+
+        saved = stories_col.document.return_value.set.call_args[0][0]
+        assert saved["story_content"] == long_story
+        assert len(saved["story_content"]) > 500
 
     @patch("src.services.ai_service.ai_services")
     def test_generate_story_invalid_locale_defaults_to_sv(self, mock_ai, client, mock_db):

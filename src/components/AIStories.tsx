@@ -133,7 +133,7 @@ const AIStories: React.FC = () => {
 
   const generateNewStory = useCallback(async () => {
     if (!user?.user_id) {
-      setError('Du måste vara inloggad för att generera berättelser');
+      setError(t('ai.stories.loginRequiredGenerate'));
       return;
     }
     if (generatingRef.current) return;
@@ -366,7 +366,9 @@ const AIStories: React.FC = () => {
                     </div>
 
                     <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-4">
-                      {story.content ? story.content.substring(0, 150) + '...' : 'Ingen innehåll tillgänglig'}
+                      {story.content
+                        ? (story.content.length > 150 ? `${story.content.substring(0, 150)}...` : story.content)
+                        : t('ai.stories.noContent')}
                     </p>
                   </div>
 
@@ -426,7 +428,7 @@ const AIStories: React.FC = () => {
               {/* Content */}
               <div className="p-4 sm:p-6 max-h-[50vh] sm:max-h-[60vh] overflow-y-auto">
                 <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
-                  {selectedStory.content || 'Ingen innehåll tillgänglig för denna berättelse.'}
+                  {selectedStory.content || t('ai.stories.noContentForStory')}
                 </p>
               </div>
 
