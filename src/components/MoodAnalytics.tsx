@@ -24,7 +24,10 @@ import { exportMoodData } from '../api/mood';
 
 import MoodCalendar from './MoodCalendar';
 import { useMoodData } from '../features/mood/hooks/useMoodData';
-import { jsPDF } from 'jspdf';
+// jsPDF is ~590 kB (174 kB gzipped) and is only needed when the user actually
+// exports a PDF. Imported statically it rode along with this page's chunk, so
+// everyone opening Humöranalys paid for it whether or not they exported
+// anything. Loaded on demand at the call site instead.
 
 // Lazy load heavy components - Analytics charts now using placeholder
 
@@ -93,7 +96,7 @@ const MoodAnalytics: React.FC = () => {
     if (activeTab === 'monthly' && user) void loadMonthlyAnalytics();
   }, [monthlyMonths, activeTab, user, loadMonthlyAnalytics]);
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (!forecast) {
       return;
     }
@@ -102,6 +105,7 @@ const MoodAnalytics: React.FC = () => {
     setPdfError(null);
 
     try {
+      const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
         const {
           forecast: forecastData,
@@ -1065,7 +1069,7 @@ const MoodAnalytics: React.FC = () => {
             {/* Export PDF Button */}
             <Button
               variant="outline"
-              onClick={exportToPDF}
+              onClick={() => { void exportToPDF(); }}
               disabled={!forecast}
               className="flex items-center gap-2"
             >
