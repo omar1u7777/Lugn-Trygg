@@ -21,6 +21,21 @@ import {
 import { logger } from '../../utils/logger';
 
 /**
+ * Stands in for a panel whose data could not be loaded. Each panel below is
+ * rendered only when its fetch succeeded, so without a placeholder a failure
+ * silently removes it and the dashboard looks like a clean bill of health.
+ */
+const UnavailableSection: React.FC<{ title: string; note: string }> = ({ title, note }) => (
+  <Card className="p-6 border-gray-300 bg-gray-50">
+    <div className="flex items-center gap-2 mb-1">
+      <ExclamationTriangleIcon className="h-6 w-6 text-gray-400" />
+      <h2 className="text-xl font-semibold text-gray-700">{title}</h2>
+    </div>
+    <p className="text-sm text-gray-500">{note}</p>
+  </Card>
+);
+
+/**
  * SecurityMonitor - Admin-only component for security monitoring
  * Displays API key rotation status, tamper detection events, and security metrics
  */
@@ -35,6 +50,10 @@ const SecurityMonitor: React.FC = () => {
   const [tamperSummary, setTamperSummary] = useState<TamperSummary | null>(null);
   const [activeAlerts, setActiveAlerts] = useState<TamperEvent[]>([]);
   const [securityMetrics, setSecurityMetrics] = useState<SecurityMetrics | null>(null);
+  // Sections we could not load. Their panels are rendered conditionally, so
+  // without this a failed fetch just removes the panel — an absent tamper
+  // list reads as "no tamper events" rather than "detection is unreachable".
+  const [unavailable, setUnavailable] = useState({ keys: false, tamper: false, metrics: false });
 
   const loadSecurityData = async () => {
     try {
@@ -46,12 +65,12 @@ const SecurityMonitor: React.FC = () => {
         getSecurityMetrics(),
       ]);
 
-      let failedParts = 0;
+      const failedParts: string[] = [];
 
       if (keyStatusResult.status === 'fulfilled') {
         setKeyRotationStatus(keyStatusResult.value);
       } else {
-        failedParts += 1;
+        failedParts.push('nyckelrotation');
         setKeyRotationStatus(null);
         logger.error('Failed to load key rotation status', keyStatusResult.reason as Error);
       }
@@ -61,7 +80,7 @@ const SecurityMonitor: React.FC = () => {
         setTamperSummary(tamperResult.value.summary);
         setActiveAlerts(tamperResult.value.activeAlerts || []);
       } else {
-        failedParts += 1;
+        failedParts.push('manipulationsdetektering');
         setTamperEvents([]);
         setTamperSummary(null);
         setActiveAlerts([]);
@@ -71,20 +90,26 @@ const SecurityMonitor: React.FC = () => {
       if (metricsResult.status === 'fulfilled') {
         setSecurityMetrics(metricsResult.value);
       } else {
-        failedParts += 1;
+        failedParts.push('säkerhetsmätvärden');
         setSecurityMetrics(null);
         logger.error('Failed to load security metrics', metricsResult.reason as Error);
       }
 
-      if (failedParts > 0) {
+      setUnavailable({
+        keys: keyStatusResult.status === 'rejected',
+        tamper: tamperResult.status === 'rejected',
+        metrics: metricsResult.status === 'rejected',
+      });
+
+      if (failedParts.length > 0) {
         setError(
-          failedParts === 3
+          failedParts.length === 3
             ? 'Kunde inte ladda säkerhetsdata just nu. Försök igen.'
-            : `Viss säkerhetsdata kunde inte laddas (${failedParts}/3). Visar tillgänglig data.`
+            : `Kunde inte ladda: ${failedParts.join(', ')}. Tomma paneler nedan betyder okänt, inte noll.`
         );
       }
 
-      logger.info('Security data loaded', { failedParts });
+      logger.info('Security data loaded', { failedParts: failedParts.length });
     } catch (err: unknown) {
       logger.error('Failed to load security data:', err);
       setError(err instanceof Error ? err.message : 'Kunde inte ladda säkerhetsdata');
@@ -223,6 +248,13 @@ const SecurityMonitor: React.FC = () => {
         </div>
       )}
 
+      {unavailable.metrics && (
+        <UnavailableSection
+          title={t('security.metricsTitle', 'Säkerhetsmätvärden')}
+          note="Mätvärdena kunde inte hämtas. Antalet autentiseringsfel, blockerade förfrågningar och aktiva hot är okända — inte noll."
+        />
+      )}
+
       {/* API Key Rotation Status */}
       {keyRotationStatus && (
         <Card className="p-6">
@@ -265,6 +297,13 @@ const SecurityMonitor: React.FC = () => {
         </Card>
       )}
 
+      {unavailable.keys && (
+        <UnavailableSection
+          title={t('security.keyRotation', 'API Key Rotation')}
+          note="Rotationsstatusen kunde inte hämtas. Det går inte att säga om nycklarna är i tid för rotation."
+        />
+      )}
+
       {/* Active Alerts */}
       {activeAlerts.length > 0 && (
         <Card className="p-6 border-red-300 bg-red-50">
@@ -295,6 +334,13 @@ const SecurityMonitor: React.FC = () => {
             ))}
           </div>
         </Card>
+      )}
+
+      {unavailable.tamper && (
+        <UnavailableSection
+          title={t('security.tamperDetection', 'Tamper Detection')}
+          note="Manipulationsdetekteringen kunde inte hämtas. Inga larm visas ovan för att data saknas — det betyder inte att inga larm finns."
+        />
       )}
 
       {/* Tamper Detection Events */}
