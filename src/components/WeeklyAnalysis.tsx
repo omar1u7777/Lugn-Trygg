@@ -31,7 +31,16 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
   const [error, setError] = useState<string | null>(null);
 
   const fetchAnalysis = useCallback(async () => {
-    if (!user?.user_id) return;
+    if (!user?.user_id) {
+      // Returning without clearing `loading` left the spinner running forever
+      // for anyone whose session had not resolved yet.
+      setLoading(false);
+      return;
+    }
+
+    // Without this, a refreshTrigger refetch that succeeds still rendered the
+    // previous error, because the error branch returns before the data does.
+    setError(null);
 
     try {
       const data = await getWeeklyAnalysis(user.user_id);

@@ -133,6 +133,9 @@ export const MoodForecastView: React.FC = () => {
 
   const avgValence = forecast.reduce((sum, f) => sum + f.predicted_valence, 0) / forecast.length;
   const trend = forecast[forecast.length - 1]?.predicted_valence - forecast[0]?.predicted_valence;
+  const certaintyPercent = Math.round(
+    Math.min(100, Math.max(0, 100 - (forecast[0]?.uncertainty ?? 1) * 100))
+  );
 
   return (
     <div className="space-y-6">
@@ -205,15 +208,22 @@ export const MoodForecastView: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
           <p className="text-xs text-gray-500 uppercase">Prognossäkerhet</p>
           <div className="mt-1">
-            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-teal-600 transition-all"
-                style={{ width: `${Math.max(0, 100 - (forecast[0]?.uncertainty || 0) * 100)}%` }}
-              />
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {Math.round(Math.max(0, 100 - (forecast[0]?.uncertainty || 0) * 100))}% säkerhet
-            </p>
+            {typeof forecast[0]?.uncertainty === 'number' ? (
+              <>
+                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-teal-600 transition-all"
+                    style={{ width: `${certaintyPercent}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">{certaintyPercent}% säkerhet</p>
+              </>
+            ) : (
+              // A missing uncertainty used to fall through `|| 0` and render as
+              // "100% säkerhet" — the model claiming certainty precisely when
+              // it had told us nothing about its confidence.
+              <p className="text-xs text-gray-500 mt-1">Säkerheten är okänd för den här prognosen</p>
+            )}
           </div>
         </div>
       </div>
