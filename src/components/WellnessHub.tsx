@@ -268,6 +268,9 @@ const WellnessHub: React.FC = () => {
   const [isMeditationActive, setIsMeditationActive] = useState(false);
   const [meditationStartTime, setMeditationStartTime] = useState<Date | null>(null);
   const [isPaused, setIsPaused] = useState(false);
+  // The guided-meditation audio is hotlinked from an external host that rate
+  // limits, so failing to load is a normal condition at scale, not an edge case.
+  const [meditationAudioFailed, setMeditationAudioFailed] = useState(false);
   const pausedDurationMsRef = useRef<number>(0);
   const pauseStartTimeRef = useRef<Date | null>(null);
   const completeMeditationRef = useRef<() => Promise<void>>();
@@ -492,9 +495,21 @@ const WellnessHub: React.FC = () => {
     pauseStartTimeRef.current = null;
 
     // Play guided meditation audio (play() replaces any current audio)
+    setMeditationAudioFailed(false);
     const audioUrl = MEDITATION_AUDIO_URLS[meditation.id];
     if (audioUrl) {
-      meditationAudio.play(audioUrl, { loop: true, volume: 0.6 });
+      meditationAudio.play(audioUrl, {
+        loop: true,
+        volume: 0.6,
+        // Without this the timer still runs and the player still shows
+        // "Nu spelas" when the audio never loads, so the user sits through a
+        // silent session with nothing indicating anything went wrong. Sleep
+        // stories already handled this; meditations did not.
+        onError: () => {
+          logger.error('Meditation audio failed to load:', meditation.id);
+          setMeditationAudioFailed(true);
+        },
+      });
     }
 
     meditationTimer.start(meditation.duration * 60);
@@ -827,6 +842,14 @@ const WellnessHub: React.FC = () => {
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">{selectedMeditation.title}</h2>
                 <p className="text-gray-500 dark:text-gray-400 text-center">{selectedMeditation.description}</p>
+                {meditationAudioFailed && (
+                  <p
+                    role="status"
+                    className="mt-3 text-sm text-center text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2"
+                  >
+                    {t('wellnessHub.audioUnavailable', 'Ljudet kunde inte spelas upp. Timern fortsätter — du kan meditera i tystnad eller försöka igen senare.')}
+                  </p>
+                )}
               </div>
 
               <div className="text-5xl font-mono text-center font-bold text-primary-600 dark:text-primary-400 mb-4 tracking-wider">
