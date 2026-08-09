@@ -51,6 +51,20 @@ const SocialHub: React.FC = () => {
     leaderboardRank: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [failedStats, setFailedStats] = useState<ReadonlySet<keyof SocialStats>>(new Set());
+
+  /** Renders a stat only when it was actually measured. A stat whose fetch
+   *  failed shows an em dash rather than a zero the user would read as their
+   *  real total — and only that stat, so one outage does not blank the rest. */
+  const renderStat = (key: keyof SocialStats, value: React.ReactNode) => {
+    if (loading) {
+      return <span className="inline-block w-16 h-8 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />;
+    }
+    if (failedStats.has(key)) {
+      return <span className="text-gray-400" title={t('social.statsUnavailable', 'Kunde inte hämtas')}>—</span>;
+    }
+    return value;
+  };
 
   useEffect(() => {
     const fetchSocialData = async () => {
@@ -63,34 +77,48 @@ const SocialHub: React.FC = () => {
 
       try {
         logger.debug('Fetching leaderboard, referrals, moods...');
-        // Fetch leaderboard to get community size and user rank
-        const leaderboardData = await getXPLeaderboard();
-        const communityMembers = leaderboardData.length;
+        // These were awaited one after another, so a leaderboard outage also
+        // took away the user's own mood count — data that had nothing to do
+        // with the failure. They are independent, so fetch them independently.
+        const [leaderboardResult, referralResult, moodsResult] = await Promise.allSettled([
+          getXPLeaderboard(),
+          getReferralStats(),
+          getMoods(user.user_id),
+        ]);
 
-        // Find user's rank (supports both camelCase and snake_case user ID fields)
-        const userRankEntry = leaderboardData.find(
+        const leaderboardData = leaderboardResult.status === 'fulfilled' ? leaderboardResult.value : null;
+        const userRankEntry = leaderboardData?.find(
+          // Supports both camelCase and snake_case user ID fields
           (entry) => (entry.userId ?? entry.user_id) === user.user_id
         );
-        const userRank = userRankEntry?.rank || 0;
-
-        // Fetch referral stats
-        const referralStats = await getReferralStats();
-        const referrals = referralStats.successfulReferrals || 0;
-
-        // Fetch moods to show real mood log count
-        const moods = await getMoods(user.user_id);
-        const moodLogs = moods.length;
 
         setSocialStats({
-          communityMembers,
-          moodLogs,
-          referrals,
-          leaderboardRank: userRank,
+          communityMembers: leaderboardData?.length ?? 0,
+          moodLogs: moodsResult.status === 'fulfilled' ? moodsResult.value.length : 0,
+          referrals: referralResult.status === 'fulfilled' ? (referralResult.value.successfulReferrals || 0) : 0,
+          leaderboardRank: userRankEntry?.rank || 0,
         });
-        logger.debug('SocialHub stats calculated', { communityMembers, moodLogs, referrals, userRank });
+
+        // allSettled never rejects, so nothing below would have thrown. The
+        // zeros above are not what we know, they are what we failed to find
+        // out — mark exactly those so they are not shown as real totals.
+        const failed = new Set<keyof SocialStats>();
+        if (leaderboardResult.status === 'rejected') {
+          logger.error('Failed to fetch leaderboard:', leaderboardResult.reason);
+          failed.add('communityMembers').add('leaderboardRank');
+        }
+        if (referralResult.status === 'rejected') {
+          logger.error('Failed to fetch referral stats:', referralResult.reason);
+          failed.add('referrals');
+        }
+        if (moodsResult.status === 'rejected') {
+          logger.error('Failed to fetch moods:', moodsResult.reason);
+          failed.add('moodLogs');
+        }
+        setFailedStats(failed);
       } catch (error) {
         logger.error('Failed to fetch social data:', error);
-        // Keep default values on error
+        setFailedStats(new Set(['communityMembers', 'moodLogs', 'referrals', 'leaderboardRank']));
       } finally {
         setLoading(false);
       }
@@ -125,11 +153,7 @@ const SocialHub: React.FC = () => {
           <div className="p-4 sm:p-6">
             <UsersIcon aria-hidden="true" className="w-8 h-8 sm:w-10 sm:h-10 text-primary-600 mb-2 sm:mb-3" />
             <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2">
-              {loading ? (
-                <span className="inline-block w-16 h-8 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></span>
-              ) : (
-                socialStats.communityMembers.toLocaleString()
-              )}
+              {renderStat('communityMembers', socialStats.communityMembers.toLocaleString())}
             </p>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
               {t('social.communityMembers')}
@@ -141,11 +165,7 @@ const SocialHub: React.FC = () => {
           <div className="p-4 sm:p-6">
             <ChatBubbleLeftRightIcon aria-hidden="true" className="w-8 h-8 sm:w-10 sm:h-10 text-secondary-600 mb-2 sm:mb-3" />
             <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2">
-              {loading ? (
-                <span className="inline-block w-16 h-8 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></span>
-              ) : (
-                socialStats.moodLogs
-              )}
+              {renderStat('moodLogs', socialStats.moodLogs)}
             </p>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
               {t('social.moodLogs')}
@@ -157,11 +177,7 @@ const SocialHub: React.FC = () => {
           <div className="p-4 sm:p-6">
             <TrophyIcon aria-hidden="true" className="w-8 h-8 sm:w-10 sm:h-10 text-success-600 mb-2 sm:mb-3" />
             <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2">
-              {loading ? (
-                <span className="inline-block w-16 h-8 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></span>
-              ) : (
-                socialStats.referrals
-              )}
+              {renderStat('referrals', socialStats.referrals)}
             </p>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
               {t('social.referrals')}
@@ -173,11 +189,7 @@ const SocialHub: React.FC = () => {
           <div className="p-4 sm:p-6">
             <ChartBarIcon aria-hidden="true" className="w-8 h-8 sm:w-10 sm:h-10 text-accent-600 mb-2 sm:mb-3" />
             <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2">
-              {loading ? (
-                <span className="inline-block w-16 h-8 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></span>
-              ) : (
-                socialStats.leaderboardRank > 0 ? `#${socialStats.leaderboardRank}` : 'N/A'
-              )}
+              {renderStat('leaderboardRank', socialStats.leaderboardRank > 0 ? `#${socialStats.leaderboardRank}` : 'N/A')}
             </p>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
               {t('social.leaderboardRank')}
