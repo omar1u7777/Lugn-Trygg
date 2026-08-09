@@ -678,23 +678,40 @@ const MoodAnalytics: React.FC = () => {
                 <div className="p-4">
                   <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-3">Senaste 7 dagarna</h3>
                   {(() => {
+                    // Bucket by the user's LOCAL calendar day. toISOString()
+                    // converts to UTC, so for any user ahead of UTC a mood
+                    // logged just after midnight lands on the previous day's
+                    // bar in their own chart — and late-night logging is both
+                    // common and clinically meaningful here.
+                    const toLocalDateKey = (date: Date) => {
+                      const y = date.getFullYear();
+                      const mo = `${date.getMonth() + 1}`.padStart(2, '0');
+                      const da = `${date.getDate()}`.padStart(2, '0');
+                      return `${y}-${mo}-${da}`;
+                    };
                     const now = new Date();
                     const days7 = Array.from({ length: 7 }, (_, i) => {
                       const d = new Date(now);
                       d.setDate(now.getDate() - (6 - i));
-                      return d.toISOString().split('T')[0];
+                      return { key: toLocalDateKey(d), dow: d.getDay() };
                     });
                     const byDay: Record<string, number[]> = {};
                     moods.forEach(m => {
                       const ts = m.timestamp instanceof Date ? m.timestamp : new Date(m.timestamp ?? '');
-                      const day = ts.toISOString().split('T')[0];
+                      if (Number.isNaN(ts.getTime())) return;
+                      const day = toLocalDateKey(ts);
                       if (!byDay[day]) byDay[day] = [];
                       byDay[day].push(m.score ?? 5);
                     });
-                    const entries = days7.map(d => ({
-                      date: d,
-                      avg: byDay[d] ? byDay[d].reduce((a, b) => a + b, 0) / byDay[d].length : null,
-                      count: byDay[d]?.length ?? 0,
+                    const entries = days7.map(({ key, dow }) => ({
+                      date: key,
+                      // Carry the weekday from the Date we already built.
+                      // new Date('YYYY-MM-DD') parses as UTC midnight, so
+                      // .getDay() on it returns the wrong weekday for anyone
+                      // west of UTC.
+                      dow,
+                      avg: byDay[key] ? byDay[key].reduce((a, b) => a + b, 0) / byDay[key].length : null,
+                      count: byDay[key]?.length ?? 0,
                     }));
                     const DOW_SHORT = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
                     return (
@@ -704,7 +721,7 @@ const MoodAnalytics: React.FC = () => {
                           const color = entry.avg === null ? 'bg-gray-200 dark:bg-gray-700'
                             : entry.avg >= 7 ? 'bg-success-500'
                             : entry.avg >= 4 ? 'bg-warning-400' : 'bg-error-500';
-                          const dow = DOW_SHORT[new Date(entry.date).getDay()];
+                          const dow = DOW_SHORT[entry.dow];
                           return (
                             <div key={entry.date} className="flex flex-col items-center gap-1 flex-1 group relative">
                               <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs rounded px-1 py-0.5 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
