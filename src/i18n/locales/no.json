@@ -1437,7 +1437,8 @@
     "loadingWellness": "Laster velværesdata...",
     "errorLoading": "Kunne ikke laste velværesdata",
     "retry": "Prøv igjen",
-    "noWellnessData": "Ingen data tilgjengelig ennå"
+    "noWellnessData": "Ingen data tilgjengelig ennå",
+    "audioUnavailable": "Lyden kunne ikke spilles av. Timeren fortsetter — du kan meditere i stillhet eller prøve igjen senere."
   },
   "profileHub": {
     "guest": "Gjest",
