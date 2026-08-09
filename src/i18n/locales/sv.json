@@ -1436,7 +1436,8 @@
     "noWellnessData": "Ingen data tillgänglig ännu",
     "sleepStory": "Sovsaga",
     "streakDays_one": "{{count}} dags streak",
-    "streakDays_other": "{{count}} dagars streak"
+    "streakDays_other": "{{count}} dagars streak",
+    "audioUnavailable": "Ljudet kunde inte spelas upp. Timern fortsätter — du kan meditera i tystnad eller försöka igen senare."
   },
   "profileHub": {
     "guest": "Gäst",

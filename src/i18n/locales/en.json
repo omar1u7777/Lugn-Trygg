@@ -1438,7 +1438,8 @@
     "noWellnessData": "No data available yet",
     "sleepStory": "Sleep Story",
     "streakDays_one": "{{count}} day streak",
-    "streakDays_other": "{{count}} days streak"
+    "streakDays_other": "{{count}} days streak",
+    "audioUnavailable": "The audio could not be played. The timer keeps running — you can meditate in silence or try again later."
   },
   "profileHub": {
     "guest": "Guest",
