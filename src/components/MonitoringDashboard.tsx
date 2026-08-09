@@ -38,6 +38,9 @@ const MonitoringDashboard: React.FC = () => {
   });
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  // Which sources we could not reach on the last load. Without this a failed
+  // fetch is rendered as real zeroes, and zero errors reads as "healthy".
+  const [unavailable, setUnavailable] = useState({ stats: false, health: false });
 
   const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -49,13 +52,6 @@ const MonitoringDashboard: React.FC = () => {
     }
   }, [selectedAlert]);
 
-  useEffect(() => {
-    analytics.page('Monitoring Dashboard', {
-      component: 'MonitoringDashboard',
-    });
-    void loadRealMetrics();
-  }, [loadRealMetrics]);
-
   const loadRealMetrics = useCallback(async () => {
     try {
       const [statsData, healthData] = await Promise.allSettled([
@@ -65,6 +61,16 @@ const MonitoringDashboard: React.FC = () => {
 
       const stats = statsData.status === 'fulfilled' ? statsData.value : null;
       const health = healthData.status === 'fulfilled' ? healthData.value : null;
+
+      // Promise.allSettled never rejects, so the catch below cannot see a
+      // failed fetch. Track it explicitly: a null health response yields
+      // 0% errors, score 30 and no alerts, which the UI would otherwise
+      // present as a quiet, working system rather than as no data at all.
+      const healthFailed = healthData.status === 'rejected';
+      const statsFailed = statsData.status === 'rejected';
+      if (statsFailed) logger.error('Failed to load admin stats:', statsData.reason);
+      if (healthFailed) logger.error('Failed to load system health:', healthData.reason);
+      setUnavailable({ stats: statsFailed, health: healthFailed });
 
       setMetrics({
         uptime: health?.status === 'healthy' ? 99.9 : health?.status === 'degraded' ? 95.0 : 0,
@@ -77,6 +83,16 @@ const MonitoringDashboard: React.FC = () => {
 
       // Generate alerts from real data
       const realAlerts: AlertItem[] = [];
+      if (healthFailed) {
+        realAlerts.push({
+          id: 'health-unavailable',
+          type: 'error',
+          title: t('monitoring.healthUnavailable', 'Systemhälsan kunde inte hämtas'),
+          message: t('monitoring.healthUnavailableMsg', 'Övervakningen når inte backend — statusen nedan är okänd, inte frisk.'),
+          timestamp: new Date(),
+          resolved: false,
+        });
+      }
       if (health?.status === 'degraded') {
         realAlerts.push({
           id: 'health-degraded',
@@ -123,6 +139,15 @@ const MonitoringDashboard: React.FC = () => {
     }
   }, [t]);
 
+  // Declared after loadRealMetrics: reading it from the dependency array above
+  // the useCallback threw a TDZ ReferenceError on every mount.
+  useEffect(() => {
+    analytics.page('Monitoring Dashboard', {
+      component: 'MonitoringDashboard',
+    });
+    void loadRealMetrics();
+  }, [loadRealMetrics]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     analytics.track('Monitoring Data Refreshed', {
@@ -155,10 +180,14 @@ const MonitoringDashboard: React.FC = () => {
     status?: 'success' | 'warning' | 'error';
     icon: React.ReactNode;
     screenReaderLabel: string;
-  }> = ({ title, value, unit, trend, status = 'success', icon, screenReaderLabel }) => {
+    /** Source for this metric could not be reached — show "unknown", not a number. */
+    unavailable?: boolean;
+  }> = ({ title, value, unit, trend, status = 'success', icon, screenReaderLabel, unavailable }) => {
     const titleId = useId();
     const statusId = useId();
-    const statusText = status === 'success'
+    const statusText = unavailable
+      ? t('monitoring.metricUnknown', 'Unknown')
+      : status === 'success'
       ? t('monitoring.metricGood', 'Healthy')
       : status === 'warning'
         ? t('monitoring.metricWarning', 'Warning')
@@ -181,7 +210,7 @@ const MonitoringDashboard: React.FC = () => {
               {title}
             </h3>
           </div>
-          {trend && (
+          {trend && !unavailable && (
             <div className="text-sm">
               {trend === 'up' ? <ArrowTrendingUpIcon className="w-5 h-5 text-success-600" /> :
                trend === 'down' ? <ArrowTrendingUpIcon className="w-5 h-5 text-error-600 rotate-180" /> :
@@ -191,12 +220,13 @@ const MonitoringDashboard: React.FC = () => {
         </div>
 
         <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2" aria-live="polite">
-          {value}{unit}
+          {unavailable ? '—' : <>{value}{unit}</>}
         </p>
 
         <span
           id={statusId}
           className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+            unavailable ? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' :
             status === 'success' ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400' :
             status === 'warning' ? 'bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400' :
             'bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-400'
@@ -247,6 +277,7 @@ const MonitoringDashboard: React.FC = () => {
           status={getStatusColor(metrics.uptime, { good: 99.5, warning: 99 })}
           icon={<CheckCircleIcon className="w-5 h-5" />}
           screenReaderLabel={t('monitoring.screenReaderWidgetLabel', { metric: 'System uptime' })}
+          unavailable={unavailable.health}
         />
 
         <MetricCard
@@ -257,6 +288,7 @@ const MonitoringDashboard: React.FC = () => {
           status={getStatusColor(300 - metrics.responseTime, { good: 50, warning: 20 })}
           icon={<ChartBarIcon className="w-5 h-5" />}
           screenReaderLabel={t('monitoring.screenReaderWidgetLabel', { metric: 'Response time' })}
+          unavailable={unavailable.health}
         />
 
         <MetricCard
@@ -266,6 +298,7 @@ const MonitoringDashboard: React.FC = () => {
           status={getStatusColor(1 - metrics.errorRate, { good: 0.95, warning: 0.98 })}
           icon={<ExclamationCircleIcon className="w-5 h-5" />}
           screenReaderLabel={t('monitoring.screenReaderWidgetLabel', { metric: 'Error rate' })}
+          unavailable={unavailable.health}
         />
 
         <MetricCard
@@ -275,6 +308,7 @@ const MonitoringDashboard: React.FC = () => {
           status="success"
           icon={<ChartBarIcon className="w-5 h-5" />}
           screenReaderLabel={t('monitoring.screenReaderWidgetLabel', { metric: 'Active users' })}
+          unavailable={unavailable.stats}
         />
 
         <MetricCard
@@ -284,6 +318,7 @@ const MonitoringDashboard: React.FC = () => {
           status={getStatusColor(metrics.performanceScore, { good: 90, warning: 80 })}
           icon={<ArrowTrendingUpIcon className="w-5 h-5" />}
           screenReaderLabel={t('monitoring.screenReaderWidgetLabel', { metric: 'Performance score' })}
+          unavailable={unavailable.health}
         />
 
         <MetricCard
@@ -304,22 +339,30 @@ const MonitoringDashboard: React.FC = () => {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-gray-600 dark:text-gray-400">Lighthouse Score</span>
-              <span className="font-semibold text-gray-900 dark:text-white">{metrics.performanceScore}/100</span>
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {unavailable.health ? '—' : `${metrics.performanceScore}/100`}
+              </span>
             </div>
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <div
-                className={`h-2 rounded-full ${
-                  metrics.performanceScore >= 90 ? 'bg-success-600' :
-                  metrics.performanceScore >= 80 ? 'bg-warning-600' :
-                  'bg-error-600'
-                }`}
-                style={{ width: `${metrics.performanceScore}%` }}
-                role="progressbar"
-                aria-valuenow={metrics.performanceScore}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              ></div>
-            </div>
+            {unavailable.health ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {t('monitoring.scoreUnavailable', 'Poängen kunde inte hämtas — inte samma sak som en låg poäng.')}
+              </p>
+            ) : (
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full ${
+                    metrics.performanceScore >= 90 ? 'bg-success-600' :
+                    metrics.performanceScore >= 80 ? 'bg-warning-600' :
+                    'bg-error-600'
+                  }`}
+                  style={{ width: `${metrics.performanceScore}%` }}
+                  role="progressbar"
+                  aria-valuenow={metrics.performanceScore}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                ></div>
+              </div>
+            )}
           </div>
         </div>
       </Card>

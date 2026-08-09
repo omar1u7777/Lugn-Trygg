@@ -51,6 +51,8 @@ const AnalyticsDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which sources failed, so an empty chart can say why it is empty.
+  const [unavailable, setUnavailable] = useState({ stats: false, performance: false, health: false });
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -67,11 +69,13 @@ const AnalyticsDashboard: React.FC = () => {
     ]);
 
     let hasSuccess = false;
+    const failed: string[] = [];
 
     if (statsResult.status === 'fulfilled') {
       setStats(statsResult.value);
       hasSuccess = true;
     } else {
+      failed.push('användar- och innehållsstatistik');
       logger.error('Failed to load admin stats', statsResult.reason);
     }
 
@@ -79,6 +83,7 @@ const AnalyticsDashboard: React.FC = () => {
       setPerformanceMetrics(perfResult.value);
       hasSuccess = true;
     } else {
+      failed.push('prestandamätvärden');
       logger.error('Failed to load performance metrics', perfResult.reason);
     }
 
@@ -86,11 +91,23 @@ const AnalyticsDashboard: React.FC = () => {
       setSystemHealth(healthResult.value);
       hasSuccess = true;
     } else {
+      failed.push('systemhälsa');
       logger.error('Failed to load system health', healthResult.reason);
     }
 
+    setUnavailable({
+      stats: statsResult.status === 'rejected',
+      performance: perfResult.status === 'rejected',
+      health: healthResult.status === 'rejected',
+    });
+
+    // Promise.allSettled never rejects, so a partial failure previously left
+    // hasSuccess true and said nothing — the charts below simply rendered
+    // empty, which is how genuinely zero traffic looks too.
     if (!hasSuccess) {
       setError('Kunde inte ladda admin analytics-data just nu. Försök igen.');
+    } else if (failed.length > 0) {
+      setError(`Kunde inte ladda: ${failed.join(', ')}. Tomma diagram nedan betyder okänt, inte noll.`);
     }
 
     setLoading(false);
@@ -218,38 +235,50 @@ const AnalyticsDashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Användaröversikt</h3>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={usersChartData} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#2563eb" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {unavailable.stats && !stats ? (
+              <p className="text-sm text-slate-600 dark:text-slate-400">Statistiken kunde inte hämtas.</p>
+            ) : (
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={usersChartData} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#2563eb" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Innehållsvolym</h3>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={contentChartData} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#7c3aed" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {unavailable.stats && !stats ? (
+              <p className="text-sm text-slate-600 dark:text-slate-400">Statistiken kunde inte hämtas.</p>
+            ) : (
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={contentChartData} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#7c3aed" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
           <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Topp-endpoints: svarstid (ms)</h3>
-          {endpointChartData.length === 0 ? (
+          {unavailable.performance && !performanceMetrics ? (
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Prestandamätvärdena kunde inte hämtas — det är inte samma sak som noll trafik.
+            </p>
+          ) : endpointChartData.length === 0 ? (
             <p className="text-sm text-slate-600 dark:text-slate-400">Ingen endpoint-data tillgänglig.</p>
           ) : (
             <div className="h-80">

@@ -30,7 +30,8 @@ interface HealthMetrics {
   crisisAlerts: number;
   safetyChecks: number;
   averageMood: number;
-  riskLevel: 'low' | 'medium' | 'high';
+  // 'unknown' when the system health fetch failed — silence must not read as 'low'.
+  riskLevel: 'low' | 'medium' | 'high' | 'unknown';
 }
 
 const HealthMonitoring: React.FC = () => {
@@ -45,6 +46,8 @@ const HealthMonitoring: React.FC = () => {
 
   const [crisisIndicators, setCrisisIndicators] = useState<CrisisIndicator[]>([]);
   const [loading, setLoading] = useState(true);
+  // Which of the two sources we could not reach on the last load.
+  const [unavailable, setUnavailable] = useState({ stats: false, health: false });
 
   const [selectedIndicator, setSelectedIndicator] = useState<CrisisIndicator | null>(null);
   const [actionDialog, setActionDialog] = useState(false);
@@ -61,6 +64,16 @@ const HealthMonitoring: React.FC = () => {
       const stats = statsResult.status === 'fulfilled' ? statsResult.value : null;
       const health = healthResult.status === 'fulfilled' ? healthResult.value : null;
 
+      // Promise.allSettled never rejects, so the catch below never sees a
+      // failed call. A null health response falls through as errorRate 0 and
+      // status 'unknown', which the risk calculation below scores as 'low' —
+      // a monitoring outage would be painted green. Track it explicitly.
+      const statsFailed = statsResult.status === 'rejected';
+      const healthFailed = healthResult.status === 'rejected';
+      if (statsFailed) logger.error('HealthMonitoring: failed to load admin stats', statsResult.reason);
+      if (healthFailed) logger.error('HealthMonitoring: failed to load system health', healthResult.reason);
+      setUnavailable({ stats: statsFailed, health: healthFailed });
+
       const totalUsers = stats?.users?.total ?? 0;
       const activeUsers = stats?.users?.active7d ?? 0;
       const totalMoods = stats?.moods?.total ?? 0;
@@ -71,9 +84,10 @@ const HealthMonitoring: React.FC = () => {
       const avgMood = stats?.moods?.averageMood ?? 0;
 
       // Determine risk level from system health
-      let riskLevel: 'low' | 'medium' | 'high' = 'low';
+      let riskLevel: HealthMetrics['riskLevel'] = 'low';
       if (systemStatus === 'degraded' || errorRate > 5) riskLevel = 'medium';
       if (systemStatus === 'unhealthy' || errorRate > 15) riskLevel = 'high';
+      if (healthFailed) riskLevel = 'unknown';
 
       setMetrics({
         totalUsers,
@@ -199,7 +213,9 @@ const HealthMonitoring: React.FC = () => {
     subtitle?: string;
     icon: React.ReactNode;
     color?: string;
-  }> = ({ title, value, subtitle, icon, color = 'primary' }) => (
+    /** Source for this metric could not be reached — show a dash, not a zero. */
+    unavailable?: boolean;
+  }> = ({ title, value, subtitle, icon, color = 'primary', unavailable }) => (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
@@ -207,7 +223,7 @@ const HealthMonitoring: React.FC = () => {
             {title}
           </p>
           <p className="text-3xl font-bold text-gray-900 dark:text-white">
-            {loading ? '—' : typeof value === 'number' ? value.toLocaleString() : value}
+            {loading || unavailable ? '—' : typeof value === 'number' ? value.toLocaleString() : value}
           </p>
           {subtitle && (
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -274,6 +290,31 @@ const HealthMonitoring: React.FC = () => {
         </div>
       </div>
 
+      {/* Load failure — say the dashboard is blind rather than leaving the
+          numbers below to imply a quiet, healthy system. */}
+      {!loading && (unavailable.stats || unavailable.health) && (
+        <div className="bg-warning-50 dark:bg-warning-900/20 border-l-4 border-warning-500 p-4 rounded-lg flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-warning-900 dark:text-warning-100 mb-1">
+              Monitoring data unavailable
+            </h3>
+            <p className="text-sm text-warning-800 dark:text-warning-200">
+              {unavailable.stats && unavailable.health
+                ? 'Neither user statistics nor system health could be loaded. Nothing below reflects live data.'
+                : unavailable.health
+                ? 'System health could not be loaded — the risk level below is unknown, not low.'
+                : 'User statistics could not be loaded — the counts below are unknown, not zero.'}
+            </p>
+          </div>
+          <button
+            className="px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[40px]"
+            onClick={() => void loadRealMetrics()}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Critical Alert */}
       {metrics.crisisAlerts > 0 && (
         <div className="bg-error-50 dark:bg-error-900/20 border-l-4 border-error-500 p-4 rounded-lg">
@@ -294,6 +335,7 @@ const HealthMonitoring: React.FC = () => {
           subtitle="Users under active health monitoring"
           icon={<LightBulbIcon className="w-10 h-10" />}
           color="primary"
+          unavailable={unavailable.stats}
         />
 
         <MetricCard
@@ -310,6 +352,7 @@ const HealthMonitoring: React.FC = () => {
           subtitle="Completed this week"
           icon={<CheckCircleIcon className="w-10 h-10" />}
           color="success"
+          unavailable={unavailable.stats}
         />
 
         <MetricCard
@@ -318,6 +361,7 @@ const HealthMonitoring: React.FC = () => {
           subtitle="Community mood score"
           icon={<HeartIcon className="w-10 h-10" />}
           color="secondary"
+          unavailable={unavailable.stats}
         />
       </div>
 
@@ -328,33 +372,39 @@ const HealthMonitoring: React.FC = () => {
             Community Risk Level
           </h3>
           <span className={`px-4 py-2 rounded-full text-sm font-bold ${
-            metrics.riskLevel === 'low' 
-              ? 'bg-success-100 dark:bg-success-900/20 text-success-700 dark:text-success-300' 
-              : metrics.riskLevel === 'medium' 
-              ? 'bg-warning-100 dark:bg-warning-900/20 text-warning-700 dark:text-warning-300' 
+            metrics.riskLevel === 'unknown'
+              ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+              : metrics.riskLevel === 'low'
+              ? 'bg-success-100 dark:bg-success-900/20 text-success-700 dark:text-success-300'
+              : metrics.riskLevel === 'medium'
+              ? 'bg-warning-100 dark:bg-warning-900/20 text-warning-700 dark:text-warning-300'
               : 'bg-error-100 dark:bg-error-900/20 text-error-700 dark:text-error-300'
           }`}>
             {metrics.riskLevel.toUpperCase()}
           </span>
         </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-3">
-          <div
-            className={`h-3 rounded-full transition-all duration-500 ${
-              metrics.riskLevel === 'low' 
-                ? 'bg-success-600' 
-                : metrics.riskLevel === 'medium' 
-                ? 'bg-warning-600' 
-                : 'bg-error-600'
-            }`}
-            style={{ width: `${metrics.riskLevel === 'low' ? 25 : metrics.riskLevel === 'medium' ? 60 : 90}%` }}
-            role="progressbar"
-            aria-valuenow={metrics.riskLevel === 'low' ? 25 : metrics.riskLevel === 'medium' ? 60 : 90}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          />
-        </div>
+        {metrics.riskLevel !== 'unknown' && (
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-3">
+            <div
+              className={`h-3 rounded-full transition-all duration-500 ${
+                metrics.riskLevel === 'low'
+                  ? 'bg-success-600'
+                  : metrics.riskLevel === 'medium'
+                  ? 'bg-warning-600'
+                  : 'bg-error-600'
+              }`}
+              style={{ width: `${metrics.riskLevel === 'low' ? 25 : metrics.riskLevel === 'medium' ? 60 : 90}%` }}
+              role="progressbar"
+              aria-valuenow={metrics.riskLevel === 'low' ? 25 : metrics.riskLevel === 'medium' ? 60 : 90}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            />
+          </div>
+        )}
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Based on crisis indicators, mood trends, and user engagement patterns
+          {metrics.riskLevel === 'unknown'
+            ? 'Could not reach system health — no risk level was calculated. This is not the same as a low risk level.'
+            : 'Based on crisis indicators, mood trends, and user engagement patterns'}
         </p>
       </div>
 
@@ -370,6 +420,13 @@ const HealthMonitoring: React.FC = () => {
         </div>
 
         <div className="space-y-4">
+          {!loading && crisisIndicators.length === 0 && (
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {unavailable.health
+                ? 'Indicators could not be derived — system health is unavailable. An empty list here does not mean there are none.'
+                : 'No active crisis indicators.'}
+            </p>
+          )}
           {crisisIndicators.map((indicator) => (
             <div key={indicator.id} className={`p-4 rounded-lg border ${
               indicator.resolved 
