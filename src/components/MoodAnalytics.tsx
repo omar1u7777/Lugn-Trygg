@@ -20,11 +20,15 @@ import {
 } from '@heroicons/react/24/outline';
 import { LazyAnalyticsCharts as AnalyticsCharts } from './Charts/LazyChartWrapper';
 import { logger } from '../utils/logger';
+import { toLocalDateKey } from '../utils/dateKeys';
 import { exportMoodData } from '../api/mood';
 
 import MoodCalendar from './MoodCalendar';
 import { useMoodData } from '../features/mood/hooks/useMoodData';
-import { jsPDF } from 'jspdf';
+// jsPDF is ~590 kB (174 kB gzipped) and is only needed when the user actually
+// exports a PDF. Imported statically it rode along with this page's chunk, so
+// everyone opening Humöranalys paid for it whether or not they exported
+// anything. Loaded on demand at the call site instead.
 
 // Lazy load heavy components - Analytics charts now using placeholder
 
@@ -93,7 +97,7 @@ const MoodAnalytics: React.FC = () => {
     if (activeTab === 'monthly' && user) void loadMonthlyAnalytics();
   }, [monthlyMonths, activeTab, user, loadMonthlyAnalytics]);
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (!forecast) {
       return;
     }
@@ -102,6 +106,7 @@ const MoodAnalytics: React.FC = () => {
     setPdfError(null);
 
     try {
+      const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
         const {
           forecast: forecastData,
@@ -683,12 +688,6 @@ const MoodAnalytics: React.FC = () => {
                     // logged just after midnight lands on the previous day's
                     // bar in their own chart — and late-night logging is both
                     // common and clinically meaningful here.
-                    const toLocalDateKey = (date: Date) => {
-                      const y = date.getFullYear();
-                      const mo = `${date.getMonth() + 1}`.padStart(2, '0');
-                      const da = `${date.getDate()}`.padStart(2, '0');
-                      return `${y}-${mo}-${da}`;
-                    };
                     const now = new Date();
                     const days7 = Array.from({ length: 7 }, (_, i) => {
                       const d = new Date(now);
@@ -1065,7 +1064,7 @@ const MoodAnalytics: React.FC = () => {
             {/* Export PDF Button */}
             <Button
               variant="outline"
-              onClick={exportToPDF}
+              onClick={() => { void exportToPDF(); }}
               disabled={!forecast}
               className="flex items-center gap-2"
             >

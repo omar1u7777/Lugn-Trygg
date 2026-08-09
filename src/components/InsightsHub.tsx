@@ -43,7 +43,18 @@ interface AIPrediction {
   recommendation: string;
   bestTimeOfDay: string;
   suggestedActivity: string;
+  /** False when one of the two comparison weeks has no entries, so there is
+   *  no measured change to report. Substituting the lifetime average for a
+   *  missing week produced a confident trend out of nothing. */
+  trendAvailable: boolean;
+  /** False until a single hour of the day has enough entries to call it a
+   *  pattern rather than a coincidence. */
+  bestTimeAvailable: boolean;
 }
+
+/** Entries needed in one hour bucket before it is presented as the user's
+ *  best time of day. One good morning is not a pattern. */
+const MIN_ENTRIES_FOR_BEST_TIME = 3;
 
 interface MoodEntry {
   score?: number;
@@ -122,6 +133,12 @@ const InsightsHub: React.FC = () => {
             return date >= twoWeeksAgo && date < oneWeekAgo;
           });
 
+          // A missing week used to fall back to the lifetime average, which
+          // then got compared against the other week and reported as a trend.
+          // Someone who stopped logging was told their mood was "stabilt" and
+          // congratulated on consistency, measured against nothing.
+          const trendAvailable = lastWeekMoods.length > 0 && previousWeekMoods.length > 0;
+
           const lastWeekAvg = lastWeekMoods.length > 0
             ? lastWeekMoods.reduce((sum: number, m) => sum + (m.score || 0), 0) / lastWeekMoods.length
             : averageMoodScore;
@@ -147,17 +164,26 @@ const InsightsHub: React.FC = () => {
           const moodsByHour: { [key: number]: number[] } = {};
           moods.forEach((m) => {
             const hour = new Date(m.timestamp ?? '').getHours();
+            // An unparseable timestamp gives NaN, which became its own bucket
+            // and skewed the result under a key that is not an hour.
+            if (Number.isNaN(hour)) return;
             if (!moodsByHour[hour]) moodsByHour[hour] = [];
             moodsByHour[hour].push(m.score || 5);
           });
 
+          // Only hours with enough entries can be called a pattern. Without
+          // this, a single 03:00 entry made the app tell the user they feel
+          // best early in the morning.
           let bestHour = 9;
           let bestAvg = 0;
+          let bestTimeAvailable = false;
           Object.entries(moodsByHour).forEach(([hour, scores]) => {
+            if (scores.length < MIN_ENTRIES_FOR_BEST_TIME) return;
             const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
             if (avg > bestAvg) {
               bestAvg = avg;
               bestHour = parseInt(hour);
+              bestTimeAvailable = true;
             }
           });
 
@@ -197,13 +223,19 @@ const InsightsHub: React.FC = () => {
           setAiPrediction({
             trendDirection,
             trendPercentage: Math.abs(trendPercentage),
-            recommendation: trendDirection === 'up'
-              ? 'Fortsätt med dina goda vanor - de ger resultat!'
-              : trendDirection === 'down'
-                ? 'Prova att lägga till 10 minuter avslappning dagligen.'
-                : 'Du har ett stabilt mående - bra jobbat med konsistensen!',
+            // Praising consistency the user does not have is worse than
+            // saying nothing, so an unmeasured trend gets its own wording.
+            recommendation: !trendAvailable
+              ? 'Logga humör två veckor i rad så kan vi visa hur det utvecklas.'
+              : trendDirection === 'up'
+                ? 'Fortsätt med dina goda vanor - de ger resultat!'
+                : trendDirection === 'down'
+                  ? 'Prova att lägga till 10 minuter avslappning dagligen.'
+                  : 'Du har ett stabilt mående - bra jobbat med konsistensen!',
             bestTimeOfDay: timeLabels[bestTimeKey] || 'förmiddagen',
             suggestedActivity,
+            trendAvailable,
+            bestTimeAvailable,
           });
         }
 
@@ -312,13 +344,21 @@ const InsightsHub: React.FC = () => {
               <div className="relative z-10">
                 <h3 className="text-lg font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider text-xs">Aktuell Trend</h3>
                 <div className="flex items-baseline gap-2 mb-4">
-                  <span className={`text-4xl font-bold ${aiPrediction.trendDirection === 'up' ? 'text-green-600 dark:text-green-400' : aiPrediction.trendDirection === 'down' ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-blue-400'
-                    }`}>
-                    {aiPrediction.trendDirection === 'up' ? '↗' : aiPrediction.trendDirection === 'down' ? '↘' : '→'} {aiPrediction.trendPercentage}%
-                  </span>
-                  <span className="text-gray-600 dark:text-gray-300 font-medium">
-                    {aiPrediction.trendDirection === 'up' ? 'uppgång' : aiPrediction.trendDirection === 'down' ? 'nedgång' : 'stabilt'}
-                  </span>
+                  {aiPrediction.trendAvailable ? (
+                    <>
+                      <span className={`text-4xl font-bold ${aiPrediction.trendDirection === 'up' ? 'text-green-600 dark:text-green-400' : aiPrediction.trendDirection === 'down' ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-blue-400'
+                        }`}>
+                        {aiPrediction.trendDirection === 'up' ? '↗' : aiPrediction.trendDirection === 'down' ? '↘' : '→'} {aiPrediction.trendPercentage}%
+                      </span>
+                      <span className="text-gray-600 dark:text-gray-300 font-medium">
+                        {aiPrediction.trendDirection === 'up' ? 'uppgång' : aiPrediction.trendDirection === 'down' ? 'nedgång' : 'stabilt'}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xl font-semibold text-gray-500 dark:text-gray-400">
+                      Ingen mätbar trend än
+                    </span>
+                  )}
                 </div>
                 <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
                   {aiPrediction.recommendation}
@@ -334,13 +374,19 @@ const InsightsHub: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider text-xs">Smart Rekommendation</h3>
                 <div className="mb-4">
                   <p className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                    Bästa tid: {aiPrediction.bestTimeOfDay}
+                    {aiPrediction.bestTimeAvailable
+                      ? `Bästa tid: ${aiPrediction.bestTimeOfDay}`
+                      : 'Prova detta'}
                   </p>
                 </div>
                 <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-100 dark:border-amber-800/30">
                   <p className="text-amber-800 dark:text-amber-200 font-medium flex items-start gap-2">
                     <span className="text-xl">💡</span>
-                    <span>Prova {aiPrediction.suggestedActivity} under denna tid för att maximera ditt välmående.</span>
+                    <span>
+                      {aiPrediction.bestTimeAvailable
+                        ? `Prova ${aiPrediction.suggestedActivity} under denna tid för att maximera ditt välmående.`
+                        : `Prova ${aiPrediction.suggestedActivity}. När du loggat fler gånger kan vi också se vilken tid på dygnet som passar dig bäst.`}
+                    </span>
                   </p>
                 </div>
               </div>

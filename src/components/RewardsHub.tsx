@@ -16,6 +16,7 @@ import {
 import { getJournalEntries } from '../api/journaling';
 import { getReferralStats } from '../api/social';
 import { logger } from '../utils/logger';
+import { toLocalDateKey, toLocalDateKeyFrom } from '../utils/dateKeys';
 import {
   SparklesIcon,
   StarIcon,
@@ -52,6 +53,7 @@ const RewardsHub: React.FC = () => {
   const [rewards, setRewards] = useState<RewardItem[]>([]);
   const [userRewards, setUserRewards] = useState<UserReward | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [statsUnavailable, setStatsUnavailable] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalPoints: 0,
@@ -72,44 +74,64 @@ const RewardsHub: React.FC = () => {
 
     setLoading(true);
     setError(null);
+    setStatsUnavailable(false);
 
     try {
-      // Fetch all data in parallel
+      // Every fetch below catches its own rejection, so Promise.all never
+      // rejects and the catch at the end of this function cannot see a failed
+      // load. Without tracking it here, a network blip renders as a complete
+      // page reading 0 points and 0 streak — indistinguishable from a brand
+      // new account. Telling someone who has kept a 60-day streak that they
+      // have nothing is the worst thing this page can do.
+      const failed = new Set<string>();
       const [moods, userRewardsData, catalogData, journalResult, referralResult] = await Promise.all([
-        getMoods(user.user_id).catch((error) => { logger.error('Failed to fetch moods', error); return []; }),
-        getUserRewards().catch((error) => { logger.error('Failed to fetch user rewards', error); return null; }),
-        getRewardCatalog().catch((error) => { logger.error('Failed to fetch reward catalog', error); return []; }),
-        getJournalEntries(user.user_id, 1000).catch((error) => { logger.error('Failed to fetch journal entries', error); return []; }),
-        getReferralStats().catch((error) => { logger.error('Failed to fetch referral stats', error); return { successfulReferrals: 0 }; }),
+        getMoods(user.user_id).catch((error) => { logger.error('Failed to fetch moods', error); failed.add('moods'); return []; }),
+        getUserRewards().catch((error) => { logger.error('Failed to fetch user rewards', error); failed.add('rewards'); return null; }),
+        getRewardCatalog().catch((error) => { logger.error('Failed to fetch reward catalog', error); failed.add('catalog'); return []; }),
+        getJournalEntries(user.user_id, 1000).catch((error) => { logger.error('Failed to fetch journal entries', error); failed.add('journal'); return []; }),
+        getReferralStats().catch((error) => { logger.error('Failed to fetch referral stats', error); failed.add('referrals'); return { successfulReferrals: 0 }; }),
       ]);
 
       setRewards(catalogData);
       setUserRewards(userRewardsData);
+      setStatsUnavailable(failed.has('rewards') || failed.has('moods'));
 
-      // Calculate streak from moods
+      // Streak days are the user's own days. Keying on the UTC date credited
+      // a 00:30 log to yesterday, which broke the streak of anyone who logs
+      // late at night.
+      const loggedDays = new Set<string>();
+      moods.forEach((m: Record<string, unknown>) => {
+        const key = toLocalDateKeyFrom(m.timestamp);
+        if (key) loggedDays.add(key);
+      });
+
       const today = new Date();
       let streak = 0;
       for (let i = 0; i < 30; i++) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        const hasLog = moods.some((m: Record<string, unknown>) =>
-          typeof m.timestamp === 'string' && m.timestamp.startsWith(dateStr)
-        );
-        if (hasLog) streak++;
+        // No log today does not break the streak — the day is not over yet.
+        if (loggedDays.has(toLocalDateKey(date))) streak++;
         else if (i > 0) break;
       }
 
       // Check for new achievements based on real activity data
       const journalCount = Array.isArray(journalResult) ? journalResult.length : 0;
       const referralCount = referralResult?.successfulReferrals ?? 0;
-      const achievementCheck = await checkAchievements({
-        mood_count: moods.length,
-        streak: streak,
-        journal_count: journalCount,
-        referral_count: referralCount,
-        meditation_count: 0 // No meditation tracking backend yet
-      }).catch((error) => { logger.error('Failed to check achievements', error); return { newAchievements: [] }; });
+      // Sending counts that failed to load would submit zeros as if they were
+      // the user's real activity, so an earned achievement is quietly not
+      // awarded. Skip the check rather than judge them on data we do not have.
+      const achievementInputsUnreliable =
+        failed.has('moods') || failed.has('journal') || failed.has('referrals');
+      const achievementCheck = achievementInputsUnreliable
+        ? { newAchievements: [] }
+        : await checkAchievements({
+          mood_count: moods.length,
+          streak: streak,
+          journal_count: journalCount,
+          referral_count: referralCount,
+          meditation_count: 0 // No meditation tracking backend yet
+        }).catch((error) => { logger.error('Failed to check achievements', error); return { newAchievements: [] }; });
 
       // Show notification if new achievements earned
       if (achievementCheck.newAchievements?.length > 0) {
@@ -214,6 +236,26 @@ const RewardsHub: React.FC = () => {
           Tjäna poäng, lås upp prestationer och få belöningar för din resa
         </p>
       </div>
+
+      {statsUnavailable && (
+        <div
+          role="status"
+          className="mb-6 rounded-lg border border-warning-300 bg-warning-50 p-4 text-warning-900 dark:border-warning-700 dark:bg-warning-900/20 dark:text-warning-100"
+        >
+          <p className="font-semibold">
+            {t('rewards.statsUnavailableTitle', 'Dina siffror kunde inte hämtas')}
+          </p>
+          <p className="text-sm mt-1">
+            {t(
+              'rewards.statsUnavailableBody',
+              'Poängen och streaken nedan är inte dina riktiga värden just nu. Din streak är kvar — det här är ett tillfälligt fel hos oss, inte något du har missat.'
+            )}
+          </p>
+          <Button variant="secondary" className="mt-3" onClick={() => { void loadRewardsData(); }}>
+            {t('common.retry', 'Försök igen')}
+          </Button>
+        </div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
