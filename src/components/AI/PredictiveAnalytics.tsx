@@ -52,6 +52,7 @@ const usePredictiveData = () => {
   const [data, setData] = useState<PredictiveData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [crisisCheckFailed, setCrisisCheckFailed] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -83,9 +84,19 @@ const usePredictiveData = () => {
         newData.trends = trendsRes.value.data.data;
       }
 
-      // Handle crisis risk
+      // Handle crisis risk.
+      // CrisisAlert renders nothing when risk_level is 'low', so a failed
+      // check is visually identical to "you are not at risk" — silence reads
+      // as reassurance. Track the failure explicitly so the UI can say the
+      // check did not run rather than implying a clean result.
       if (crisisRes.status === 'fulfilled' && crisisRes.value.data.success) {
         newData.crisis_risk = crisisRes.value.data.data;
+        setCrisisCheckFailed(false);
+      } else {
+        setCrisisCheckFailed(true);
+        logger.error('Crisis risk check failed', {
+          reason: crisisRes.status === 'rejected' ? crisisRes.reason : 'unsuccessful response',
+        });
       }
 
       setData(newData);
@@ -111,7 +122,7 @@ const usePredictiveData = () => {
     fetchData();
   }, [fetchData]);
 
-  return { data, loading, error, refetch: fetchData };
+  return { data, loading, error, crisisCheckFailed, refetch: fetchData };
 };
 
 // Memoized components for performance
@@ -253,7 +264,7 @@ CrisisAlert.displayName = 'CrisisAlert';
 
 // Main component with performance optimizations
 const PredictiveAnalytics: React.FC = React.memo(() => {
-  const { data, loading, error, refetch } = usePredictiveData();
+  const { data, loading, error, crisisCheckFailed, refetch } = usePredictiveData();
 
   // Memoized computed values
   const hasData = useMemo(() => {
@@ -329,6 +340,31 @@ const PredictiveAnalytics: React.FC = React.memo(() => {
 
       {/* Crisis Alert */}
       {data?.crisis_risk && <CrisisAlert crisisRisk={data.crisis_risk} />}
+
+      {/* Say so when the risk check could not run. Rendering nothing here
+          would be indistinguishable from a low-risk result, and in this app
+          that silence would read as reassurance. */}
+      {crisisCheckFailed && (
+        <div
+          role="status"
+          className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-4"
+        >
+          <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+            Riskbedömningen kunde inte hämtas
+          </p>
+          <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
+            Det betyder inte att allt är bra — bara att kontrollen inte gick att
+            göra just nu. Mår du dåligt finns hjälp under Hjälp och stöd, eller
+            ring 90101.
+          </p>
+          <button
+            onClick={refetch}
+            className="mt-2 text-sm font-medium text-amber-900 dark:text-amber-200 underline"
+          >
+            Försök igen
+          </button>
+        </div>
+      )}
 
       {/* Trend Summary */}
       {data?.trends && <TrendSummary trends={data.trends} />}
