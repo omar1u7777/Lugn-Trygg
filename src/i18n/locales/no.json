@@ -601,6 +601,12 @@
       "desc": "Visade humörprediktioner 10 gånger"
     }
   },
+  "rewards": {
+    "loadError": "Kunne ikke laste belønninger. Prøv igjen.",
+    "claimError": "Kunne ikke hente belønning.",
+    "statsUnavailableTitle": "Tallene dine kunne ikke hentes",
+    "statsUnavailableBody": "Poengene og rekken nedenfor er ikke dine faktiske verdier akkurat nå. Rekken din er intakt — dette er en midlertidig feil hos oss, ikke noe du har gått glipp av."
+  },
   "relaxingSounds": {
     "trackTitle": "Lugn Musik",
     "description": "🎵 Lugn och avslappnande musik för att hjälpa dig slappna av och må bättre."
