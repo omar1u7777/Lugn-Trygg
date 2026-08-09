@@ -20,6 +20,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { LazyAnalyticsCharts as AnalyticsCharts } from './Charts/LazyChartWrapper';
 import { logger } from '../utils/logger';
+import { toLocalDateKey } from '../utils/dateKeys';
 import { exportMoodData } from '../api/mood';
 
 import MoodCalendar from './MoodCalendar';
@@ -687,12 +688,6 @@ const MoodAnalytics: React.FC = () => {
                     // logged just after midnight lands on the previous day's
                     // bar in their own chart — and late-night logging is both
                     // common and clinically meaningful here.
-                    const toLocalDateKey = (date: Date) => {
-                      const y = date.getFullYear();
-                      const mo = `${date.getMonth() + 1}`.padStart(2, '0');
-                      const da = `${date.getDate()}`.padStart(2, '0');
-                      return `${y}-${mo}-${da}`;
-                    };
                     const now = new Date();
                     const days7 = Array.from({ length: 7 }, (_, i) => {
                       const d = new Date(now);

@@ -558,6 +558,12 @@
       "desc": "Viewed mood predictions 10 times"
     }
   },
+  "rewards": {
+    "loadError": "Could not load rewards. Please try again.",
+    "claimError": "Could not claim reward.",
+    "statsUnavailableTitle": "We could not load your numbers",
+    "statsUnavailableBody": "The points and streak below are not your real values right now. Your streak is intact — this is a temporary problem on our side, not something you missed."
+  },
   "relaxingSounds": {
     "trackTitle": "Calm Music",
     "description": "🎵 Calm and relaxing music to help you unwind and feel better."

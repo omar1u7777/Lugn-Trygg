@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { getJournalHeroImageId } from '../config/env';
 import { logger } from '../utils/logger';
+import { toLocalDateKey, toLocalDateKeyFrom } from '../utils/dateKeys';
 
 const JournalList = lazy(() => import('./JournalList'));
 const MoodList = lazy(() => import('./MoodList'));
@@ -67,38 +68,12 @@ const JournalHub: React.FC = () => {
   const calculateStreak = useCallback((moods: Array<{ timestamp?: string | Date | { seconds?: number; toDate?: () => Date } }>) => {
     if (!moods.length) return 0;
     const today = new Date();
-    // Key by the user's LOCAL calendar day, not the UTC day. toISOString()
-    // shifts to UTC, so for any non-UTC user two entries on different local
-    // days (e.g. 23:00 and then 01:00 the next night) collapse into one UTC
-    // day and the streak silently under-counts. This matches the local-date
-    // keying already used by the wellness streak.
-    const toLocalDateKey = (date: Date): string => {
-      const y = date.getFullYear();
-      const m = `${date.getMonth() + 1}`.padStart(2, '0');
-      const d = `${date.getDate()}`.padStart(2, '0');
-      return `${y}-${m}-${d}`;
-    };
-    const getDateKey = (value: unknown): string | null => {
-      if (!value) return null;
-      let date: Date | undefined;
-      if (value instanceof Date) {
-        date = value;
-      } else if (typeof value === 'object' && value !== null && 'seconds' in value) {
-        const seconds = (value as { seconds: number }).seconds;
-        date = new Date(seconds * 1000);
-      } else if (typeof value === 'string') {
-        date = new Date(value);
-      }
-      if (!date || Number.isNaN(date.getTime())) return null;
-      return toLocalDateKey(date);
-    };
-
     let streak = 0;
     for (let i = 0; i < 7; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       const dateStr = toLocalDateKey(date);
-      const hasLog = moods.some((m) => getDateKey(m.timestamp) === dateStr);
+      const hasLog = moods.some((m) => toLocalDateKeyFrom(m.timestamp) === dateStr);
       if (hasLog) streak++;
       else break;
     }
