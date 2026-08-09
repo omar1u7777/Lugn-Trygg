@@ -72,6 +72,10 @@ export const AIChatInsights: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'framework' | 'quality' | 'progress'>('framework');
+  // Each tab only renders when its own data arrived, so a single failed
+  // request leaves that tab completely blank — which looks exactly like
+  // having no insights yet. Track per-tab failures to tell the two apart.
+  const [failedTabs, setFailedTabs] = useState({ framework: false, quality: false, progress: false });
 
   useEffect(() => {
     fetchInsights();
@@ -88,17 +92,23 @@ export const AIChatInsights: React.FC = () => {
         api.get('/chatbot/analysis/progress')
       ]);
 
-      if (frameworkRes.status === 'fulfilled' && frameworkRes.value.data?.success) {
+      const frameworkOk = frameworkRes.status === 'fulfilled' && frameworkRes.value.data?.success;
+      const qualityOk = qualityRes.status === 'fulfilled' && qualityRes.value.data?.success;
+      const progressOk = progressRes.status === 'fulfilled' && progressRes.value.data?.success;
+
+      if (frameworkOk) {
         setFramework(frameworkRes.value.data.data);
       }
 
-      if (qualityRes.status === 'fulfilled' && qualityRes.value.data?.success) {
+      if (qualityOk) {
         setMetrics(qualityRes.value.data.data.metrics);
       }
 
-      if (progressRes.status === 'fulfilled' && progressRes.value.data?.success) {
+      if (progressOk) {
         setProgress(progressRes.value.data.data);
       }
+
+      setFailedTabs({ framework: !frameworkOk, quality: !qualityOk, progress: !progressOk });
 
       // If all three failed, show error
       if (
@@ -110,6 +120,7 @@ export const AIChatInsights: React.FC = () => {
       }
     } catch (e) {
       logger.error('Failed to fetch insights', e as Error);
+      setFailedTabs({ framework: true, quality: true, progress: true });
       setError('Kunde inte hämta insikter. Försök igen senare.');
     } finally {
       setLoading(false);
@@ -225,6 +236,18 @@ export const AIChatInsights: React.FC = () => {
           Framsteg
         </button>
       </div>
+
+      {/* A tab whose request failed — an empty panel here would otherwise read
+          as "no insights from your conversations yet". */}
+      {activeTab === 'framework' && !framework && failedTabs.framework && (
+        <TabLoadError onRetry={fetchInsights} />
+      )}
+      {activeTab === 'quality' && !metrics && failedTabs.quality && (
+        <TabLoadError onRetry={fetchInsights} />
+      )}
+      {activeTab === 'progress' && !progress && failedTabs.progress && (
+        <TabLoadError onRetry={fetchInsights} />
+      )}
 
       {/* Framework Tab */}
       {activeTab === 'framework' && framework && (
@@ -450,6 +473,24 @@ export const AIChatInsights: React.FC = () => {
     </div>
   );
 };
+
+const TabLoadError: React.FC<{ onRetry: () => void }> = ({ onRetry }) => (
+  <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 p-6 text-center">
+    <ExclamationTriangleIcon className="w-8 h-8 text-amber-500 mx-auto mb-3" />
+    <p className="text-amber-800 dark:text-amber-300 font-medium">
+      Den här analysen kunde inte hämtas.
+    </p>
+    <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
+      Det betyder inte att det saknas underlag i dina samtal — vi nådde bara inte analysen.
+    </p>
+    <button
+      onClick={onRetry}
+      className="mt-4 px-4 py-2 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 rounded-lg text-sm hover:bg-amber-200 dark:hover:bg-amber-900/60 transition-colors"
+    >
+      Försök igen
+    </button>
+  </div>
+);
 
 interface QualityCardProps {
   title: string;
