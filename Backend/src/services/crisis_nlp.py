@@ -434,6 +434,32 @@ class SemanticCrisisDetector:
 
         return min(0.98, base_confidence + concept_boost)
 
+    def _analyze_context_keywords(
+        self, conversation_context: list | None, crisis_keywords: dict[str, list[str]]
+    ) -> float:
+        """Escalation score from recent user messages, for fallback mode.
+
+        Mirrors _analyze_context: last 5 exchanges, user turns only, 0.1 per
+        distressed message, capped at 0.3. Only ever adds to the score.
+        """
+        if not conversation_context or len(conversation_context) < 2:
+            return 0.0
+
+        all_keywords = [kw for keywords in crisis_keywords.values() for kw in keywords]
+
+        distress_count = 0
+        for message in conversation_context[-5:]:
+            if not isinstance(message, dict) or message.get('role') != 'user':
+                continue
+            content = message.get('content')
+            if not isinstance(content, str):
+                continue
+            content_lower = content.lower()
+            if any(keyword in content_lower for keyword in all_keywords):
+                distress_count += 1
+
+        return min(0.3, distress_count * 0.1)
+
     def _fallback_detection(self, text: str, conversation_context: list | None = None) -> SemanticCrisisAssessment:
         """Fallback to enhanced keyword-based detection."""
 
@@ -483,6 +509,16 @@ class SemanticCrisisDetector:
         urgency_detected = self._detect_urgency(text) if hasattr(self, '_detect_urgency') else False
         if urgency_detected:
             max_severity = min(1.0, max_severity + 0.2)
+
+        # conversation_context was accepted and then never read, so someone
+        # whose last five messages showed mounting distress was scored exactly
+        # as if they had said it once. _analyze_context does this for the
+        # semantic path but needs an embedding model, which fallback mode does
+        # not have. Same policy, same cap, keyword matching instead of
+        # embeddings — so the two paths agree on what history is worth.
+        context_score = self._analyze_context_keywords(conversation_context, crisis_keywords)
+        if context_score:
+            max_severity = min(1.0, max_severity + context_score)
 
         risk_level = self._score_to_level(max_severity)
 
