@@ -68,6 +68,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
   const [userPreferences] = useState<string[]>(['mindfulness', 'stress', 'anxiety']);
   const [fetchedWellnessGoals, setFetchedWellnessGoals] = useState<string[]>([]);
+  const [goalsUnavailable, setGoalsUnavailable] = useState(false);
   const [showContentModal, setShowContentModal] = useState(false);
   const [completedRecommendationIds, setCompletedRecommendationIds] = useState<Record<string, boolean>>({});
   const [moodTrendData, setMoodTrendData] = useState<MoodTrendData | null>(null);
@@ -362,6 +363,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       logger.debug('🔄 Starting wellness goals fetch...');
       setLoading(true);
       setError(null);
+      setGoalsUnavailable(false);
 
       try {
         if (user?.user_id) {
@@ -381,7 +383,11 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         logger.error('❌ Failed to fetch wellness goals:', error);
         logger.debug('⚠️ Showing generic recommendations due to error');
         setFetchedWellnessGoals([]); // Show generic recommendations on error
-        // Don't set error state - just show generic recommendations
+        // Falling back to generic recommendations is right — they are still
+        // useful. Doing it silently is not: the page tells the user we adapt
+        // to their wellness goals, and with this fetch failed that sentence is
+        // untrue and they have no way to tell.
+        setGoalsUnavailable(true);
       } finally {
         setLoading(false);
         logger.debug('🏁 Wellness goals fetch completed');
@@ -1081,7 +1087,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           ))}
         </div>
         <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-3">
-          {t('recommendations.preferences.adaptText', 'Vi anpassar rekommendationer baserat på dina intressen, aktivitet och wellness-mål')}
+          {goalsUnavailable
+            ? t(
+              'recommendations.preferences.goalsUnavailable',
+              'Dina wellness-mål kunde inte hämtas just nu, så förslagen nedan är allmänna och inte anpassade efter dem.'
+            )
+            : t('recommendations.preferences.adaptText', 'Vi anpassar rekommendationer baserat på dina intressen, aktivitet och wellness-mål')}
         </p>
       </div>
 
