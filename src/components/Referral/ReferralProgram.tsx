@@ -8,6 +8,7 @@ import ReferralHistory from './ReferralHistory';
 import RewardsCatalog from './RewardsCatalog';
 import EmailInvite from './EmailInvite';
 import { logger } from '../../utils/logger';
+import { useTranslation } from 'react-i18next';
 
 
 interface ReferralData {
@@ -25,6 +26,7 @@ interface ReferralStats {
 }
 
 const ReferralProgram: React.FC = () => {
+    const { t } = useTranslation();
     const { user } = useAuth();
     const [referralData, setReferralData] = useState<ReferralData | null>(null);
     const [stats, setStats] = useState<ReferralStats | null>(null);
@@ -113,7 +115,7 @@ const ReferralProgram: React.FC = () => {
     const handleShare = (platform: string) => {
         if (!referralData) return;
 
-        const message = `Gå med i Lugn & Trygg och få bättre mental hälsa! Använd min referenskod: ${referralData.referralCode}`;
+        const message = t('referral.shareMessage', 'Gå med i Lugn & Trygg och få bättre mental hälsa! Använd min referenskod: {{code}}', { code: referralData.referralCode });
         const encodedMessage = encodeURIComponent(message);
         const encodedLink = encodeURIComponent(referralData.referralLink);
 
@@ -121,7 +123,7 @@ const ReferralProgram: React.FC = () => {
             whatsapp: `https://wa.me/?text=${encodedMessage}%20${encodedLink}`,
             facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedLink}`,
             twitter: `https://twitter.com/intent/tweet?text=${encodedMessage}&url=${encodedLink}`,
-            email: `mailto:?subject=Gå med i Lugn & Trygg&body=${encodedMessage}%20${encodedLink}`
+            email: `mailto:?subject=${encodeURIComponent(t('referral.shareSubject', 'Gå med i Lugn & Trygg'))}&body=${encodedMessage}%20${encodedLink}`
         };
 
         if (shareUrls[platform]) {
@@ -129,12 +131,17 @@ const ReferralProgram: React.FC = () => {
         }
     };
 
+    // Thresholds must match referral_routes.py, which decides the tier the user
+    // is actually granted: Silver >= 5, Gold >= 15, Platinum >= 30. These read
+    // 10 and 15, so the progress bar promised Gold at 10 referrals when the
+    // backend gives it at 15 — the user hit the target the app showed them and
+    // got nothing. The reward list further down this page had it right.
     const getTierInfo = (tier: string): { emoji: string, color: string, nextTier?: string, required?: number } => {
         const defaultTier = { emoji: '🥉', color: 'bg-amber-700', nextTier: 'Silver', required: 5 };
         const tiers: { [key: string]: { emoji: string, color: string, nextTier?: string, required?: number } } = {
             Bronze: defaultTier,
-            Silver: { emoji: '🥈', color: 'bg-slate-400', nextTier: 'Gold', required: 10 },
-            Gold: { emoji: '🥇', color: 'bg-yellow-400', nextTier: 'Platinum', required: 15 },
+            Silver: { emoji: '🥈', color: 'bg-slate-400', nextTier: 'Gold', required: 15 },
+            Gold: { emoji: '🥇', color: 'bg-yellow-400', nextTier: 'Platinum', required: 30 },
             Platinum: { emoji: '💎', color: 'bg-purple-600' }
         };
         return tiers[tier] ?? defaultTier;
@@ -161,7 +168,7 @@ const ReferralProgram: React.FC = () => {
                         <span className="text-2xl">❌</span>
                         <div>
                             <h3 className="text-lg font-bold text-red-900 dark:text-red-100 mb-2">
-                                Något gick fel
+                                {t('referral.errorTitle', 'Något gick fel')}
                             </h3>
                             <p className="text-sm text-red-700 dark:text-red-300">
                                 {error}
@@ -181,7 +188,7 @@ const ReferralProgram: React.FC = () => {
                         <span className="text-2xl">⚠️</span>
                         <div>
                             <h3 className="text-lg font-bold text-amber-900 dark:text-amber-100 mb-2">
-                                Ingen data tillgänglig
+                                {t('referral.noData', 'Ingen data tillgänglig')}
                             </h3>
                             <p className="text-sm text-amber-700 dark:text-amber-300">
                                 Kunde inte ladda referensdata.
@@ -202,10 +209,10 @@ const ReferralProgram: React.FC = () => {
                 {/* Header */}
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-3">
-                        🤝 Referensprogram
+                        🤝 {t('referral.title', 'Referensprogram')}
                     </h1>
                     <p className="text-xl text-slate-600 dark:text-slate-400">
-                        Bjud in vänner och få belöningar! Både du och din vän tjänar på det.
+                        {t('referral.subtitle', 'Bjud in vänner och få belöningar! Både du och din vän tjänar på det.')}
                     </p>
                 </div>
 
@@ -213,7 +220,7 @@ const ReferralProgram: React.FC = () => {
                 {copied && (
                     <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in-right">
                         <span>✅</span>
-                        <span className="font-medium">Kopierat till urklipp!</span>
+                        <span className="font-medium">{t('referral.copied', 'Kopierat till urklipp!')}</span>
                     </div>
                 )}
 
@@ -222,12 +229,12 @@ const ReferralProgram: React.FC = () => {
                     <div className="flex items-center justify-between mb-6">
                         <div>
                             <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-                                Din nivå: {referralData.tier}
+                                {t('referral.yourTier', 'Din nivå: {{tier}}', { tier: referralData.tier })}
                             </h2>
                             <p className="text-slate-600 dark:text-slate-400">
                                 {tierInfo.nextTier 
-                                    ? `${tierInfo.required! - referralData.referralCount} fler referenser till ${tierInfo.nextTier}`
-                                    : 'Högsta nivån uppnådd! 🎉'}
+                                    ? t('referral.toNextTier', '{{count}} fler referenser till {{tier}}', { count: tierInfo.required! - referralData.referralCount, tier: tierInfo.nextTier })
+                                    : t('referral.topTier', 'Högsta nivån uppnådd! 🎉')}
                             </p>
                         </div>
                         <div className="text-6xl">
@@ -261,7 +268,7 @@ const ReferralProgram: React.FC = () => {
                                 {referralData.referralCount || 0}
                             </div>
                             <div className="text-sm opacity-90">
-                                Totalt bjudna
+                                {t('referral.totalInvited', 'Totalt bjudna')}
                             </div>
                         </div>
                         <div className="bg-gradient-to-br from-secondary-500 to-secondary-600 rounded-lg p-4 text-white text-center">
@@ -269,15 +276,15 @@ const ReferralProgram: React.FC = () => {
                                 {stats?.active || 0}
                             </div>
                             <div className="text-sm opacity-90">
-                                Aktiva användare
+                                {t('referral.activeUsers', 'Aktiva användare')}
                             </div>
                         </div>
                         <div className="bg-gradient-to-br from-success-500 to-success-600 rounded-lg p-4 text-white text-center">
                             <div className="text-3xl font-bold mb-1">
-                                {referralData.rewards || 0} veckor
+                                {t('referral.weeks', '{{count}} veckor', { count: referralData.rewards || 0 })}
                             </div>
                             <div className="text-sm opacity-90">
-                                Premium-belöning
+                                {t('referral.premiumReward', 'Premium-belöning')}
                             </div>
                         </div>
                     </div>
@@ -305,7 +312,7 @@ const ReferralProgram: React.FC = () => {
                                     className="btn btn-primary flex items-center gap-2"
                                 >
                                     <DocumentDuplicateIcon className="h-5 w-5" />
-                                    Kopiera
+                                    {t('referral.copy', 'Kopiera')}
                                 </button>
                             </div>
                         </div>
@@ -314,7 +321,7 @@ const ReferralProgram: React.FC = () => {
                             <div className="flex items-center justify-between">
                                 <div className="flex-1">
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">
-                                        Referenslänk
+                                        {t('referral.referralLink', 'Referenslänk')}
                                     </p>
                                     <p className="text-sm font-mono text-slate-700 dark:text-slate-300 break-all">
                                         {referralData.referralLink}
@@ -325,7 +332,7 @@ const ReferralProgram: React.FC = () => {
                                     className="btn btn-primary flex items-center gap-2 ml-4"
                                 >
                                     <DocumentDuplicateIcon className="h-5 w-5" />
-                                    Kopiera
+                                    {t('referral.copy', 'Kopiera')}
                                 </button>
                             </div>
                         </div>
@@ -335,7 +342,7 @@ const ReferralProgram: React.FC = () => {
                 {/* Share Options Card */}
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700">
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">
-                        📢 Dela med vänner
+                        📢 {t('referral.shareWithFriends', 'Dela med vänner')}
                     </h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <button
@@ -387,17 +394,17 @@ const ReferralProgram: React.FC = () => {
                 {/* Rewards Info Card */}
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700">
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">
-                        🎁 Belöningar
+                        🎁 {t('referral.rewardsTitle', 'Belöningar')}
                     </h2>
                     <div className="space-y-4">
                         <div className="flex items-start gap-4 p-4 rounded-lg bg-slate-50 dark:bg-slate-900">
                             <span className="text-3xl">✅</span>
                             <div>
                                 <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
-                                    Varje ny användare
+                                    {t('referral.tiers.each', 'Varje ny användare')}
                                 </h3>
                                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                                    Du och din vän får båda 1 vecka gratis premium
+                                    {t('referral.tiers.eachBody', 'Du och din vän får båda 1 vecka gratis premium')}
                                 </p>
                             </div>
                         </div>
@@ -405,10 +412,10 @@ const ReferralProgram: React.FC = () => {
                             <span className="text-3xl">🥈</span>
                             <div>
                                 <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
-                                    Silver-nivå (5 referenser)
+                                    {t('referral.tiers.silver', 'Silver-nivå (5 referenser)')}
                                 </h3>
                                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                                    1 månad gratis premium + prioriterad support
+                                    {t('referral.tiers.silverBody', '1 månad gratis premium + prioriterad support')}
                                 </p>
                             </div>
                         </div>
@@ -416,10 +423,10 @@ const ReferralProgram: React.FC = () => {
                             <span className="text-3xl">🥇</span>
                             <div>
                                 <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
-                                    Gold-nivå (15 referenser)
+                                    {t('referral.tiers.gold', 'Gold-nivå (15 referenser)')}
                                 </h3>
                                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                                    3 månader gratis premium + exklusiva funktioner
+                                    {t('referral.tiers.goldBody', '3 månader gratis premium + exklusiva funktioner')}
                                 </p>
                             </div>
                         </div>
@@ -427,10 +434,10 @@ const ReferralProgram: React.FC = () => {
                             <span className="text-3xl">💎</span>
                             <div>
                                 <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
-                                    Platinum-nivå (30 referenser)
+                                    {t('referral.tiers.platinum', 'Platinum-nivå (30 referenser)')}
                                 </h3>
                                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                                    6 månader gratis premium + VIP-support + Lugn & Trygg merchandise
+                                    {t('referral.tiers.platinumBody', '6 månader gratis premium + VIP-support + Lugn & Trygg merchandise')}
                                 </p>
                             </div>
                         </div>
@@ -441,7 +448,7 @@ const ReferralProgram: React.FC = () => {
                                     Bonus: Varje 10:e referens
                                 </h3>
                                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                                    Extra 2 veckor premium + överraskning!
+                                    {t('referral.tiers.bonusBody', 'Extra 2 veckor premium + överraskning!')}
                                 </p>
                             </div>
                         </div>
@@ -456,19 +463,19 @@ const ReferralProgram: React.FC = () => {
                     <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
                         <li className="flex items-start gap-2">
                             <span className="mt-1">•</span>
-                            <span>Båda parter måste vara nya användare eller ha aktivt konto</span>
+                            <span>{t('referral.terms.accounts', 'Båda parter måste vara nya användare eller ha aktivt konto')}</span>
                         </li>
                         <li className="flex items-start gap-2">
                             <span className="mt-1">•</span>
-                            <span>Belöningen aktiveras när din vän slutför registreringen</span>
+                            <span>{t('referral.terms.activation', 'Belöningen aktiveras när din vän slutför registreringen')}</span>
                         </li>
                         <li className="flex items-start gap-2">
                             <span className="mt-1">•</span>
-                            <span>Belöningar kan inte växlas till kontanter</span>
+                            <span>{t('referral.terms.noCash', 'Belöningar kan inte växlas till kontanter')}</span>
                         </li>
                         <li className="flex items-start gap-2">
                             <span className="mt-1">•</span>
-                            <span>Lugn & Trygg förbehåller sig rätten att ändra villkoren</span>
+                            <span>{t('referral.terms.changes', 'Lugn & Trygg förbehåller sig rätten att ändra villkoren')}</span>
                         </li>
                     </ul>
                 </div>

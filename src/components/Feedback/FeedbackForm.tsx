@@ -3,6 +3,7 @@ import { Button, Card, Alert, Input } from '../ui/tailwind';
 import { PaperAirplaneIcon, ClockIcon, PencilIcon, StarIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { API_ENDPOINTS } from '../../api/constants';
 import FeedbackHistory from './FeedbackHistory';
@@ -19,6 +20,7 @@ interface FeedbackData {
 
 const FeedbackForm: React.FC = () => {
     const { user } = useAuth();
+    const { t } = useTranslation();
     const [feedback, setFeedback] = useState<FeedbackData>({
         category: 'general',
         rating: 5,
@@ -32,24 +34,24 @@ const FeedbackForm: React.FC = () => {
     const [showHistory, setShowHistory] = useState(false);
 
     const categories = [
-        { value: 'general', label: '💬 Allmän feedback', emoji: '💬' },
-        { value: 'bug', label: '🐛 Rapportera bugg', emoji: '🐛' },
-        { value: 'feature', label: '✨ Förslag på funktion', emoji: '✨' },
-        { value: 'ui', label: '🎨 Användargränssnitt', emoji: '🎨' },
-        { value: 'performance', label: '⚡ Prestanda', emoji: '⚡' },
-        { value: 'content', label: '📝 Innehåll/Texter', emoji: '📝' }
+        { value: 'general', label: t('feedbackForm.categories.general', 'Allmän feedback'), emoji: '💬' },
+        { value: 'bug', label: t('feedbackForm.categories.bug', 'Rapportera bugg'), emoji: '🐛' },
+        { value: 'feature', label: t('feedbackForm.categories.feature', 'Förslag på funktion'), emoji: '✨' },
+        { value: 'ui', label: t('feedbackForm.categories.ui', 'Användargränssnitt'), emoji: '🎨' },
+        { value: 'performance', label: t('feedbackForm.categories.performance', 'Prestanda'), emoji: '⚡' },
+        { value: 'content', label: t('feedbackForm.categories.content', 'Innehåll/Texter'), emoji: '📝' }
     ];
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
         if (!user?.user_id) {
-            setError('Du måste vara inloggad för att skicka feedback');
+            setError(t('feedbackForm.errors.notLoggedIn', 'Du måste vara inloggad för att skicka feedback'));
             return;
         }
         
         if (!feedback.message.trim()) {
-            setError('Vänligen skriv ett meddelande');
+            setError(t('feedbackForm.errors.emptyMessage', 'Vänligen skriv ett meddelande'));
             return;
         }
 
@@ -83,7 +85,7 @@ const FeedbackForm: React.FC = () => {
             logger.error('❌ Failed to submit feedback:', err);
             const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'message' in err.response.data
                 ? String(err.response.data.message)
-                : 'Något gick fel vid inlämnandet. Försök igen.';
+                : t('feedbackForm.errors.submitFailed', 'Något gick fel vid inlämnandet. Försök igen.');
             setError(errorMessage);
         } finally {
             setLoading(false);
@@ -100,10 +102,10 @@ const FeedbackForm: React.FC = () => {
                 <Card className="max-w-md w-full p-8 text-center shadow-xl">
                     <div className="text-6xl mb-4">✅</div>
                     <h2 className="text-3xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                        Tack för din feedback!
+                        {t('feedbackForm.thanksTitle', 'Tack för din feedback!')}
                     </h2>
                     <p className="text-gray-600 dark:text-gray-400 mb-6">
-                        Din feedback hjälper oss att göra Lugn & Trygg bättre för alla användare.
+                        {t('feedbackForm.thanksBody', 'Din feedback hjälper oss att göra Lugn & Trygg bättre för alla användare.')}
                     </p>
                     <Button
                         variant="success"
@@ -111,7 +113,7 @@ const FeedbackForm: React.FC = () => {
                         onClick={() => setSubmitted(false)}
                         className="w-full"
                     >
-                        Skicka mer feedback
+                        {t('feedbackForm.sendMore', 'Skicka mer feedback')}
                     </Button>
                 </Card>
             </div>
@@ -123,10 +125,10 @@ const FeedbackForm: React.FC = () => {
             {/* Header */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-gray-100">
-                    💬 Feedback
+                    💬 {t('feedbackForm.title', 'Feedback')}
                 </h1>
                 <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">
-                    Din åsikt är viktig för oss! Dela dina tankar, förslag eller rapportera problem.
+                    {t('feedbackForm.subtitle', 'Din åsikt är viktig för oss! Dela dina tankar, förslag eller rapportera problem.')}
                 </p>
                 
                 {/* Toggle History Button */}
@@ -138,12 +140,12 @@ const FeedbackForm: React.FC = () => {
                     {showHistory ? (
                         <>
                             <PencilIcon className="w-5 h-5" />
-                            ✍️ Ny feedback
+                            ✍️ {t('feedbackForm.newFeedback', 'Ny feedback')}
                         </>
                     ) : (
                         <>
                             <ClockIcon className="w-5 h-5" />
-                            📜 Visa min historik
+                            📜 {t('feedbackForm.showHistory', 'Visa min historik')}
                         </>
                     )}
                 </Button>
@@ -166,7 +168,7 @@ const FeedbackForm: React.FC = () => {
                 {/* Category Selection */}
                 <Card className="p-6">
                     <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                        📁 Kategori
+                        📁 {t('feedbackForm.category', 'Kategori')}
                     </h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {categories.map((cat) => (
@@ -189,7 +191,7 @@ const FeedbackForm: React.FC = () => {
                 {/* Rating */}
                 <Card className="p-6">
                     <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                        ⭐ Hur nöjd är du med Lugn & Trygg?
+                        ⭐ {t('feedbackForm.ratingQuestion', 'Hur nöjd är du med Lugn & Trygg?')}
                     </h2>
                     <div className="flex justify-center gap-2 mb-4">
                         {[1, 2, 3, 4, 5].map((star) => (
@@ -208,30 +210,30 @@ const FeedbackForm: React.FC = () => {
                         ))}
                     </div>
                     <p className="text-sm text-center text-gray-600 dark:text-gray-400">
-                        {feedback.rating === 1 && 'Mycket missnöjd'}
-                        {feedback.rating === 2 && 'Missnöjd'}
-                        {feedback.rating === 3 && 'Okej'}
-                        {feedback.rating === 4 && 'Nöjd'}
-                        {feedback.rating === 5 && 'Mycket nöjd'}
+                        {feedback.rating === 1 && t('feedbackForm.rating.1', 'Mycket missnöjd')}
+                        {feedback.rating === 2 && t('feedbackForm.rating.2', 'Missnöjd')}
+                        {feedback.rating === 3 && t('feedbackForm.rating.3', 'Okej')}
+                        {feedback.rating === 4 && t('feedbackForm.rating.4', 'Nöjd')}
+                        {feedback.rating === 5 && t('feedbackForm.rating.5', 'Mycket nöjd')}
                     </p>
                 </Card>
 
                 {/* Message */}
                 <Card className="p-6">
                     <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                        ✍️ Ditt meddelande
+                        ✍️ {t('feedbackForm.yourMessage', 'Ditt meddelande')}
                     </h2>
                     <textarea
                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
                         rows={6}
                         value={feedback.message}
                         onChange={(e) => setFeedback({ ...feedback, message: e.target.value })}
-                        placeholder="Berätta vad du tycker, föreslå förbättringar eller rapportera problem..."
+                        placeholder={t('feedbackForm.messagePlaceholder', 'Berätta vad du tycker, föreslå förbättringar eller rapportera problem...')}
                         required
                         maxLength={1000}
                     />
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-right">
-                        {feedback.message.length}/1000 tecken
+                        {t('feedbackForm.charCount', '{{count}}/1000 tecken', { count: feedback.message.length })}
                     </p>
                 </Card>
 
@@ -246,10 +248,10 @@ const FeedbackForm: React.FC = () => {
                         />
                         <div>
                             <p className="font-bold text-gray-900 dark:text-gray-100">
-                                Jag vill bli kontaktad
+                                {t('feedbackForm.allowContact', 'Jag vill bli kontaktad')}
                             </p>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                                Vi kanske behöver mer information om din feedback
+                                {t('feedbackForm.allowContactHint', 'Vi kanske behöver mer information om din feedback')}
                             </p>
                         </div>
                     </label>
@@ -257,7 +259,7 @@ const FeedbackForm: React.FC = () => {
                     {feedback.allowContact && (
                         <div>
                             <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                                📧 E-postadress
+                                📧 {t('feedbackForm.email', 'E-postadress')}
                             </label>
                             <Input
                                 type="email"
@@ -282,12 +284,12 @@ const FeedbackForm: React.FC = () => {
                         {loading ? (
                             <>
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                Skickar...
+                                {t('feedbackForm.sending', 'Skickar...')}
                             </>
                         ) : (
                             <>
                                 <PaperAirplaneIcon className="w-5 h-5" />
-                                📤 Skicka feedback
+                                📤 {t('feedbackForm.submit', 'Skicka feedback')}
                             </>
                         )}
                     </Button>
@@ -299,10 +301,10 @@ const FeedbackForm: React.FC = () => {
                 <Card className="p-6 text-center">
                     <div className="text-4xl mb-3">📚</div>
                     <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100">
-                        Hjälpcenter
+                        {t('feedbackForm.helpCenter', 'Hjälpcenter')}
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                        Hitta svar på vanliga frågor
+                        {t('feedbackForm.helpCenterBody', 'Hitta svar på vanliga frågor')}
                     </p>
                     <a 
                         href="https://github.com/omar1u7777/Lugn-Trygg/wiki" 
@@ -310,7 +312,7 @@ const FeedbackForm: React.FC = () => {
                         rel="noopener noreferrer"
                         className="text-primary hover:underline font-medium"
                     >
-                        Besök hjälpcenter →
+                        {t('feedbackForm.helpCenterLink', 'Besök hjälpcenter')} →
                     </a>
                 </Card>
                 <Card className="p-6 text-center">
@@ -319,22 +321,22 @@ const FeedbackForm: React.FC = () => {
                         Live Chat
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                        Chatta med vårt AI support-team
+                        {t('feedbackForm.liveChatBody', 'Chatta med vårt AI support-team')}
                     </p>
                     <Button
                         variant="outline"
                         onClick={() => window.location.href = '/chatbot'}
                     >
-                        Starta chatt →
+                        {t('feedbackForm.startChat', 'Starta chatt')} →
                     </Button>
                 </Card>
                 <Card className="p-6 text-center">
                     <div className="text-4xl mb-3">📞</div>
                     <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100">
-                        Kontakt
+                        {t('feedbackForm.contact', 'Kontakt')}
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                        Skicka ett email till oss
+                        {t('feedbackForm.contactBody', 'Skicka ett email till oss')}
                     </p>
                     <a 
                         href="mailto:support@lugn-trygg.se"
