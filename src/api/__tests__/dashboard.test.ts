@@ -139,11 +139,23 @@ describe('getWellnessGoals', () => {
     expect(result).toEqual([]);
   });
 
-  it('returns empty array on error (graceful)', async () => {
+  it('rejects on error instead of looking like the user has no goals', async () => {
+    // This used to resolve to [] and was called "graceful". It was not: the
+    // caller could not tell a failed request from a user who has set no
+    // goals, so Recommendations went on telling people their suggestions
+    // were tailored to goals it had never loaded.
     mockApi.get.mockRejectedValueOnce(new Error('Fail'));
 
-    const result = await getWellnessGoals();
-    expect(result).toEqual([]);
+    await expect(getWellnessGoals()).rejects.toThrow('Fail');
+  });
+
+  it('still resolves to an empty array when the caller aborts', async () => {
+    // An abort is the caller going away on purpose, not a failure.
+    const abort = new Error('canceled');
+    abort.name = 'AbortError';
+    mockApi.get.mockRejectedValueOnce(abort);
+
+    await expect(getWellnessGoals()).resolves.toEqual([]);
   });
 });
 

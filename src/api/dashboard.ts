@@ -180,10 +180,17 @@ export const getWellnessGoals = async (signal?: AbortSignal) => {
     logger.debug('Wellness goals retrieved:', goals);
     return goals;
   } catch (error: unknown) {
+    // An abort is not a failure — the caller went away on purpose.
     if (error instanceof Error && error.name === 'AbortError') return [];
     const apiError = error as Record<string, unknown>;
     logger.error('Get wellness goals error:', apiError);
-    return [];
+    // Returning [] here made a failed request indistinguishable from "no
+    // goals set". Both callers already handle a rejection properly and
+    // neither could ever reach that code: Recommendations tells the user its
+    // suggestions are not tailored, and WellnessHub surfaces its error
+    // banner. Swallowing the error made the app claim to be personalised to
+    // goals it had failed to load.
+    throw error;
   }
 };
 

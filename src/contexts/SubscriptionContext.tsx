@@ -102,6 +102,46 @@ const createPlan = (tier: SubscriptionTier): SubscriptionPlan => {
   };
 };
 
+/**
+ * Local-only subscription override, mirroring the `__e2e_test_auth__` escape
+ * hatch in AuthContext and gated to loopback the same way.
+ *
+ * Most of this app sits behind a premium gate, and there was no way to reach
+ * those pages on a dev machine — so every change to Belöningar, Dagbok,
+ * Insikter or Rekommendationer shipped without anyone having seen it render.
+ * "Type-checked but never looked at" is not the same as verified.
+ *
+ * Returns null anywhere that is not localhost, so this cannot grant a
+ * subscription to a real user even if the key somehow ends up in their
+ * browser. It is read once per subscription fetch, never written by the app.
+ */
+const readLocalTierOverride = (): SubscriptionTier | null => {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return null;
+  }
+
+  const host = window.location.hostname;
+  const isLocalLoopback =
+    host.includes('localhost') ||
+    host === '127.0.0.1' ||
+    host === '::1' ||
+    host === '[::1]';
+
+  if (!isLocalLoopback) {
+    return null;
+  }
+
+  try {
+    const raw = localStorage.getItem('__e2e_test_tier__');
+    if (raw === 'premium' || raw === 'trial' || raw === 'enterprise' || raw === 'free') {
+      return raw;
+    }
+  } catch {
+    /* localStorage unavailable */
+  }
+  return null;
+};
+
 const FREE_PLAN = createPlan('free');
 const PREMIUM_PLAN = createPlan('premium');
 const TRIAL_PLAN: SubscriptionPlan = {
@@ -191,6 +231,14 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
     if (!user?.user_id) {
       setPlan(FREE_PLAN);
       setUsage(DEFAULT_USAGE);
+      setLoading(false);
+      return;
+    }
+
+    const tierOverride = readLocalTierOverride();
+    if (tierOverride) {
+      logger.warn(`Subscription tier overridden locally: ${tierOverride}`);
+      setPlan(createPlan(tierOverride));
       setLoading(false);
       return;
     }
