@@ -184,39 +184,9 @@
       color: #1f2937;
     }
 
-    .inline-hero__stats {
-      margin-top: 32px;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 16px;
-    }
-
-    .inline-hero__stat {
-      padding: 18px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.8);
-      box-shadow: 0 15px 35px rgba(15, 118, 110, 0.2);
-    }
-
-    .inline-hero__stat-value {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: #0f766e;
-    }
-
-    .inline-hero__stat-label {
-      margin-top: 6px;
-      font-size: 0.9rem;
-      color: #475569;
-    }
-
     @media (max-width: 640px) {
       .inline-hero {
         padding-top: 72px;
-      }
-
-      .inline-hero__stats {
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       }
     }
 
@@ -245,19 +215,6 @@
       }
 
       .inline-hero__text {
-        color: #94a3b8;
-      }
-
-      .inline-hero__stat {
-        background: rgba(30, 41, 59, 0.8);
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
-      }
-
-      .inline-hero__stat-value {
-        color: #5eead4;
-      }
-
-      .inline-hero__stat-label {
         color: #94a3b8;
       }
     }
@@ -313,20 +270,17 @@
       <p class="inline-hero__text">
         Vi värmer upp dina data och personliga rekommendationer i bakgrunden så att du kan fokusera på att må bättre.
       </p>
-      <div class="inline-hero__stats" aria-label="Snabb överblick över plattformens effekt">
-        <div class="inline-hero__stat">
-          <p class="inline-hero__stat-value">41k+</p>
-          <p class="inline-hero__stat-label">Loggade humörstunder</p>
-        </div>
-        <div class="inline-hero__stat">
-          <p class="inline-hero__stat-value">6.8k</p>
-          <p class="inline-hero__stat-label">Sparade minnen</p>
-        </div>
-        <div class="inline-hero__stat">
-          <p class="inline-hero__stat-value">807</p>
-          <p class="inline-hero__stat-label">Medlemmar i communityn</p>
-        </div>
-      </div>
+      <!--
+        The three counters that used to sit here ("41k+ loggade humörstunder",
+        "6.8k sparade minnen", "807 medlemmar i communityn") were static markup
+        in this file. They never came from anywhere, never changed, and every
+        visitor read them as real usage figures. Stating invented numbers as
+        fact is not something a mental-health product should do, so they are
+        gone rather than left to look measured.
+
+        If you want them back, they need to come from an endpoint that counts
+        the real thing.
+      -->
     </div>
   </section>
   <div id="root"></div>
