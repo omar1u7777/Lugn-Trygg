@@ -292,36 +292,71 @@ class TestDetectorSingleton:
         crisis_nlp._semantic_detector = None
 
 
-class TestConversationContextIsIgnoredInFallback:
-    """Characterises real production behaviour, and is not an endorsement of it.
-
-    torch is absent from requirements.txt, so detect() takes the fallback branch
-    and _fallback_detection accepts conversation_context and never reads it.
-    _analyze_context is likewise inert because it needs self.embedding_model,
-    which _init_fallback sets to None. Escalation across a conversation
-    therefore contributes nothing to the score in production. If that changes,
-    these tests should fail and be rewritten — that is the point of them.
-    """
+class TestConversationContextInFallback:
+    """conversation_context used to be accepted and never read, so someone
+    whose last five messages showed mounting distress scored exactly as if
+    they had said it once. Production runs this path, since transformers is
+    not installed."""
 
     ESCALATING = [
-        {'role': 'user', 'content': 'jag har haft en tung vecka'},
+        {'role': 'user', 'content': 'allt känns hopplöst'},
         {'role': 'assistant', 'content': 'berätta mer'},
-        {'role': 'user', 'content': 'det blir bara värre'},
+        {'role': 'user', 'content': 'jag orkar inte mer'},
         {'role': 'assistant', 'content': 'jag lyssnar'},
-        {'role': 'user', 'content': 'jag vet inte hur länge jag klarar det'},
+        {'role': 'user', 'content': 'jag vet inte vad jag ska göra'},
     ]
 
-    def test_analyze_context_scores_nothing_without_an_embedding_model(self, detector):
-        assert detector.embedding_model is None
-        assert detector._analyze_context(self.ESCALATING) == 0.0
+    CALM = [
+        {'role': 'user', 'content': 'jag var ute och gick idag'},
+        {'role': 'assistant', 'content': 'vad fint'},
+        {'role': 'user', 'content': 'det var skönt väder'},
+    ]
 
-    def test_short_history_scores_nothing(self, detector):
-        assert detector._analyze_context([{'role': 'user', 'content': 'hej'}]) == 0.0
-        assert detector._analyze_context([]) == 0.0
-
-    def test_escalating_conversation_does_not_change_the_verdict(self, detector):
-        text = "jag vet inte hur länge jag klarar det"
-        without = detector.detect(text)
+    def test_a_history_of_distress_raises_the_score(self, detector):
+        text = "allt känns hopplöst"
+        alone = detector.detect(text)
         with_history = detector.detect(text, conversation_context=self.ESCALATING)
-        assert with_history.risk_level == without.risk_level
-        assert with_history.semantic_score == without.semantic_score
+        assert with_history.semantic_score > alone.semantic_score
+
+    def test_an_ordinary_history_changes_nothing(self, detector):
+        text = "allt känns hopplöst"
+        alone = detector.detect(text)
+        with_history = detector.detect(text, conversation_context=self.CALM)
+        assert with_history.semantic_score == alone.semantic_score
+
+    def test_context_can_only_add(self, detector):
+        # Whatever the history, it must never talk the assessment down.
+        text = "jag vill ta livet av mig"
+        alone = detector.detect(text)
+        for history in (self.ESCALATING, self.CALM, [], None):
+            assert detector.detect(text, conversation_context=history).semantic_score >= alone.semantic_score
+
+    def test_history_alone_is_not_a_crisis(self, detector):
+        # A distressed history plus a harmless message must not be escalated
+        # into a crisis on its own: 0.3 is the cap and 0.30 is exactly the
+        # 'low' boundary, so this stays at the bottom of the scale.
+        result = detector.detect("tack, det hjälpte", conversation_context=self.ESCALATING)
+        assert result.risk_level in ('none', 'low')
+
+    def test_context_contribution_is_capped(self, detector):
+        many = [{'role': 'user', 'content': 'jag orkar inte mer'} for _ in range(20)]
+        assert detector._analyze_context_keywords(many, {'d': ['orkar inte mer']}) == 0.3
+
+    def test_short_or_missing_history_scores_nothing(self, detector):
+        keywords = {'d': ['orkar inte mer']}
+        assert detector._analyze_context_keywords(None, keywords) == 0.0
+        assert detector._analyze_context_keywords([], keywords) == 0.0
+        assert detector._analyze_context_keywords([{'role': 'user', 'content': 'orkar inte mer'}], keywords) == 0.0
+
+    def test_malformed_history_does_not_raise(self, detector):
+        keywords = {'d': ['orkar inte mer']}
+        junk = [{'role': 'user'}, {'content': None}, 'not a dict', {'role': 'user', 'content': 42}, None]
+        assert detector._analyze_context_keywords(junk, keywords) == 0.0
+
+    def test_only_user_turns_count(self, detector):
+        # What the assistant said back is not evidence about the user.
+        assistant_only = [
+            {'role': 'assistant', 'content': 'jag orkar inte mer'},
+            {'role': 'assistant', 'content': 'allt känns hopplöst'},
+        ]
+        assert detector._analyze_context_keywords(assistant_only, {'d': ['orkar inte mer', 'hopplöst']}) == 0.0
