@@ -181,13 +181,30 @@ class TestUrgencyDetection:
     def test_calm_reflection_is_not_urgent(self, detector):
         assert detector._detect_urgency("förra året mådde jag dåligt men det är bättre nu") is False
 
-    def test_a_stated_timeframe_is_not_recognised_as_urgency(self, detector):
-        # URGENCY_PATTERNS match crisis wording, not immediacy: no pattern
-        # covers ikväll/inatt/idag. A stated timeframe is one of the strongest
-        # clinical signals of imminent risk, and it scores nothing here.
-        # Documented rather than silently patched — widening the pattern list
-        # shifts crisis thresholds and is a clinical decision, not a test fix.
-        assert detector._detect_urgency("jag gör det ikväll") is False
+    @pytest.mark.parametrize("text", [
+        "jag gör det ikväll",
+        "jag gör det inatt",
+        "imorgon är det över",
+        "det kan hända när som helst",
+    ])
+    def test_a_stated_timeframe_counts_as_urgency(self, detector, text):
+        # A stated timeframe is one of the strongest signals that a plan is
+        # imminent, and no pattern used to cover it.
+        assert detector._detect_urgency(text) is True
+
+    @pytest.mark.parametrize("text", [
+        "jag ska träffa kompisar ikväll",
+        "vi ses imorgon",
+        "jag har läkartid idag",
+    ])
+    def test_a_timeframe_alone_does_not_manufacture_a_crisis(self, detector, text):
+        # Urgency only adds 0.2 to a score the crisis keywords already raised.
+        # An ordinary plan mentions a time and must stay well below the 0.3
+        # threshold — widening the urgency patterns must not start flagging
+        # people for having an evening.
+        result = detector.detect(text)
+        assert result.risk_level == 'none'
+        assert result.semantic_score <= 0.2
 
 
 class TestSemanticIndicators:
@@ -225,6 +242,45 @@ class TestKeywordSeverityBands:
     def test_the_most_severe_match_wins(self, detector):
         both = detector.detect("allt känns hopplöst och jag vill ta livet av mig")
         assert both.risk_level == 'critical'
+
+
+class TestFallbackConceptsReachTheInterventions:
+    """crisis_intervention branches on concept['category'] to pick what to say
+    to the user. The fallback used to emit one concept with category
+    'fallback', which matches none of those branches — so in production, where
+    transformers is not installed, someone flagged as suicidal received none of
+    the interventions written for suicidal risk."""
+
+    REQUIRED_KEYS = {'name', 'category', 'score', 'description', 'weight'}
+
+    @pytest.mark.parametrize("text,category", [
+        ("jag vill ta livet av mig", 'suicidal'),
+        ("jag vill skada mig själv", 'self_harm'),
+        ("allt känns hopplöst", 'hopelessness'),
+        ("jag håller på att bryta ihop", 'severe_distress'),
+    ])
+    def test_the_matched_category_survives_to_the_consumer(self, detector, text, category):
+        concepts = detector.detect(text).detected_concepts
+        assert category in {c['category'] for c in concepts}
+
+    def test_fallback_concepts_carry_the_same_keys_as_the_semantic_path(self, detector):
+        for concept in detector.detect("jag vill ta livet av mig").detected_concepts:
+            assert self.REQUIRED_KEYS <= set(concept), f"missing {self.REQUIRED_KEYS - set(concept)}"
+            assert isinstance(concept['description'], str) and concept['description']
+
+    def test_every_matched_category_is_reported_not_only_the_worst(self, detector):
+        # Someone expressing several kinds of distress at once should get the
+        # interventions for each, not only for the highest-scoring one.
+        concepts = detector.detect("allt känns hopplöst och jag vill ta livet av mig").detected_concepts
+        assert {'suicidal', 'hopelessness'} <= {c['category'] for c in concepts}
+
+    def test_concepts_are_ordered_most_severe_first(self, detector):
+        concepts = detector.detect("allt känns hopplöst och jag vill ta livet av mig").detected_concepts
+        scores = [c['score'] for c in concepts]
+        assert scores == sorted(scores, reverse=True)
+
+    def test_ordinary_text_reports_no_concepts(self, detector):
+        assert detector.detect("Jag åt lunch med en vän.").detected_concepts == []
 
 
 class TestDetectorSingleton:
