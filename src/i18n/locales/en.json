@@ -1468,6 +1468,9 @@
     "trust": "No commitment. Cancel anytime."
   },
   "recommendations": {
+    "preferences": {
+      "goalsUnavailable": "We could not load your wellness goals right now, so the suggestions below are general rather than tailored to them."
+    },
     "title": "Personal Recommendations 💡",
     "subtitle": "Content tailored to your needs and progress",
     "description": "Here you see personal suggestions based on your goals. In the Wellness Library you find the full range of exercises and content.",

@@ -1468,6 +1468,9 @@
     "trust": "Ingen forpliktelser. Avslutt når som helst."
   },
   "recommendations": {
+    "preferences": {
+      "goalsUnavailable": "Vi kunne ikke hente wellness-målene dine akkurat nå, så forslagene nedenfor er generelle og ikke tilpasset dem."
+    },
     "title": "Personlige anbefalinger 💡",
     "subtitle": "Innhold tilpasset dine behov og fremgang",
     "description": "Her ser du personlige forslag basert på målene dine. I Velværebiblioteket finner du hele utvalget av øvelser og innhold.",
