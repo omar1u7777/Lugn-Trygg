@@ -153,7 +153,28 @@ class SemanticCrisisDetector:
         r"håll.*?inte.*?ut|ger snart upp",
         r"vill.*?dö|döda mig själv|slutar leva",
         r"självmord|ta livet av mig",
+        # A stated timeframe is one of the strongest signals that a plan is
+        # imminent, and none of the patterns above covered it. Urgency only
+        # adds to a score that crisis keywords already raised, so a plain
+        # "jag ses med kompisar ikväll" still scores 0.2 and stays 'none' —
+        # this can escalate a real crisis, not manufacture one.
+        r"ikväll|inatt|i natt|imorgon|i morgon|idag|i dag|inom kort|när som helst",
     ]
+
+    # Severity per keyword category in fallback mode.
+    FALLBACK_CATEGORY_SEVERITY = {
+        'suicidal': 0.9,
+        'self_harm': 0.85,
+        'hopelessness': 0.7,
+        'severe_distress': 0.6,
+    }
+
+    FALLBACK_CATEGORY_DESCRIPTIONS = {
+        'suicidal': 'Uttryck för självmordstankar eller planer',
+        'self_harm': 'Uttryck för självskadebeteende',
+        'hopelessness': 'Uttryck för hopplöshet och meningslöshet',
+        'severe_distress': 'Uttryck för svår psykisk påfrestning',
+    }
 
     def __init__(self, use_gpu: bool = False):
         logger.info("🔬 Initializing Semantic Crisis Detector...")
@@ -441,19 +462,22 @@ class SemanticCrisisDetector:
 
         detected_indicators = []
         max_severity = 0
+        # Track which categories matched, not just the highest score. The
+        # fallback used to report a single concept with category 'fallback',
+        # so crisis_intervention's per-category branches (which look for
+        # 'suicidal', 'self_harm', 'hopelessness') never matched and a user
+        # flagged as suicidal got none of the interventions written for them.
+        # Since transformers is not installed in production, that is every
+        # assessment we make.
+        category_scores: dict[str, float] = {}
 
         for category, keywords in crisis_keywords.items():
             for keyword in keywords:
                 if keyword in text_lower:
                     detected_indicators.append(f"Nyckelord: '{keyword}' ({category})")
-                    if category == 'suicidal':
-                        max_severity = max(max_severity, 0.9)
-                    elif category == 'self_harm':
-                        max_severity = max(max_severity, 0.85)
-                    elif category == 'hopelessness':
-                        max_severity = max(max_severity, 0.7)
-                    else:
-                        max_severity = max(max_severity, 0.6)
+                    severity = self.FALLBACK_CATEGORY_SEVERITY.get(category, 0.6)
+                    category_scores[category] = max(category_scores.get(category, 0.0), severity)
+                    max_severity = max(max_severity, severity)
 
         # Check urgency patterns
         urgency_detected = self._detect_urgency(text) if hasattr(self, '_detect_urgency') else False
@@ -462,14 +486,28 @@ class SemanticCrisisDetector:
 
         risk_level = self._score_to_level(max_severity)
 
+        # Same key contract as _get_detected_concepts. The fallback previously
+        # omitted 'description' and 'weight', which is what produced
+        # KeyError: 'description' downstream.
+        detected_concepts = [
+            {
+                'name': category,
+                'category': category,
+                'score': score,
+                'description': self.FALLBACK_CATEGORY_DESCRIPTIONS.get(category, category),
+                'weight': score,
+            }
+            for category, score in sorted(category_scores.items(), key=lambda item: item[1], reverse=True)
+        ]
+
         return SemanticCrisisAssessment(
             risk_level=risk_level,
             confidence=0.6 if detected_indicators else 0.3,
             semantic_score=max_severity,
             semantic_indicators=detected_indicators,
             requires_immediate_attention=risk_level in ['high', 'critical'],
-            detected_concepts=[{'name': 'keyword_fallback', 'category': 'fallback', 'score': max_severity}],
-            embedding_similarity={'fallback': max_severity}
+            detected_concepts=detected_concepts,
+            embedding_similarity=dict(category_scores) or {'fallback': max_severity}
         )
 
 
