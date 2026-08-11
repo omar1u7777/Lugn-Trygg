@@ -1466,6 +1466,9 @@
     "trust": "Ingen bindningstid. Avbryt när som helst."
   },
   "recommendations": {
+    "preferences": {
+      "goalsUnavailable": "Dina wellness-mål kunde inte hämtas just nu, så förslagen nedan är allmänna och inte anpassade efter dem."
+    },
     "title": "Personliga Rekommendationer 💡",
     "subtitle": "Innehåll anpassat efter dina behov och framsteg",
     "description": "Här ser du personliga förslag baserade på dina mål. I Välmåendebiblioteket hittar du hela utbudet av övningar och innehåll.",
