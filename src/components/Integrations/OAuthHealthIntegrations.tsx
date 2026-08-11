@@ -16,7 +16,10 @@ interface AnalysisResult {
     message?: string;
 }
 
+import { useTranslation } from 'react-i18next';
+
 const OAuthHealthIntegrations: React.FC = () => {
+    const { t, i18n } = useTranslation();
     const { user } = useAuth();
     const [providers] = useState<OAuthProvider[]>(oauthHealthService.getSupportedProviders());
     const [statuses, setStatuses] = useState<Map<string, OAuthStatus>>(new Map());
@@ -51,7 +54,7 @@ const OAuthHealthIntegrations: React.FC = () => {
         try {
             await oauthHealthService.connectProvider(providerId);
             await loadAllStatuses();
-            setSuccess(`✅ Ansluten till ${providerId}!`);
+            setSuccess(t('healthIntegrations.connected', '✅ Ansluten till {{provider}}!', { provider: providerId }));
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : `Kunde inte ansluta till ${providerId}`;
             setError(errorMessage);
@@ -68,9 +71,9 @@ const OAuthHealthIntegrations: React.FC = () => {
         try {
             await oauthHealthService.disconnect(providerId);
             await loadAllStatuses();
-            setSuccess(`Frånkopplad från ${providerId}.`);
+            setSuccess(t('healthIntegrations.disconnected', 'Frånkopplad från {{provider}}.', { provider: providerId }));
         } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : `Kunde inte koppla från ${providerId}`;
+            const errorMessage = err instanceof Error ? err.message : t('healthIntegrations.disconnectFailed', 'Kunde inte koppla från {{provider}}', { provider: providerId });
             setError(errorMessage);
         } finally {
             setLoading(prev => new Map(prev).set(providerId, false));
@@ -88,7 +91,7 @@ const OAuthHealthIntegrations: React.FC = () => {
             
             // Check if any data was returned
             if (!healthData || Object.keys(healthData).length === 0) {
-                setError(`Ingen hälsodata hittades för ${providerId}. Möjliga orsaker:\n• Ingen data registrerad de senaste 7 dagarna\n• Enheten är inte kopplad till ditt konto\n• Problem med API-behörighet`);
+                setError(t('healthIntegrations.noDataFound', 'Ingen hälsodata hittades för {{provider}}. Möjliga orsaker:\n• Ingen data registrerad de senaste 7 dagarna\n• Enheten är inte kopplad till ditt konto\n• Problem med API-behörighet', { provider: providerId }));
             } else {
                 // Format the data for display
                 const dataDisplay = Object.entries(healthData)
@@ -100,10 +103,10 @@ const OAuthHealthIntegrations: React.FC = () => {
                     })
                     .join(', ');
                     
-                setSuccess(`✅ Data synkad från ${providerId}!\n${dataDisplay}`);
+                setSuccess(`${t('healthIntegrations.dataSynced', '✅ Data synkad från {{provider}}!', { provider: providerId })}\n${dataDisplay}`);
             }
         } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : `Kunde inte synkronisera data från ${providerId}`;
+            const errorMessage = err instanceof Error ? err.message : t('healthIntegrations.syncFailed', 'Kunde inte synkronisera data från {{provider}}', { provider: providerId });
             setError(errorMessage);
         } finally {
             setSyncing(prev => new Map(prev).set(providerId, false));
@@ -125,10 +128,10 @@ const OAuthHealthIntegrations: React.FC = () => {
             if (result.status === 'insufficient_data') {
                 setError(`Not enough data for analysis: ${result.message}`);
             } else if (result.status === 'success') {
-                setSuccess('✅ Analys genomförd!');
+                setSuccess(t('healthIntegrations.analysisDone', '✅ Analys genomförd!'));
             }
         } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : 'Kunde inte analysera hälsodata';
+            const errorMessage = err instanceof Error ? err.message : t('healthIntegrations.analysisFailed', 'Kunde inte analysera hälsodata');
             setError(errorMessage);
         } finally {
             setAnalyzing(false);
@@ -140,10 +143,10 @@ const OAuthHealthIntegrations: React.FC = () => {
             {/* Header */}
             <div className="mb-8">
                 <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-4">
-                    🔗 Hälsointegreringar (OAuth)
+                    🔗 {t('healthIntegrations.title', 'Hälsointegreringar (OAuth)')}
                 </h1>
                 <p className="text-slate-600 dark:text-slate-400 text-lg">
-                    Anslut dina hälsoenheter och appar för att synkronisera data automatiskt.
+                    {t('healthIntegrations.subtitle', 'Anslut dina hälsoenheter och appar för att synkronisera data automatiskt.')}
                 </p>
             </div>
 
@@ -199,7 +202,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                                         disabled={isSyncing}
                                         className="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
                                     >
-                                        {isSyncing ? '⏳ Synkroniserar...' : '🔄 Synkronisera nu'}
+                                        {isSyncing ? t('healthIntegrations.syncing', '⏳ Synkroniserar...') : t('healthIntegrations.syncNow', '🔄 Synkronisera nu')}
                                     </button>
                                 )}
                             </div>
@@ -213,7 +216,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                             {status.connected && status.scope && (
                                 <div className="mb-4">
                                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
-                                        Beviljade behörigheter:
+                                        {t('healthIntegrations.grantedScopes', 'Beviljade behörigheter:')}
                                     </p>
                                     <div className="flex flex-wrap gap-2">
                                         {status.scope.split(' ').map((scope, idx) => (
@@ -231,9 +234,9 @@ const OAuthHealthIntegrations: React.FC = () => {
                             {/* Connection Info */}
                             {isConnected && status.obtained_at && (
                                 <div className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-                                    <p>Ansluten: {new Date(status.obtained_at).toLocaleString('sv-SE')}</p>
+                                    <p>{t('healthIntegrations.connectedAt', 'Ansluten: {{date}}', { date: new Date(status.obtained_at).toLocaleString(i18n.language) })}</p>
                                     {status.expires_at && (
-                                        <p>Löper ut: {new Date(status.expires_at).toLocaleString('sv-SE')}</p>
+                                        <p>{t('healthIntegrations.expiresAt', 'Löper ut: {{date}}', { date: new Date(status.expires_at).toLocaleString(i18n.language) })}</p>
                                     )}
                                 </div>
                             )}
@@ -246,7 +249,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                                         disabled={isLoading}
                                         className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
                                     >
-                                        {isLoading ? '⏳ Kopplar från...' : '🔌 Koppla från'}
+                                        {isLoading ? t('healthIntegrations.disconnecting', '⏳ Kopplar från...') : t('healthIntegrations.disconnect', '🔌 Koppla från')}
                                     </button>
                                 ) : (
                                     <button
@@ -266,39 +269,39 @@ const OAuthHealthIntegrations: React.FC = () => {
             {/* Info Box */}
             <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">
-                    ℹ️ Hur OAuth-integration fungerar
+                    ℹ️ {t('healthIntegrations.howItWorks', 'Hur OAuth-integration fungerar')}
                 </h3>
                 <ul className="space-y-2 text-blue-800 dark:text-blue-200">
-                    <li>✅ Klicka på ”Anslut” för att godkänna åtkomst till din hälsodata</li>
-                    <li>✅ Du omdirigeras till leverantörens godkännandesida</li>
-                    <li>✅ Godkänn behörigheter och du omdirigeras tillbaka</li>
-                    <li>✅ Din data synkroniseras automatiskt var 24:e timme</li>
-                    <li>✅ Du kan manuellt synkronisera när som helst via ”Synkronisera nu”</li>
-                    <li>✅ Koppla från när som helst för att återkalla åtkomst</li>
+                    <li>✅ {t('healthIntegrations.steps.connect', 'Klicka på ”Anslut” för att godkänna åtkomst till din hälsodata')}</li>
+                    <li>✅ {t('healthIntegrations.steps.redirect', 'Du omdirigeras till leverantörens godkännandesida')}</li>
+                    <li>✅ {t('healthIntegrations.steps.approve', 'Godkänn behörigheter och du omdirigeras tillbaka')}</li>
+                    <li>✅ {t('healthIntegrations.steps.autoSync', 'Din data synkroniseras automatiskt var 24:e timme')}</li>
+                    <li>✅ {t('healthIntegrations.steps.manualSync', 'Du kan manuellt synkronisera när som helst via ”Synkronisera nu”')}</li>
+                    <li>✅ {t('healthIntegrations.steps.revoke', 'Koppla från när som helst för att återkalla åtkomst')}</li>
                 </ul>
             </div>
 
             {/* Why Connect Section */}
             <div className="mt-8 bg-green-50 dark:bg-green-900/20 rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-3">
-                    🎯 Varför ansluta din hälsodata?
+                    🎯 {t('healthIntegrations.whyConnect', 'Varför ansluta din hälsodata?')}
                 </h3>
                 <div className="grid md:grid-cols-2 gap-4 text-green-800 dark:text-green-200 text-sm">
                     <div>
-                        <p className="font-medium mb-2">📊 Bättre hälsoinsikter</p>
-                        <p className="text-green-700 dark:text-green-300">Spåra din dagliga aktivitet, hjärtfrekvens, sömnmönster och kalorier direkt från dina bärbara enheter.</p>
+                        <p className="font-medium mb-2">📊 {t('healthIntegrations.benefits.insights', 'Bättre hälsoinsikter')}</p>
+                        <p className="text-green-700 dark:text-green-300">{t('healthIntegrations.benefits.insightsBody', 'Spåra din dagliga aktivitet, hjärtfrekvens, sömnmönster och kalorier direkt från dina bärbara enheter.')}</p>
                     </div>
                     <div>
-                        <p className="font-medium mb-2">🧠 Koppling till mental hälsa</p>
-                        <p className="text-green-700 dark:text-green-300">Kombinera fysisk hälsodata med din humörspårning för att hitta mönster mellan träning, sömn och mående.</p>
+                        <p className="font-medium mb-2">🧠 {t('healthIntegrations.benefits.mental', 'Koppling till mental hälsa')}</p>
+                        <p className="text-green-700 dark:text-green-300">{t('healthIntegrations.benefits.mentalBody', 'Kombinera fysisk hälsodata med din humörspårning för att hitta mönster mellan träning, sömn och mående.')}</p>
                     </div>
                     <div>
                         <p className="font-medium mb-2">📈 AI-driven analys</p>
-                        <p className="text-green-700 dark:text-green-300">Vår AI analyserar din hälsodata och ger personliga rekommendationer för stresshantering och bättre sömn.</p>
+                        <p className="text-green-700 dark:text-green-300">{t('healthIntegrations.benefits.aiBody', 'Vår AI analyserar din hälsodata och ger personliga rekommendationer för stresshantering och bättre sömn.')}</p>
                     </div>
                     <div>
-                        <p className="font-medium mb-2">🔄 Automatisk synkronisering</p>
-                        <p className="text-green-700 dark:text-green-300">Data synkroniseras automatiskt från dina enheter var 24:e timme, så du alltid har den senaste informationen.</p>
+                        <p className="font-medium mb-2">🔄 {t('healthIntegrations.benefits.autoSync', 'Automatisk synkronisering')}</p>
+                        <p className="text-green-700 dark:text-green-300">{t('healthIntegrations.benefits.autoSyncBody', 'Data synkroniseras automatiskt från dina enheter var 24:e timme, så du alltid har den senaste informationen.')}</p>
                     </div>
                 </div>
             </div>
@@ -308,10 +311,10 @@ const OAuthHealthIntegrations: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                     <div>
                         <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-1">
-                            🧠 Hälso- och humöranalys
+                            🧠 {t('healthIntegrations.analysisTitle', 'Hälso- och humöranalys')}
                         </h3>
                         <p className="text-purple-800 dark:text-purple-200 text-sm">
-                            Klicka för att analysera samband mellan din hälsodata och ditt humör
+                            {t('healthIntegrations.analysisBody', 'Klicka för att analysera samband mellan din hälsodata och ditt humör')}
                         </p>
                     </div>
                     <button
@@ -330,7 +333,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                         {analysisResult.status === 'insufficient_data' && (
                             <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
                                 <p className="text-yellow-800 dark:text-yellow-200">
-                                    ℹ️ {analysisResult.message || 'Behöver mer data för att analysera'}
+                                    ℹ️ {analysisResult.message || t('healthIntegrations.needMoreData', 'Behöver mer data för att analysera')}
                                 </p>
                             </div>
                         )}
@@ -338,11 +341,11 @@ const OAuthHealthIntegrations: React.FC = () => {
                         {/* Mood Summary */}
                         {analysisResult.mood_average !== undefined && (
                             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                                <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">😊 Humörsammanfattning</p>
+                                <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">😊 {t('healthIntegrations.moodSummary', 'Humörsammanfattning')}</p>
                                 <div className="flex items-center space-x-4">
                                     <div>
-                                        <p className="text-sm text-blue-800 dark:text-blue-200">Snitthumör: <span className="font-bold text-lg">{analysisResult.mood_average.toFixed(1)}/10</span></p>
-                                        <p className="text-sm text-blue-800 dark:text-blue-200">Trend: <span className="font-semibold">{analysisResult.mood_trend === 'improving' ? '📈 Förbättrar sig' : analysisResult.mood_trend === 'declining' ? '📉 Försämrar sig' : '➡️ Stabil'}</span></p>
+                                        <p className="text-sm text-blue-800 dark:text-blue-200">{t('healthIntegrations.avgMood', 'Snitthumör:')} <span className="font-bold text-lg">{analysisResult.mood_average.toFixed(1)}/10</span></p>
+                                        <p className="text-sm text-blue-800 dark:text-blue-200">{t('healthIntegrations.trend', 'Trend:')} <span className="font-semibold">{analysisResult.mood_trend === 'improving' ? t('healthIntegrations.trendUp', '📈 Förbättrar sig') : analysisResult.mood_trend === 'declining' ? t('healthIntegrations.trendDown', '📉 Försämrar sig') : t('healthIntegrations.trendStable', '➡️ Stabil')}</span></p>
                                     </div>
                                 </div>
                             </div>
@@ -351,24 +354,24 @@ const OAuthHealthIntegrations: React.FC = () => {
                         {/* Health Summary */}
                         {analysisResult.health_summary && Object.keys(analysisResult.health_summary).length > 0 && (
                             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-                                <p className="font-medium text-green-900 dark:text-green-100 mb-2">💚 Hälsosammanfattning</p>
+                                <p className="font-medium text-green-900 dark:text-green-100 mb-2">💚 {t('healthIntegrations.healthSummary', 'Hälsosammanfattning')}</p>
                                 <div className="grid grid-cols-2 gap-3 text-sm">
                                     {analysisResult.health_summary.avg_steps && (
                                         <div>
                                             <p className="text-green-800 dark:text-green-200">Genomsn. steg: <span className="font-semibold">{analysisResult.health_summary.avg_steps}</span></p>
-                                            <p className="text-xs text-green-700 dark:text-green-300">Status: {analysisResult.health_summary.steps_status === 'good' ? '✅ Bra' : '⚠️ Lågt'}</p>
+                                            <p className="text-xs text-green-700 dark:text-green-300">{t('healthIntegrations.status', 'Status:')} {analysisResult.health_summary.steps_status === 'good' ? t('healthIntegrations.statusGood', '✅ Bra') : t('healthIntegrations.statusLow', '⚠️ Lågt')}</p>
                                         </div>
                                     )}
                                     {analysisResult.health_summary.avg_sleep && (
                                         <div>
-                                            <p className="text-green-800 dark:text-green-200">Genomsn. sömn: <span className="font-semibold">{analysisResult.health_summary.avg_sleep}h</span></p>
-                                            <p className="text-xs text-green-700 dark:text-green-300">Status: {analysisResult.health_summary.sleep_status === 'good' ? '✅ Bra' : '⚠️ Kontrollera'}</p>
+                                            <p className="text-green-800 dark:text-green-200">{t('healthIntegrations.avgSleep', 'Genomsn. sömn:')} <span className="font-semibold">{analysisResult.health_summary.avg_sleep}h</span></p>
+                                            <p className="text-xs text-green-700 dark:text-green-300">{t('healthIntegrations.status', 'Status:')} {analysisResult.health_summary.sleep_status === 'good' ? t('healthIntegrations.statusGood', '✅ Bra') : t('healthIntegrations.statusCheck', '⚠️ Kontrollera')}</p>
                                         </div>
                                     )}
                                     {analysisResult.health_summary.avg_hr && (
                                         <div>
                                             <p className="text-green-800 dark:text-green-200">Genomsn. puls: <span className="font-semibold">{analysisResult.health_summary.avg_hr}</span> bpm</p>
-                                            <p className="text-xs text-green-700 dark:text-green-300">Status: {analysisResult.health_summary.hr_status === 'good' ? '✅ Normalt' : '⚠️ Förhöjd'}</p>
+                                            <p className="text-xs text-green-700 dark:text-green-300">{t('healthIntegrations.status', 'Status:')} {analysisResult.health_summary.hr_status === 'good' ? t('healthIntegrations.statusNormal', '✅ Normalt') : t('healthIntegrations.statusHigh', '⚠️ Förhöjd')}</p>
                                         </div>
                                     )}
                                 </div>
@@ -378,13 +381,13 @@ const OAuthHealthIntegrations: React.FC = () => {
                         {/* Patterns Found */}
                         {analysisResult.patterns && analysisResult.patterns.length > 0 && (
                             <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
-                                <p className="font-medium text-indigo-900 dark:text-indigo-100 mb-3">🔍 Hittade mönster</p>
+                                <p className="font-medium text-indigo-900 dark:text-indigo-100 mb-3">🔍 {t('healthIntegrations.patternsFound', 'Hittade mönster')}</p>
                                 <div className="space-y-2">
                                     {analysisResult.patterns.map((pattern, idx) => (
                                         <div key={idx} className="bg-white dark:bg-slate-800 rounded p-3 border-l-4 border-indigo-500">
                                             <p className="font-semibold text-slate-900 dark:text-slate-100">{pattern.title}</p>
                                             <p className="text-sm text-slate-600 dark:text-slate-400">{pattern.description}</p>
-                                            <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">Påverkan: {pattern.impact === 'high' ? '🔴 Hög' : '🟡 Medel'}</p>
+                                            <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">{t('healthIntegrations.impact', 'Påverkan:')} {pattern.impact === 'high' ? t('healthIntegrations.impactHigh', '🔴 Hög') : t('healthIntegrations.impactMedium', '🟡 Medel')}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -419,14 +422,14 @@ const OAuthHealthIntegrations: React.FC = () => {
                     ⚠️ Ingen data efter synkronisering?
                 </h3>
                 <p className="text-orange-800 dark:text-orange-200 mb-3">
-                    Om du inte ser hälsodata efter synkronisering finns det några vanliga orsaker:
+                    {t('healthIntegrations.troubleshootIntro', 'Om du inte ser hälsodata efter synkronisering finns det några vanliga orsaker:')}
                 </p>
                 <ul className="space-y-2 text-orange-800 dark:text-orange-200 text-sm">
-                    <li>📱 <strong>Enheten inte ansluten:</strong> Kontrollera att din tränare eller smartklocka är ansluten till appen och synkad med ditt konto.</li>
-                    <li>📅 <strong>Ingen ny data:</strong> Hälsoplattformar delar bara data du registrerat. Om inget spårats de senaste 7 dagarna visas ingen data.</li>
-                    <li>🔐 <strong>Behörigheter saknas:</strong> Vissa appar kräver specifika behörigheter. Kontrollera att du godkänt all åtkomst.</li>
-                    <li>⏱️ <strong>Första synken tar tid:</strong> Den första synkroniseringen kan ta 1–2 minuter. Försök igen efter en stund.</li>
-                    <li>🔄 <strong>Försök att återansluta:</strong> Klicka på ”Koppla från” och sedan ”Anslut” igen för att uppdatera auktoriseringen.</li>
+                    <li>📱 <strong>{t('healthIntegrations.trouble.deviceTitle', 'Enheten inte ansluten:')}</strong> {t('healthIntegrations.trouble.deviceBody', 'Kontrollera att din tränare eller smartklocka är ansluten till appen och synkad med ditt konto.')}</li>
+                    <li>📅 <strong>{t('healthIntegrations.trouble.noDataTitle', 'Ingen ny data:')}</strong> {t('healthIntegrations.trouble.noDataBody', 'Hälsoplattformar delar bara data du registrerat. Om inget spårats de senaste 7 dagarna visas ingen data.')}</li>
+                    <li>🔐 <strong>{t('healthIntegrations.trouble.scopesTitle', 'Behörigheter saknas:')}</strong> {t('healthIntegrations.trouble.scopesBody', 'Vissa appar kräver specifika behörigheter. Kontrollera att du godkänt all åtkomst.')}</li>
+                    <li>⏱️ <strong>{t('healthIntegrations.trouble.firstSyncTitle', 'Första synken tar tid:')}</strong> {t('healthIntegrations.trouble.firstSyncBody', 'Den första synkroniseringen kan ta 1–2 minuter. Försök igen efter en stund.')}</li>
+                    <li>🔄 <strong>{t('healthIntegrations.trouble.reconnectTitle', 'Försök att återansluta:')}</strong> {t('healthIntegrations.trouble.reconnectBody', 'Klicka på ”Koppla från” och sedan ”Anslut” igen för att uppdatera auktoriseringen.')}</li>
                 </ul>
             </div>
 
@@ -444,36 +447,12 @@ const OAuthHealthIntegrations: React.FC = () => {
             {user?.user_id && (
                 <div className="mt-8">
                     <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">
-                        📊 Hälsodata visualisering
+                        📊 {t('healthIntegrations.charts', 'Hälsodata visualisering')}
                     </h3>
                     <HealthDataCharts userId={user.user_id} />
                 </div>
             )}
 
-            {/* Setup Guide */}
-            <div className="mt-8 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-yellow-900 dark:text-yellow-100 mb-3">
-                    ⚙️ OAuth-konfiguration krävs
-                </h3>
-                <p className="text-yellow-800 dark:text-yellow-200 mb-4">
-                    För att OAuth ska fungera i produktion måste du konfigurera credentials i Backend/.env:
-                </p>
-                <div className="bg-slate-900 rounded-lg p-4 overflow-x-auto">
-                    <pre className="text-sm text-green-400">
-{`# Google Fit OAuth
-GOOGLE_FIT_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_FIT_CLIENT_SECRET=your-client-secret
-
-# Fitbit OAuth
-FITBIT_CLIENT_ID=your-fitbit-client-id
-FITBIT_CLIENT_SECRET=your-fitbit-client-secret
-
-# Samsung Health OAuth
-SAMSUNG_HEALTH_CLIENT_ID=your-samsung-client-id
-SAMSUNG_HEALTH_CLIENT_SECRET=your-samsung-client-secret`}
-                    </pre>
-                </div>
-            </div>
         </div>
     );
 };
