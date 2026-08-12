@@ -112,6 +112,8 @@ export const API_ENDPOINTS = {
     MEDITATION_SESSIONS: '/api/v1/users',
     /** GET/POST gratitude challenge state */
     GRATITUDE: '/api/v1/users/gratitude',
+    /** GET/POST exercise, meditation and article counters */
+    ACTIVITY_PROGRESS: '/api/v1/users/activity-progress',
   } as const,
 
   /** Journal endpoints - Mental health journaling */

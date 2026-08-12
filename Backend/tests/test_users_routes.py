@@ -4,13 +4,15 @@ Target: Increase coverage from 40% to 85%+
 
 Tests all endpoints:
 - GET /<user_id>/notification-settings
-- PUT /<user_id>/notification-preferences  
+- PUT /<user_id>/notification-preferences
 - POST /<user_id>/notification-schedule
 """
 
 from unittest.mock import MagicMock
 
 import pytest
+
+from src.routes.users_routes import merge_activity_progress
 
 
 def test_get_notification_settings_success(client, auth_csrf_headers):
@@ -367,3 +369,91 @@ class TestWellnessGoalsValidation:
         user_ref.update.assert_called_once()
         stored_payload = user_ref.update.call_args.args[0]
         assert stored_payload['wellnessGoals'] == ['Hantera stress', 'Bättre sömn']
+
+
+class TestActivityProgressMerge:
+    """/api/v1/users/activity-progress
+
+    These counters used to live only in localStorage, so a user who completed
+    30 exercises saw 0 on their phone and lost everything when they cleared
+    browser data. The endpoint's whole job is to not lose progress, which is
+    what the merge tests below are actually checking.
+    """
+
+    ENDPOINT = '/api/v1/users/activity-progress'
+
+    def _post(self, client, headers, progress):
+        return client.post(self.ENDPOINT, json={'activityProgress': progress}, headers=headers)
+
+    def test_rejects_a_payload_that_is_not_an_object(self, client, auth_csrf_headers):
+        response = client.post(self.ENDPOINT, json={'activityProgress': 5}, headers=auth_csrf_headers)
+        assert response.status_code == 400
+        assert response.get_json()['error'] == 'BAD_REQUEST'
+
+    def test_rejects_a_missing_payload(self, client, auth_csrf_headers):
+        response = client.post(self.ENDPOINT, json={}, headers=auth_csrf_headers)
+        assert response.status_code == 400
+
+    def test_the_merge_never_lowers_a_counter(self):
+        # Tested directly rather than through the HTTP layer: the Firestore
+        # test double does not retain writes between requests, so a round-trip
+        # test would assert nothing about the merge and quietly pass.
+        stored = {'exercisesCompleted': 30, 'meditationMinutes': 200, 'articlesRead': 9}
+        behind = {'exercisesCompleted': 1, 'meditationMinutes': 0, 'articlesRead': 0}
+
+        merged = merge_activity_progress(stored, behind)
+
+        assert merged == stored
+
+    def test_the_merge_accepts_a_higher_counter(self):
+        assert merge_activity_progress({'exercisesCompleted': 2}, {'exercisesCompleted': 7})['exercisesCompleted'] == 7
+
+    def test_the_merge_is_per_counter(self):
+        # Being ahead on one counter must not drag the others down.
+        merged = merge_activity_progress(
+            {'exercisesCompleted': 10, 'articlesRead': 4},
+            {'exercisesCompleted': 1, 'articlesRead': 8},
+        )
+        assert merged['exercisesCompleted'] == 10
+        assert merged['articlesRead'] == 8
+
+    def test_the_merge_is_symmetric(self):
+        a = {'exercisesCompleted': 3, 'meditationMinutes': 40, 'articlesRead': 1}
+        b = {'exercisesCompleted': 9, 'meditationMinutes': 5, 'articlesRead': 6}
+        assert merge_activity_progress(a, b) == merge_activity_progress(b, a)
+
+    def test_the_merge_survives_missing_sides(self):
+        assert merge_activity_progress(None, None) == {
+            'exercisesCompleted': 0, 'meditationMinutes': 0, 'articlesRead': 0
+        }
+        assert merge_activity_progress(None, {'articlesRead': 3})['articlesRead'] == 3
+
+    @pytest.mark.parametrize("bad", [
+        {'exercisesCompleted': -5},
+        {'exercisesCompleted': 'many'},
+        {'exercisesCompleted': None},
+        {'exercisesCompleted': True},
+        {'exercisesCompleted': float('nan')},
+        {'exercisesCompleted': float('inf')},
+    ])
+    def test_junk_counters_do_not_corrupt_the_total(self, client, auth_csrf_headers, bad):
+        # A negative or NaN counter reaching the frontend is what produced
+        # "NaN övningar" there; it must not be storable here either.
+        response = self._post(client, auth_csrf_headers, bad)
+
+        assert response.status_code == 200
+        value = response.get_json()['data']['activityProgress']['exercisesCompleted']
+        assert isinstance(value, int) and value >= 0
+
+    def test_an_absurd_value_is_clamped(self, client, auth_csrf_headers):
+        response = self._post(client, auth_csrf_headers, {'meditationMinutes': 10 ** 12})
+
+        assert response.get_json()['data']['activityProgress']['meditationMinutes'] <= 1_000_000
+
+    def test_get_returns_every_counter_even_when_nothing_is_stored(self, client, auth_csrf_headers):
+        response = client.get(self.ENDPOINT, headers=auth_csrf_headers)
+
+        assert response.status_code == 200
+        progress = response.get_json()['data']['activityProgress']
+        for field in ('exercisesCompleted', 'meditationMinutes', 'articlesRead'):
+            assert isinstance(progress[field], int)
