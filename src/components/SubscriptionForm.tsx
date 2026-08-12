@@ -3,6 +3,7 @@ import useAuth from '../hooks/useAuth';
 import { createCheckoutSession } from '../api/subscription';
 import { logger } from '../utils/logger';
 import { getStripePublishableKey } from '../config/env';
+import { MONTHLY_PRICE_SEK, YEARLY_PRICE_PER_MONTH_SEK } from '../config/pricing';
 
 type BillingPeriod = 'monthly' | 'yearly';
 
@@ -20,8 +21,8 @@ const FEATURES = [
   { label: 'Krishjälp och SOS-funktion', free: true },
 ];
 
-const MONTHLY_PRICE = 99;
-const YEARLY_PRICE = 79; // billed as 948/year
+const MONTHLY_PRICE = MONTHLY_PRICE_SEK;
+const YEARLY_PRICE = YEARLY_PRICE_PER_MONTH_SEK;
 
 const SubscriptionForm: React.FC = () => {
   const { user } = useAuth();

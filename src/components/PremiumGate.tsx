@@ -9,6 +9,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSubscription, type SubscriptionFeatures, type SubscriptionTier } from '@/contexts/SubscriptionContext';
 import { LockClosedIcon, SparklesIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { MONTHLY_PRICE_SEK, CURRENCY_SUFFIX } from '../config/pricing';
 
 // Typ för feature-namn
 export type FeatureName = keyof SubscriptionFeatures;
@@ -172,7 +173,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
           {/* Pris */}
           <div className="mb-6">
             <div className="text-3xl font-bold text-gray-900 dark:text-white">
-              99 kr<span className="text-lg font-normal text-gray-500">/månad</span>
+              {MONTHLY_PRICE_SEK} {CURRENCY_SUFFIX}<span className="text-lg font-normal text-gray-500">/månad</span>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Avsluta när du vill

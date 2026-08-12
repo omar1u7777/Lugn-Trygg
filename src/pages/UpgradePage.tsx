@@ -21,6 +21,13 @@ import {
 } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
 import { Card } from '@/components/ui/tailwind';
+import {
+  MONTHLY_PRICE_SEK,
+  YEARLY_PRICE_PER_MONTH_SEK,
+  ENTERPRISE_PRICE_SEK,
+  yearlyTotalSek,
+  yearlySavingsSek,
+} from '../config/pricing';
 
 /** Alla premium-fördelar */
 const PREMIUM_FEATURES = [
@@ -134,11 +141,11 @@ const UpgradePage: React.FC = () => {
     }
   };
 
-  const monthlyPrice = 99;
-  const yearlyPrice = 79; // Per månad vid årsbetalning
-  const yearlyTotal = yearlyPrice * 12;
-  const yearlySavings = (monthlyPrice - yearlyPrice) * 12;
-  const enterprisePrice = 249;
+  const monthlyPrice = MONTHLY_PRICE_SEK;
+  const yearlyPrice = YEARLY_PRICE_PER_MONTH_SEK; // Per månad vid årsbetalning
+  const yearlyTotal = yearlyTotalSek();
+  const yearlySavings = yearlySavingsSek();
+  const enterprisePrice = ENTERPRISE_PRICE_SEK;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fff7f0] to-[#fffaf5] p-4 sm:p-6 lg:p-8">
