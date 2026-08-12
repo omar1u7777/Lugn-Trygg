@@ -852,7 +852,7 @@ _ACTIVITY_PROGRESS_MAX = 1_000_000
 
 def _coerce_progress(raw: dict | None) -> dict[str, int]:
     """Keep only whole, non-negative, in-range counters."""
-    result = {field: 0 for field in _ACTIVITY_PROGRESS_FIELDS}
+    result = dict.fromkeys(_ACTIVITY_PROGRESS_FIELDS, 0)
     if not isinstance(raw, dict):
         return result
 
