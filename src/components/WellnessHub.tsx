@@ -151,16 +151,29 @@ const formatStreakLabel = (days: number, t: (key: string, options?: Record<strin
 // Components
 // ----------------------------------------------------------------------
 
+// These are ambient recordings, not narrated stories. The copy in
+// wellnessData describes them as such — promising a "godnattsaga" and then
+// playing surf is a claim the app cannot keep.
+//
+// A third file (Meditation_im_Liegen) used to sit here and in the meditation
+// map. It is twenty minutes of spoken German, served to Swedish users under a
+// Swedish title. There is no honest label for that, so it is gone.
+//
+// Hotlinking Wikimedia is still the wrong long-term answer: it rate-limits
+// under load (a 429 was observed during this work) and their hotlinking policy
+// is not a hosting agreement. Real Swedish guided audio on our own CDN is what
+// this should become.
 const SLEEP_STORY_URLS: Record<string, string> = {
   's1': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Oceanwavescrushing.ogg',
   's2': 'https://upload.wikimedia.org/wikipedia/commons/3/38/Birds_forest.ogg',
-  's3': 'https://upload.wikimedia.org/wikipedia/commons/8/88/Meditation_im_Liegen_%2820_Min.%29.ogg',
+  's3': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Oceanwavescrushing.ogg',
 };
 
-// Audio URLs for guided meditations (ambient sounds as guided audio fallback)
+// Ambient audio. There is no guidance track behind these yet, which is why
+// the descriptions no longer claim one.
 const MEDITATION_AUDIO_URLS: Record<string, string> = {
   '1': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Oceanwavescrushing.ogg',
-  '2': 'https://upload.wikimedia.org/wikipedia/commons/8/88/Meditation_im_Liegen_%2820_Min.%29.ogg',
+  '2': 'https://upload.wikimedia.org/wikipedia/commons/3/38/Birds_forest.ogg',
   '3': 'https://upload.wikimedia.org/wikipedia/commons/3/38/Birds_forest.ogg',
 };
 

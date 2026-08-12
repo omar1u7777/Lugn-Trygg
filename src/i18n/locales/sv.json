@@ -2088,18 +2088,18 @@
     "meditations": [
       {
         "id": "1",
-        "title": "Snabb Avkoppling",
-        "description": "Perfekt för en paus"
+        "title": "Havets lugn",
+        "description": "Vågor att andas med"
       },
       {
         "id": "2",
-        "title": "Djup Sömn",
-        "description": "Somna lättare ikväll"
+        "title": "Skogens ro",
+        "description": "Fågelsång att varva ner till"
       },
       {
         "id": "3",
-        "title": "Morgonfokus",
-        "description": "Starta dagen rätt"
+        "title": "Morgonens ljud",
+        "description": "Fågelsång för en mjuk start"
       }
     ],
     "breathingExercises": [
@@ -2117,18 +2117,18 @@
     "sleepStories": [
       {
         "id": "s1",
-        "title": "Stjärnresan",
-        "description": "Lugn godnattsaga för nedvarvning"
+        "title": "Vågornas vila",
+        "description": "Havsljud att somna till"
       },
       {
         "id": "s2",
-        "title": "Regnskogens vila",
-        "description": "Mjuk berättelse med naturljud"
+        "title": "Skogen om natten",
+        "description": "Fågelsång och lövsus"
       },
       {
         "id": "s3",
         "title": "Havets andetag",
-        "description": "Djup vila med havsrytm och guidning"
+        "description": "Långsam havsrytm för djup vila"
       }
     ]
   },

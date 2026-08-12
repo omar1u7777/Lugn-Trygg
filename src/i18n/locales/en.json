@@ -2090,18 +2090,18 @@
     "meditations": [
       {
         "id": "1",
-        "title": "Quick Relaxation",
-        "description": "Perfect for a break"
+        "title": "Calm sea",
+        "description": "Waves to breathe with"
       },
       {
         "id": "2",
-        "title": "Deep Sleep",
-        "description": "Fall asleep easier tonight"
+        "title": "Quiet forest",
+        "description": "Birdsong to wind down to"
       },
       {
         "id": "3",
-        "title": "Morning Focus",
-        "description": "Start the day right"
+        "title": "Morning sounds",
+        "description": "Birdsong for a gentle start"
       }
     ],
     "breathingExercises": [
@@ -2119,18 +2119,18 @@
     "sleepStories": [
       {
         "id": "s1",
-        "title": "Star Journey",
-        "description": "Calm bedtime story for winding down"
+        "title": "Resting waves",
+        "description": "Ocean sound to fall asleep to"
       },
       {
         "id": "s2",
-        "title": "Rainforest Rest",
-        "description": "Soft story with nature sounds"
+        "title": "Forest at night",
+        "description": "Birdsong and rustling leaves"
       },
       {
         "id": "s3",
-        "title": "Ocean Breath",
-        "description": "Deep rest with ocean rhythm and guidance"
+        "title": "Breath of the sea",
+        "description": "Slow ocean rhythm for deep rest"
       }
     ]
   },
