@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { logger } from '../utils/logger';
+import { getActivityProgress, saveActivityProgress, type ActivityProgress } from '../api/dashboard';
 
 interface UserProgress {
   exercisesCompleted: number;
@@ -54,6 +55,18 @@ export function useUserProgress({ userId }: UseUserProgressParams) {
     }
   }, [userId]);
 
+  /** Push counters to the server. The server keeps the higher of each value,
+   *  so a failed push costs nothing beyond a delay — the next one carries the
+   *  same totals. Deliberately not awaited: finishing an exercise should not
+   *  wait on the network, and it must not fail because the network did. */
+  const syncUp = useCallback((progress: UserProgress) => {
+    if (!userId) return;
+    const { exercisesCompleted, meditationMinutes, articlesRead } = progress;
+    saveActivityProgress({ exercisesCompleted, meditationMinutes, articlesRead }).catch((error) => {
+      logger.error('Failed to sync activity progress:', error);
+    });
+  }, [userId]);
+
   const updateProgress = useCallback((type: string, amount?: number) => {
     logger.debug('📊 UPDATE PROGRESS called:', { type, amount, userId });
     setUserProgress(prev => {
@@ -81,9 +94,10 @@ export function useUserProgress({ userId }: UseUserProgressParams) {
 
       logger.debug('📊 New progress state:', newProgress);
       saveUserProgress(newProgress);
+      syncUp(newProgress);
       return newProgress;
     });
-  }, [userId, saveUserProgress]);
+  }, [userId, saveUserProgress, syncUp]);
 
   const loadUserProgress = useCallback(() => {
     logger.debug('📊 LOAD USER PROGRESS called, user:', userId);
@@ -120,6 +134,56 @@ export function useUserProgress({ userId }: UseUserProgressParams) {
   useEffect(() => {
     loadUserProgress();
   }, [loadUserProgress]);
+
+  // localStorage is read first because it is instant and offline-safe, then
+  // reconciled with the server so a second device sees the same totals.
+  const syncedForUser = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!userId || syncedForUser.current === userId) return;
+    syncedForUser.current = userId;
+
+    let cancelled = false;
+    const controller = new AbortController();
+
+    getActivityProgress(controller.signal)
+      .then((remote: ActivityProgress) => {
+        if (cancelled) return;
+        setUserProgress((local) => {
+          // Take the higher of each counter, matching what the server does.
+          // Neither side is authoritative: the server may hold work from
+          // another device, and this device may hold work not pushed yet.
+          const merged: UserProgress = {
+            exercisesCompleted: Math.max(local.exercisesCompleted, remote.exercisesCompleted ?? 0),
+            meditationMinutes: Math.max(local.meditationMinutes, remote.meditationMinutes ?? 0),
+            articlesRead: Math.max(local.articlesRead, remote.articlesRead ?? 0),
+            weeklyGoalProgress: 0,
+          };
+          merged.weeklyGoalProgress = Math.min((merged.exercisesCompleted / 7) * 100, 100);
+          saveUserProgress(merged);
+          // Only push when this device is ahead, so a plain page load does
+          // not write anything the server does not already know.
+          if (
+            merged.exercisesCompleted > (remote.exercisesCompleted ?? 0) ||
+            merged.meditationMinutes > (remote.meditationMinutes ?? 0) ||
+            merged.articlesRead > (remote.articlesRead ?? 0)
+          ) {
+            syncUp(merged);
+          }
+          return merged;
+        });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        // Keep whatever localStorage gave us. Progress the user can see is
+        // better than a spinner, and the next update will push it up.
+        logger.error('Could not load activity progress from server:', error);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [userId, saveUserProgress, syncUp]);
 
   return {
     userProgress,
