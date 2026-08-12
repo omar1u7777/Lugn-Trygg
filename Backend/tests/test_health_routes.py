@@ -94,3 +94,30 @@ class TestAdvancedHealth:
         )
         resp = client.get(f"{BASE}/advanced", headers=auth_headers)
         assert resp.status_code == 200
+
+
+class TestCrisisDetectionModeIsVisible:
+    """Which crisis detector is live changes what the app can notice about a
+    user in crisis. Until this was reported, the only way to find out was to
+    read requirements.txt."""
+
+    def test_readiness_reports_the_mode(self, client):
+        response = client.get('/api/health/ready')
+        checks = response.get_json()['data']['checks']
+
+        assert checks['crisisDetection'] in ('semantic', 'keyword', 'unknown')
+
+    def test_the_mode_matches_whether_transformers_is_installed(self, client):
+        # conftest stubs crisis_nlp, so read the real module from disk.
+        import importlib.util
+        from pathlib import Path
+
+        from src.routes.health_routes import _crisis_detection_mode
+
+        path = Path(__file__).resolve().parents[1] / 'src' / 'services' / 'crisis_nlp.py'
+        spec = importlib.util.spec_from_file_location('_real_crisis_nlp_health', path)
+        real = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(real)
+
+        expected = 'semantic' if real.TRANSFORMERS_AVAILABLE else 'keyword'
+        assert _crisis_detection_mode() in (expected, 'unknown')

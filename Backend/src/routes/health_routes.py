@@ -45,6 +45,22 @@ def health_check():
         message='Health check passed'
     )
 
+def _crisis_detection_mode() -> str:
+    """Which crisis detector is actually live: 'semantic' or 'keyword'.
+
+    torch, transformers and sentence-transformers are not in requirements.txt,
+    so the detector silently falls back to keyword matching. That is a real
+    difference in what the app can notice about a user in crisis, and until
+    now the only way to know which mode was running was to read the
+    dependency file. Reported here so it can be monitored and alerted on.
+    """
+    try:
+        from ..services.crisis_nlp import TRANSFORMERS_AVAILABLE
+        return 'semantic' if TRANSFORMERS_AVAILABLE else 'keyword'
+    except Exception:
+        return 'unknown'
+
+
 @health_bp.route('/ready', methods=['GET', 'OPTIONS'])
 @rate_limit_by_endpoint
 def readiness_check():
@@ -58,6 +74,7 @@ def readiness_check():
     checks = {
         'server': True,
         'firebase': False,
+        'crisisDetection': _crisis_detection_mode(),
         'timestamp': datetime.now(UTC).isoformat()
     }
 
