@@ -839,3 +839,104 @@ def delete_gratitude_data():
     except Exception as e:
         logger.error(f"Failed to delete gratitude data for {user_id}: {e}")
         return APIResponse.error("Failed to clear gratitude data")
+
+
+# Counters shown on Rekommendationer. They only ever increase, which is what
+# makes the merge below safe.
+_ACTIVITY_PROGRESS_FIELDS = ('exercisesCompleted', 'meditationMinutes', 'articlesRead')
+
+# A single user cannot plausibly exceed these, so a corrupted or hostile client
+# cannot write a number that makes the UI meaningless.
+_ACTIVITY_PROGRESS_MAX = 1_000_000
+
+
+def _coerce_progress(raw: dict | None) -> dict[str, int]:
+    """Keep only whole, non-negative, in-range counters."""
+    result = {field: 0 for field in _ACTIVITY_PROGRESS_FIELDS}
+    if not isinstance(raw, dict):
+        return result
+
+    for field in _ACTIVITY_PROGRESS_FIELDS:
+        value = raw.get(field)
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            continue
+        if value != value or value in (float('inf'), float('-inf')):  # NaN / inf
+            continue
+        result[field] = int(min(max(0, value), _ACTIVITY_PROGRESS_MAX))
+    return result
+
+
+def merge_activity_progress(stored: dict | None, incoming: dict | None) -> dict[str, int]:
+    """Take the higher of each counter.
+
+    These only ever increase, so the maximum is the one merge that cannot lose
+    progress — whether the client is behind (it was offline, or is a second
+    device that never saw the newer total) or ahead (it has work not yet
+    synced). An overwrite would silently discard whichever side was further
+    along, which is the bug this endpoint exists to fix.
+    """
+    left = _coerce_progress(stored)
+    right = _coerce_progress(incoming)
+    return {field: max(left[field], right[field]) for field in _ACTIVITY_PROGRESS_FIELDS}
+
+
+@users_bp.route('/activity-progress', methods=['GET'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def get_activity_progress():
+    """📊 Get the user's exercise/meditation/article counters."""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
+    try:
+        user_doc = db.collection('users').document(user_id).get()  # type: ignore
+        stored = user_doc.to_dict().get('activityProgress') if user_doc.exists else None
+        return APIResponse.success(
+            {"activityProgress": _coerce_progress(stored)},
+            "Activity progress retrieved"
+        )
+    except Exception as e:
+        logger.exception(f"Failed to get activity progress: {e}")
+        return APIResponse.error("Failed to get activity progress", "INTERNAL_ERROR", 500)
+
+
+@users_bp.route('/activity-progress', methods=['POST'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def set_activity_progress():
+    """📊 Merge the client's counters into the stored ones."""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get('activityProgress'), dict):
+        return APIResponse.bad_request("activityProgress must be an object")
+
+    try:
+        user_ref = db.collection('users').document(user_id)  # type: ignore
+        user_doc = user_ref.get()
+        stored = user_doc.to_dict().get('activityProgress') if user_doc.exists else None
+
+        merged = merge_activity_progress(stored, data.get('activityProgress'))
+
+        if user_doc.exists:
+            user_ref.update({'activityProgress': merged, 'updatedAt': SERVER_TIMESTAMP})
+        else:
+            user_ref.set({
+                'user_id': user_id,
+                'activityProgress': merged,
+                'createdAt': SERVER_TIMESTAMP,
+                'updatedAt': SERVER_TIMESTAMP,
+            })
+
+        audit_log(
+            event_type="ACTIVITY_PROGRESS_UPDATED",
+            user_id=user_id,
+            details=merged
+        )
+        return APIResponse.success({"activityProgress": merged}, "Activity progress saved")
+    except Exception as e:
+        logger.exception(f"Failed to save activity progress: {e}")
+        return APIResponse.error("Failed to save activity progress", "INTERNAL_ERROR", 500)

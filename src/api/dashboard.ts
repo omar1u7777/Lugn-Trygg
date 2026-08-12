@@ -231,3 +231,37 @@ export const setWellnessGoals = async (goals: string[]) => {
     throw new Error((responseData?.error as string) || "Failed to save wellness goals");
   }
 };
+export interface ActivityProgress {
+  exercisesCompleted: number;
+  meditationMinutes: number;
+  articlesRead: number;
+}
+
+/**
+ * Fetch the user's activity counters.
+ *
+ * These lived only in localStorage, so they were per-device: someone who
+ * completed 30 exercises saw 0 on their phone, and clearing browser data wiped
+ * them with no warning.
+ *
+ * Rejects on failure rather than resolving to zeros — a caller that cannot tell
+ * "nothing yet" from "we could not ask" is how the old behaviour went unnoticed.
+ */
+export const getActivityProgress = async (signal?: AbortSignal): Promise<ActivityProgress> => {
+  const response = await api.get(
+    API_ENDPOINTS.USERS.ACTIVITY_PROGRESS,
+    signal ? { signal } : undefined
+  );
+  const data = response.data?.data ?? response.data;
+  return data.activityProgress as ActivityProgress;
+};
+
+/**
+ * Push local counters up. The server keeps the higher of each value, so this
+ * can never lower a total that another device already recorded.
+ */
+export const saveActivityProgress = async (progress: ActivityProgress): Promise<ActivityProgress> => {
+  const response = await api.post(API_ENDPOINTS.USERS.ACTIVITY_PROGRESS, { activityProgress: progress });
+  const data = response.data?.data ?? response.data;
+  return data.activityProgress as ActivityProgress;
+};
