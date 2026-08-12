@@ -2035,18 +2035,18 @@
     "meditations": [
       {
         "id": "1",
-        "title": "Rask Avslapning",
-        "description": "Perfekt for en pause"
+        "title": "Havets ro",
+        "description": "Bølger å puste med"
       },
       {
         "id": "2",
-        "title": "Dyp Søvn",
-        "description": "Sovn lettere i kveld"
+        "title": "Stille skog",
+        "description": "Fuglesang å roe ned til"
       },
       {
         "id": "3",
-        "title": "Morgenfokus",
-        "description": "Start dagen riktig"
+        "title": "Morgenlyder",
+        "description": "Fuglesang for en myk start"
       }
     ],
     "breathingExercises": [
@@ -2064,18 +2064,18 @@
     "sleepStories": [
       {
         "id": "s1",
-        "title": "Stjernerisen",
-        "description": "Rolig godnattsfortelling for nedtrapping"
+        "title": "Bølgenes hvile",
+        "description": "Havlyd å sovne til"
       },
       {
         "id": "s2",
-        "title": "Regnskogens hvile",
-        "description": "Myk fortelling med naturlyder"
+        "title": "Skogen om natten",
+        "description": "Fuglesang og løvsus"
       },
       {
         "id": "s3",
-        "title": "Havets pust",
-        "description": "Dyp hvile med havets rytme og veiledning"
+        "title": "Havets åndedrag",
+        "description": "Langsom havrytme for dyp hvile"
       }
     ]
   },
