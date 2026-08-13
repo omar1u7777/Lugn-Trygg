@@ -39,7 +39,13 @@ jobs:
           sudo apt-get update && sudo apt-get install -y libsndfile1
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-mock ruff
+          # Pinned to match requirements-dev.txt. Unpinned installs meant CI
+          # silently tracked the latest release of each tool: a ruff upgrade
+          # started failing a rule (C420) that the version in requirements-dev
+          # does not flag, so lint passed locally and failed here for reasons
+          # nobody had changed. pytest-asyncio is declared in requirements-dev
+          # but was never installed, so every async test errored out.
+          pip install pytest==9.0.3 pytest-cov==5.0.0 pytest-mock==3.14.0 pytest-asyncio==1.4.0 ruff==0.16.1
 
       - name: Ruff lint
         run: ruff check src --output-format=github
