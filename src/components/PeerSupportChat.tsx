@@ -34,6 +34,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { logger } from '../utils/logger';
+import { extractErrorMessage } from '../api/errorMessage';
 
 interface PeerSupportChatProps {
   userId: string;
@@ -263,9 +264,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
         });
       }
     } catch (err: unknown) {
-      const apiError = err as { response?: { data?: { error?: string } } };
-      const errorMsg = apiError?.response?.data?.error;
-      setError(errorMsg || (isSwedish ? 'Kunde inte skicka meddelandet' : 'Failed to send message'));
+      setError(extractErrorMessage(err, isSwedish ? 'Kunde inte skicka meddelandet' : 'Failed to send message'));
     } finally {
       setSending(false);
     }

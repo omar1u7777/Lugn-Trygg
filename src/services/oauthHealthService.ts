@@ -167,7 +167,7 @@ class OAuthHealthService {
             if (response.data.success) {
                 return response.data.data;
             } else {
-                throw new Error(response.data.error || 'Failed to sync health data');
+                throw new Error(response.data.message || response.data.error || 'Kunde inte synkronisera hälsodata.');
             }
         } catch (error: unknown) {
             logger.error(`Failed to sync health data from ${providerId}:`, error);

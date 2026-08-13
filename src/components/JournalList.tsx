@@ -3,6 +3,7 @@ import { Card } from './ui/tailwind';
 import { getJournalEntries } from '../api/api';
 import useAuth from '../hooks/useAuth';
 import { logger } from '../utils/logger';
+import { extractErrorMessage } from '../api/errorMessage';
 import {
   CalendarDaysIcon,
   TagIcon,
@@ -61,7 +62,7 @@ const JournalList: React.FC<JournalListProps> = ({ refreshTrigger }) => {
     } catch (error: unknown) {
       if (!isMountedRef.current) return;
       logger.error('❌ Failed to load journal entries:', error);
-      setError((error as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to load journal entries');
+      setError(extractErrorMessage(error, 'Kunde inte hämta dagboksinläggen.'));
     } finally {
       if (isMountedRef.current) setLoading(false);
     }

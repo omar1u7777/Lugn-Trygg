@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
 import { API_ENDPOINTS } from '../../api/constants';
 import { logger } from '../../utils/logger';
+import { extractErrorMessage } from '../../api/errorMessage';
 
 
 interface EmailInviteProps {
@@ -52,9 +53,7 @@ const EmailInvite: React.FC<EmailInviteProps> = () => {
             }
         } catch (err: unknown) {
             logger.error('Failed to send invite:', err);
-            const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
-                ? String(err.response.data.error)
-                : 'Något gick fel';
+            const errorMessage = extractErrorMessage(err, 'Något gick fel');
             setMessage({ 
                 type: 'error', 
                 text: errorMessage

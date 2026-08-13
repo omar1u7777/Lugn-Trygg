@@ -14,6 +14,7 @@ import {
 import { getJournalHeroImageId } from '../config/env';
 import { logger } from '../utils/logger';
 import { toLocalDateKey, toLocalDateKeyFrom } from '../utils/dateKeys';
+import { extractErrorMessage } from '../api/errorMessage';
 
 const JournalList = lazy(() => import('./JournalList'));
 const MoodList = lazy(() => import('./MoodList'));
@@ -207,7 +208,7 @@ const JournalHub: React.FC = () => {
     } catch (error: unknown) {
       if (!mountedRef.current) return;
       const err = error as { response?: { data?: { error?: string } }; message?: string };
-      const errorMessage = err?.response?.data?.error || err?.message || 'Ett fel uppstod';
+      const errorMessage = extractErrorMessage(err, 'Ett fel uppstod.');
       showMessage({ type: 'error', text: `Kunde inte spara: ${errorMessage}` }, 8000);
     } finally {
       if (mountedRef.current) {
