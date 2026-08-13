@@ -1,6 +1,7 @@
 import { api } from "./client";
 import { API_ENDPOINTS } from "./constants";
 import { logger } from "../utils/logger";
+import { extractErrorMessage } from './errorMessage';
 
 // ============================================================================
 // Types
@@ -78,7 +79,7 @@ export const saveJournalEntry = async (
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { error?: string } } };
     logger.error("Save journal entry error", apiError);
-    throw new Error(apiError.response?.data?.error || "Failed to save journal entry");
+    throw new Error(extractErrorMessage(error, "Kunde inte spara dagboksinlägget."));
   }
 };
 
@@ -104,7 +105,7 @@ export const getJournalEntries = async (
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { error?: string } } };
     logger.error("Get journal entries error", apiError);
-    throw new Error(apiError.response?.data?.error || "Failed to get journal entries");
+    throw new Error(extractErrorMessage(error, "Kunde inte hämta dagboksinläggen."));
   }
 };
 
@@ -132,7 +133,7 @@ export const updateJournalEntry = async (
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { error?: string } } };
     logger.error("Update journal entry error", apiError);
-    throw new Error(apiError.response?.data?.error || "Failed to update journal entry");
+    throw new Error(extractErrorMessage(error, "Kunde inte uppdatera dagboksinlägget."));
   }
 };
 
@@ -154,7 +155,7 @@ export const deleteJournalEntry = async (
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { error?: string } } };
     logger.error("Delete journal entry error", apiError);
-    throw new Error(apiError.response?.data?.error || "Failed to delete journal entry");
+    throw new Error(extractErrorMessage(error, "Kunde inte ta bort dagboksinlägget."));
   }
 };
 
@@ -183,7 +184,7 @@ export const getJournalEntryById = async (
       return null;
     }
     logger.error("Get journal entry by ID error", apiError);
-    throw new Error(apiError.response?.data?.error || "Failed to get journal entry");
+    throw new Error(extractErrorMessage(error, "Kunde inte hämta dagboksinlägget."));
   }
 };
 

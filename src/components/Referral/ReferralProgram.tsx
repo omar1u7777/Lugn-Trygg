@@ -9,6 +9,7 @@ import RewardsCatalog from './RewardsCatalog';
 import EmailInvite from './EmailInvite';
 import { logger } from '../../utils/logger';
 import { useTranslation } from 'react-i18next';
+import { extractErrorMessage } from '../../api/errorMessage';
 
 
 interface ReferralData {
@@ -56,9 +57,7 @@ const ReferralProgram: React.FC = () => {
             setError(null);
         } catch (err: unknown) {
             logger.error('❌ Failed to fetch referral data:', err);
-            const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
-                ? String(err.response.data.error)
-                : 'Failed to load referral data';
+            const errorMessage = extractErrorMessage(err, 'Failed to load referral data');
             setError(errorMessage);
         } finally {
             setLoading(false);
