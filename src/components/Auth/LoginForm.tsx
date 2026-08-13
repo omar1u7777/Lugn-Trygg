@@ -17,6 +17,7 @@ import { Typography } from "../ui/tailwind/Typography";
 import { Divider } from "../ui/tailwind/Display";
 import { LoadingSpinner } from "../LoadingStates";
 import { useAccessibility } from "../../hooks/useAccessibility";
+import { extractErrorMessage as extractApiErrorMessage } from '../../api/errorMessage';
 // ScreenReaderAnnouncer removed — announcements handled by useAccessibility hook
 
 // Constants for messages and strings
@@ -62,12 +63,14 @@ const extractErrorMessage = (err: unknown): string => {
     }
   }
   
-  if (err && typeof err === "object" && "response" in err) {
-    const response = (err as { response?: { data?: { error?: unknown } } }).response;
-    if (response?.data?.error && typeof response.data.error === "string") {
-      return response.data.error;
-    }
+  // Reading data.error alone showed the user machine codes like
+  // UNAUTHORIZED; the sentence is in data.message for APIResponse errors and
+  // in data.error only for the middleware shape.
+  const fromResponse = extractApiErrorMessage(err, '');
+  if (fromResponse) {
+    return fromResponse;
   }
+  // Our API layer throws Errors whose message is already user-facing text.
   if (err instanceof Error) {
     return err.message;
   }

@@ -6,6 +6,7 @@ import { logger } from '../../utils/logger';
 import { Dialog } from '../ui/tailwind/Dialog';
 import { Button } from '../ui/tailwind/Button';
 import { Alert } from '../ui/tailwind/Feedback';
+import { extractErrorMessage } from '../../api/errorMessage';
 
 // Define consent types for type safety and maintainability
 const CONSENT_TYPES = {
@@ -96,17 +97,9 @@ const buildInitialConsents = (): Consents =>
 
 // Utility function for extracting error messages
 const getErrorMessage = (error: unknown, t: (key: string) => string): string => {
-  if (error && typeof error === 'object' && 'response' in error) {
-    const axiosError = error as {
-      response?: {
-        data?: {
-          error?: unknown;
-        };
-      };
-    };
-    if (axiosError.response?.data?.error) {
-      return String(axiosError.response.data.error);
-    }
+  const fromResponse = extractErrorMessage(error, '');
+  if (fromResponse) {
+    return fromResponse;
   }
   if (error instanceof Error) {
     return error.message;

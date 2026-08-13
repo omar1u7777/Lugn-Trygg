@@ -7,6 +7,7 @@ import { registerUser } from "../../api/api";
 import { useAccessibility } from "../../hooks/useAccessibility";
 import { logger } from '../../utils/logger';
 import { useTranslation } from 'react-i18next';
+import { extractErrorMessage as extractApiErrorMessage } from '../../api/errorMessage';
 
 const DEFAULT_ERROR = 'Registration failed';
 
@@ -20,11 +21,9 @@ const extractErrorMessage = (err: unknown): string => {
       return 'Kunde inte ansluta till servern. Kontrollera din internetanslutning.';
     }
   }
-  if (err && typeof err === 'object' && 'response' in err) {
-    const response = (err as { response?: { data?: { error?: unknown } } }).response;
-    if (response?.data?.error && typeof response.data.error === 'string') {
-      return response.data.error;
-    }
+  const fromResponse = extractApiErrorMessage(err, '');
+  if (fromResponse) {
+    return fromResponse;
   }
   if (err instanceof Error) {
     return err.message;

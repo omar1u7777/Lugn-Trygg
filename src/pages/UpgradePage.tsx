@@ -21,6 +21,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
 import { Card } from '@/components/ui/tailwind';
+import { extractErrorMessage } from '../api/errorMessage';
 import {
   MONTHLY_PRICE_SEK,
   YEARLY_PRICE_PER_MONTH_SEK,
@@ -133,9 +134,9 @@ const UpgradePage: React.FC = () => {
       }
     } catch (error: unknown) {
       logger.error('Stripe checkout failed', error);
-      const apiError = error as { response?: { data?: { error?: string } } };
-      const message = apiError?.response?.data?.error || 'Ett fel uppstod vid betalningen.';
-      setErrorMessage(message);
+      // data.error is the machine code (SERVICE_UNAVAILABLE, BAD_REQUEST);
+      // the sentence the backend wrote for the user is in data.message.
+      setErrorMessage(extractErrorMessage(error, 'Ett fel uppstod vid betalningen.'));
     } finally {
       setIsProcessing(false);
     }
