@@ -4,6 +4,7 @@ import { createCheckoutSession } from '../api/subscription';
 import { logger } from '../utils/logger';
 import { getStripePublishableKey } from '../config/env';
 import { MONTHLY_PRICE_SEK, YEARLY_PRICE_PER_MONTH_SEK } from '../config/pricing';
+import { extractErrorMessage } from '../api/errorMessage';
 
 type BillingPeriod = 'monthly' | 'yearly';
 
@@ -60,18 +61,7 @@ const SubscriptionForm: React.FC = () => {
       }
     } catch (err: unknown) {
       logger.error('Subscription error:', err);
-      const errorMessage =
-        err instanceof Error &&
-        'response' in err &&
-        typeof err.response === 'object' &&
-        err.response &&
-        'data' in err.response &&
-        typeof err.response.data === 'object' &&
-        err.response.data &&
-        'error' in err.response.data
-          ? String(err.response.data.error)
-          : 'Ett fel uppstod vid prenumeration';
-      setError(errorMessage);
+      setError(extractErrorMessage(err, 'Ett fel uppstod vid prenumeration'));
     } finally {
       setLoading(false);
     }
