@@ -15,6 +15,7 @@ import {
   PlusIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon } from '@heroicons/react/24/solid';
+import { extractErrorMessage } from '../api/errorMessage';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -337,7 +338,7 @@ const MemoryJournal: React.FC = () => {
       logger.info('Memory saved', { memoryId: res.data?.data?.memoryId });
     } catch (err: unknown) {
       if (!isMountedRef.current) return;
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Kunde inte spara minnet. Försök igen.';
+      const msg = extractErrorMessage(err, 'Kunde inte spara minnet. Försök igen.');
       setSubmitError(msg);
       logger.error('Memory save failed', { err });
     } finally {

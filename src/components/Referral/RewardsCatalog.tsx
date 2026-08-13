@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
 import { API_ENDPOINTS } from '../../api/constants';
 import { logger } from '../../utils/logger';
+import { extractErrorMessage } from '../../api/errorMessage';
 
 
 interface Reward {
@@ -62,9 +63,7 @@ const RewardsCatalog: React.FC<RewardsCatalogProps> = ({ availableWeeks, onRedem
             setTimeout(() => setMessage(null), 3000);
             onRedemption(); // Refresh parent data
         } catch (err: unknown) {
-            const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
-                ? String(err.response.data.error)
-                : 'Kunde inte lösa in belöning';
+            const errorMessage = extractErrorMessage(err, 'Kunde inte lösa in belöning');
             setMessage({ 
                 type: 'error', 
                 text: errorMessage
