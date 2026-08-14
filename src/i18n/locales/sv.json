@@ -1073,7 +1073,7 @@
   },
   "worldDashboard": {
     "dashboardLoaded": "Dashboard laddad",
-    "loadError": "Kunde inte ladda dashboard:",
+    "loadError": "Kunde inte ladda översikten",
     "tryAgain": "Försök igen",
     "backToDashboard": "Tillbaka till Dashboard",
     "loadingAnalysis": "Laddar analyser...",

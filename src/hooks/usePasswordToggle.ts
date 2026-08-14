@@ -1,11 +1,15 @@
 import { useState, useCallback } from 'react';
 
 /**
- * Custom hook för password visibility toggle
- * Används i LoginForm, RegisterForm och andra password input components
- * 
+ * Custom hook för password visibility toggle.
+ *
+ * Används av PasswordInput, som i sin tur används av LoginForm,
+ * RegisterForm och ForgotPassword. Lägg toggle-logik här och inte inline
+ * i en komponent — det var så det hann bli två implementationer, där den
+ * som hade tester var den som ingen använde.
+ *
  * @returns {Object} - showPassword state och toggle funktion
- * 
+ *
  * @example
  * ```tsx
  * const { showPassword, togglePassword } = usePasswordToggle();
@@ -31,41 +35,6 @@ export const usePasswordToggle = (initialState: boolean = false) => {
     showPassword,
     togglePassword,
     setShowPassword, // För manuell kontroll om behövs
-  };
-};
-
-/**
- * Custom hook för multiple password fields (password + confirm password)
- * 
- * @example
- * ```tsx
- * const { 
- *   showPassword, 
- *   showConfirmPassword, 
- *   togglePassword, 
- *   toggleConfirmPassword 
- * } = useMultiplePasswordToggle();
- * ```
- */
-export const useMultiplePasswordToggle = () => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const togglePassword = useCallback(() => {
-    setShowPassword((prev) => !prev);
-  }, []);
-
-  const toggleConfirmPassword = useCallback(() => {
-    setShowConfirmPassword((prev) => !prev);
-  }, []);
-
-  return {
-    showPassword,
-    showConfirmPassword,
-    togglePassword,
-    toggleConfirmPassword,
-    setShowPassword,
-    setShowConfirmPassword,
   };
 };
 

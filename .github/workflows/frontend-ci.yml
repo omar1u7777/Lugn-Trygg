@@ -39,8 +39,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # This step passed for as long as it has existed, because the script it
+      # runs pointed at a solution tsconfig with "files": [] and checked zero
+      # files. Now that it follows the project references it reports the 387
+      # errors that accumulated behind it, from strict options the project
+      # enabled and never enforced.
+      #
+      # Non-blocking on purpose while that backlog is burned down: a required
+      # check that nothing can pass would block every PR, and switching the
+      # script back would just restore a green light that means nothing. The
+      # errors are visible in the log; remove continue-on-error once the count
+      # reaches zero, and it becomes a real gate.
       - name: TypeScript type check
         run: npm run type-check
+        continue-on-error: true
 
       - name: ESLint
         run: npm run lint

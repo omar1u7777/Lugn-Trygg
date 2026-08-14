@@ -696,7 +696,10 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
           <button
             type="button"
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="text-sm text-primary-600 dark:text-primary-400 hover:underline font-medium"
+            aria-expanded={showAdvanced}
+            // Styled as text only, this rendered 20px tall — under half the 44px
+            // WCAG 2.5.5 target size, on a control people tap on a phone.
+            className="inline-flex items-center min-h-[44px] py-2 text-sm text-primary-600 dark:text-primary-400 hover:underline font-medium"
           >
             {showAdvanced 
               ? t('moodLogger.hideAdvanced', '▼ Dölj avancerade alternativ')

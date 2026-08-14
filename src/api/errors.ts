@@ -3,6 +3,7 @@
  */
 
 import { AxiosError } from 'axios';
+import { extractErrorMessage } from './errorMessage';
 
 /**
  * Machine-readable error codes for the unified API error contract.
@@ -87,10 +88,14 @@ export class ApiError extends Error {
    */
   static fromAxiosError(error: AxiosError): ApiError {
     if (error.response) {
-      const responseData = error.response.data as Record<string, unknown> | undefined;
-      // Server responded with error status
+      // This had its own message-precedence rule, close to but not the same as
+      // extractErrorMessage's: it took `error` even when that field held a bare
+      // code, so ApiError.message could be "SERVICE_UNAVAILABLE" — and
+      // components display ApiError.message directly. One rule, in one place.
+      // Axios' own text stays as the last resort so debugging keeps a detail
+      // to grab when the server sent nothing usable.
       return new ApiError(
-        (responseData?.message as string) || (responseData?.error as string) || error.message,
+        extractErrorMessage(error, error.message),
         {
           status: error.response.status,
           statusText: error.response.statusText,
