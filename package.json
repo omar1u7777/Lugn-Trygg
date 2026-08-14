@@ -19,7 +19,7 @@
     "test:visual": "playwright test visual-regression.spec.ts --project=visual-regression",
     "test:visual:update": "node scripts/update-visual-baselines.js",
     "playwright:install": "playwright install",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc -b --noEmit",
     "lighthouse": "node scripts/run-lighthouse.mjs",
     "images:compress": "node scripts/compress-images.mjs",
     "validate-translations": "node scripts/validateTranslations.cjs"

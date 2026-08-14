@@ -150,8 +150,15 @@ const Navigation: React.FC = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2c8374] focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900';
 
-  // Header width: full for auth pages, offset for authenticated pages with sidebar
-  const headerWidthClass = isLoggedIn ? 'lg:left-64 lg:w-[calc(100%-16rem)]' : 'left-0 w-full';
+  // Header width: full for auth pages, offset for authenticated pages with sidebar.
+  // left-0 has to be set at the base breakpoint, not only at lg. A fixed element
+  // with no `left` keeps its static horizontal position, so below lg the header
+  // started wherever it landed in flow (10px in) and w-full then pushed it 10px
+  // past the viewport. It only showed for logged-in users on phones — the
+  // logged-out branch always had left-0.
+  const headerWidthClass = isLoggedIn
+    ? 'left-0 lg:left-64 lg:w-[calc(100%-16rem)]'
+    : 'left-0 w-full';
 
   return (
     <>

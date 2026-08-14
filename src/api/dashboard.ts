@@ -1,6 +1,7 @@
 import { api } from "./client";
 import { API_ENDPOINTS } from "./constants";
 import { logger } from "../utils/logger";
+import { extractErrorMessage } from "./errorMessage";
 import type { GoalStepCompletions } from "./users";
 
 /**
@@ -130,7 +131,12 @@ export const getDashboardSummary = async (userId: string, forceRefresh = false, 
   } catch (error: unknown) {
     const apiError = error as Record<string, unknown>;
     const responseData = (apiError.response as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
-    const errorMessage = (responseData?.error as string) || "Failed to load dashboard summary";
+    // Read `message` before `error`: the latter holds the machine code, so
+    // this used to surface "INTERNAL_ERROR" into the dashboard's error panel.
+    // The English fallback also reached Swedish users verbatim.
+    // Rendered after the panel's own "Kunde inte ladda översikten:" heading, so
+    // this has to add something rather than repeat it.
+    const errorMessage = extractErrorMessage(error, 'Tjänsten svarade inte. Det kan vara tillfälligt.');
     logger.error('Dashboard summary fetch error:', { error: apiError, responseData });
     throw new Error(errorMessage);
   }
@@ -227,8 +233,7 @@ export const setWellnessGoals = async (goals: string[]) => {
   } catch (error: unknown) {
     const apiError = error as Record<string, unknown>;
     logger.error('Set wellness goals error:', apiError);
-    const responseData = (apiError.response as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
-    throw new Error((responseData?.error as string) || "Failed to save wellness goals");
+    throw new Error(extractErrorMessage(error, 'Kunde inte spara dina mål.'));
   }
 };
 export interface ActivityProgress {
