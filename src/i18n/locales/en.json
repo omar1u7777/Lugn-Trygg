@@ -1030,7 +1030,7 @@
   },
   "worldDashboard": {
     "dashboardLoaded": "Dashboard loaded",
-    "loadError": "Could not load dashboard:",
+    "loadError": "Could not load the dashboard",
     "tryAgain": "Try again",
     "backToDashboard": "Back to Dashboard",
     "loadingAnalysis": "Loading analytics...",

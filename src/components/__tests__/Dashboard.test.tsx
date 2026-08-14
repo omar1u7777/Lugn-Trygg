@@ -207,7 +207,7 @@ describe('WorldClassDashboard', () => {
   test('shows error state when data fetch fails', () => {
     setupMocks({ error: new Error('Network error') });
     renderDashboard();
-    expect(screen.getByText(/Kunde inte ladda dashboard/)).toBeInTheDocument();
+    expect(screen.getByText(/Kunde inte ladda översikten/)).toBeInTheDocument();
     expect(screen.getByText('Network error')).toBeInTheDocument();
     expect(screen.getByText('Försök igen')).toBeInTheDocument();
   });

@@ -1,6 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { usePasswordToggle } from '../../../hooks/usePasswordToggle';
 import { Input } from './Input';
 
 export interface PasswordInputProps {
@@ -33,11 +34,10 @@ export const PasswordInput: React.FC<PasswordInputProps> = ({
   className = '',
 }) => {
   const { t } = useTranslation();
-  const [showPassword, setShowPassword] = useState(false);
-
-  const togglePassword = useCallback(() => {
-    setShowPassword((prev) => !prev);
-  }, []);
+  // This was the same useState + useCallback pair that usePasswordToggle
+  // already provides and already has tests for. Two implementations of
+  // "show the password or not", and the tested one was the unused one.
+  const { showPassword, togglePassword } = usePasswordToggle();
 
   const describedBy = error ? `${id}-error` : helpText ? `${id}-help` : ariaDescribedBy;
 

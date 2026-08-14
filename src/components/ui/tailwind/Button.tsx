@@ -54,10 +54,16 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       ghost: 'text-calm-600 hover:bg-calm-200 focus-visible:ring-secondary-500 active:scale-[0.98]',
     };
     
+    // Padding alone left md at 40px and sm at 32px. 44px is the touch target
+    // every mobile platform assumes (Apple HIG 44pt, Material 48dp) and what
+    // WCAG 2.5.5 asks for; below it, people miss and hit something else.
+    // md and lg carry the primary actions and get the full 44. sm is for
+    // dense inline controls where 44 would break the layout it sits in — it
+    // stays compact and still clears the 24px WCAG 2.5.8 AA floor.
     const sizes = {
-      sm: 'px-3 py-1.5 text-sm',
-      md: 'px-4 py-2 text-base',
-      lg: 'px-6 py-3 text-lg',
+      sm: 'px-3 py-1.5 text-sm min-h-[32px]',
+      md: 'px-4 py-2 text-base min-h-[44px]',
+      lg: 'px-6 py-3 text-lg min-h-[44px]',
     };
 
     return (
