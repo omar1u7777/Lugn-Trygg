@@ -16,6 +16,7 @@ import { getEncryptionKey } from '../config/env';
 import AES from 'crypto-js/aes';
 import Utf8 from 'crypto-js/enc-utf8';
 import { logger } from './logger';
+import { base64ToBytes, bytesToBase64 } from './base64';
 
 
 // Cache for crypto key to avoid regenerating on every operation
@@ -40,15 +41,18 @@ async function getCryptoKey(): Promise<CryptoKey> {
 
   const encryptionKey = getEncryptionKey();
   
-  // Convert string to ArrayBuffer (support both hex and plain text)
-  let keyData: Uint8Array;
-  
+  // Convert string to ArrayBuffer (support both hex and plain text).
+  // Typed as Uint8Array<ArrayBuffer> rather than a bare Uint8Array: since
+  // TS 5.7 the bare form widens to ArrayBufferLike, which importKey's
+  // BufferSource parameter does not accept.
+  let keyData: Uint8Array<ArrayBuffer>;
+
   // Check if it's a hex string (even length, only 0-9a-fA-F)
   if (/^[0-9a-fA-F]+$/.test(encryptionKey) && encryptionKey.length % 2 === 0) {
     // Parse as hex
-    keyData = new Uint8Array(
-      encryptionKey.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
-    );
+    const hexBytes = encryptionKey.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || [];
+    keyData = new Uint8Array(new ArrayBuffer(hexBytes.length));
+    keyData.set(hexBytes);
   } else {
     // Treat as plain text - hash it to get 256 bits
     const encoder = new TextEncoder();
@@ -89,7 +93,9 @@ async function encrypt(data: string): Promise<string> {
     combined.set(iv, 0);
     combined.set(new Uint8Array(encryptedData), iv.length);
 
-    return btoa(String.fromCharCode(...combined));
+    // Chunked: spreading the whole IV+ciphertext into String.fromCharCode
+    // throws RangeError once the stored value gets large.
+    return bytesToBase64(combined);
   } catch (error) {
     logger.error('❌ Encryption failed:', error);
     throw new Error('Failed to encrypt data');
@@ -102,7 +108,7 @@ async function encrypt(data: string): Promise<string> {
 async function decrypt(encryptedData: string): Promise<string> {
   try {
     const key = await getCryptoKey();
-    const combined = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
+    const combined = base64ToBytes(encryptedData);
 
     // Extract IV (first 12 bytes) and encrypted data
     const iv = combined.slice(0, 12);
@@ -266,6 +272,18 @@ const USER_SCOPED_KEY_PREFIXES = [
   'lugn_trygg_subscription_cache_',
   'lugn-trygg-chat-cache',
   'insights_last_generate',
+  // Offline queue written by services/offlineStorage.ts. This is the single
+  // most sensitive thing the app keeps in localStorage: mood `notes`, memory
+  // `content`, and the full bodies of queued POST/PUT requests, all in
+  // plaintext. It was absent from this list and offlineStorage's own
+  // clearOfflineData() has no callers, so an offline mood entry written by
+  // one user stayed readable to the next user of a shared device.
+  'lugn_trygg_offline_data',
+  // Privacy settings cached by utils/encryptionService.ts under a single
+  // unscoped key. Left behind, it became the next user's fallback whenever
+  // their backend fetch failed — silently applying user A's analytics
+  // opt-out and retention window to user B.
+  'privacy_settings',
 ];
 
 /**

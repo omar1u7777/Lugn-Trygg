@@ -15,6 +15,9 @@
  */
 
 import { isDevEnvironment } from '../config/env';
+// sentryClient is deliberately import-free, so this cannot create a cycle even
+// though nearly every module in the app imports this logger.
+import { captureException } from '../services/sentryClient';
 
 type LogLevel = 'log' | 'debug' | 'info' | 'warn' | 'error';
 
@@ -143,11 +146,17 @@ class Logger {
       
       console.error(...this.formatMessage(`❌ ${message}`, errorContext));
       
-      // Forward runtime errors to Sentry when available.
-      if (!this.isDev && error instanceof Error && typeof window !== 'undefined' && window.Sentry) {
-        window.Sentry.captureException(error, {
-          loggerMessage: message,
-          extra: this.normalizeContext(context),
+      // Forward runtime errors to Sentry. This used to be gated on
+      // `window.Sentry`, a global nothing in this codebase assigns, so no
+      // logger.error() has ever reached Sentry. Reporting now goes through
+      // the shared client, which queues calls raised before the SDK loads.
+      if (!this.isDev && error instanceof Error) {
+        captureException(error, {
+          tags: { source: 'logger' },
+          extra: {
+            loggerMessage: message,
+            ...this.normalizeContext(context),
+          },
         });
       }
     }

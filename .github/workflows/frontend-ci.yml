@@ -33,29 +33,54 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      # This step passed for as long as it has existed, because the script it
-      # runs pointed at a solution tsconfig with "files": [] and checked zero
-      # files. Now that it follows the project references it reports the 387
-      # errors that accumulated behind it, from strict options the project
-      # enabled and never enforced.
+      # This step passed for as long as it existed, because the script it runs
+      # pointed at a solution tsconfig with "files": [] and checked zero files.
+      # Following the project references revealed 387 pre-existing errors from
+      # strict options the project enabled and never enforced.
       #
-      # Non-blocking on purpose while that backlog is burned down: a required
-      # check that nothing can pass would block every PR, and switching the
-      # script back would just restore a green light that means nothing. The
-      # errors are visible in the log; remove continue-on-error once the count
-      # reaches zero, and it becomes a real gate.
-      - name: TypeScript type check
-        run: npm run type-check
-        continue-on-error: true
+      # A plain `npm run type-check` gate cannot pass until all of them are
+      # gone, and blocking every PR on a backlog nobody can clear in one sitting
+      # just gets the gate deleted. `continue-on-error: true` is the opposite
+      # failure: the number is free to climb and nobody notices.
+      #
+      # So this is a ratchet. The count may fall and may hold; it may not rise.
+      # Lower MAX_TS_ERRORS whenever you burn some down — that is what makes the
+      # gap close instead of drifting. At zero, replace this whole step with a
+      # plain `npm run type-check`.
+      - name: TypeScript type check (ratchet)
+        env:
+          MAX_TS_ERRORS: '282'
+        run: |
+          set -o pipefail
+          npm run type-check 2>&1 | tee /tmp/tsc.log || true
+          COUNT=$(grep -c 'error TS' /tmp/tsc.log || true)
+          echo "TypeScript errors: ${COUNT} (ceiling ${MAX_TS_ERRORS})"
+          if [ "$COUNT" -gt "$MAX_TS_ERRORS" ]; then
+            echo "::error title=TypeScript errors increased::${COUNT} errors, ceiling is ${MAX_TS_ERRORS}. Fix the new ones, or raise the ceiling deliberately with a reason."
+            exit 1
+          fi
+          if [ "$COUNT" -lt "$MAX_TS_ERRORS" ]; then
+            echo "::notice title=Lower the ratchet::Down to ${COUNT}. Set MAX_TS_ERRORS to ${COUNT} so it cannot climb back."
+          fi
 
       - name: ESLint
         run: npm run lint
+
+      # package.json has carried this script all along and CI never ran it. It
+      # was failing: the Norwegian locale was missing the entire `breathing`
+      # namespace — 53 keys covering the whole guided breathing exercise, its
+      # medical disclaimer included. Norwegian is offered in the language
+      # switcher with a flag, and nb/no both map to it, so those users silently
+      # got Swedish through a core feature. Blocking, because the failure mode
+      # is invisible in the UI (i18next falls back rather than erroring).
+      - name: Validate translations
+        run: npm run validate-translations
 
       - name: Unit tests
         run: npx vitest run --coverage --pool=forks --maxWorkers=1
@@ -88,6 +113,80 @@ jobs:
           token: ${{ env.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
+  # tests/e2e holds ~4,400 lines of Playwright specs across 12 files, including
+  # a responsive suite and a visual-regression suite. No workflow ran any of
+  # them, so they were written, committed, and never executed.
+  #
+  # When first run they looked broken. They were not: playwright.config.ts did
+  # not pin a browser locale, i18n detection follows `navigator`, and Chromium
+  # defaults to en-US — so the app rendered in English while every spec asserts
+  # on Swedish strings. Pinning locale: 'sv-SE' took responsive-critical from
+  # 5/8 to 8/8 without touching a single spec.
+  #
+  # Only the three specs below are gated, because they are the only ones that
+  # need nothing but the frontend. The other nine call an API at
+  # VITE_BACKEND_URL (default http://localhost:5001) that CI does not run —
+  # 43 of their assertions fail on connection, which is an unmet precondition
+  # rather than a defect. Standing up the backend here would let them join;
+  # until then, gating them would only teach people to ignore a red check.
+  e2e:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Chromium only. The config declares firefox, webkit and two mobile
+      # devices; installing all of them costs several minutes per run for
+      # coverage that has never been exercised. Widen deliberately, not by
+      # default.
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      # playwright.config.ts starts `npm run serve` (vite preview), which
+      # serves dist/ — so the build has to exist before the specs run.
+      - name: Build
+        run: npm run build
+        env:
+          VITE_ENCRYPTION_KEY: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2 # gitleaks:allow
+          VITE_FIREBASE_API_KEY: ci-test-api-key
+          VITE_FIREBASE_AUTH_DOMAIN: ci-test.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: ci-test-project
+          VITE_FIREBASE_STORAGE_BUCKET: ci-test-project.appspot.com
+
+      # visual-regression.spec.ts is deliberately NOT here. Its 15 baselines are
+      # committed as *-chromium-win32.png; Playwright resolves snapshot names
+      # per platform, so on ubuntu-latest it would look for *-linux.png, find
+      # nothing, and fail every run. Screenshots differ between platforms by
+      # more than the 0.1 threshold allows (font rendering), so the baselines
+      # cannot simply be renamed — they have to be regenerated on Linux via
+      # scripts/update-visual-baselines.js before this suite can be gated.
+      - name: Run frontend-only e2e specs
+        run: |
+          npx playwright test \
+            responsive-critical.spec.ts \
+            navigation.spec.ts \
+            --project=chromium \
+            --reporter=list
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
   security:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -105,7 +204,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: npm audit

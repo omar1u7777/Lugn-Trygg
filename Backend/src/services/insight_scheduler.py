@@ -97,6 +97,28 @@ class InsightNotificationScheduler:
             from src.utils.telemetry import telemetry
 
             result = DataRetentionService().apply_retention_policy()
+
+            # apply_retention_policy catches everything internally and REPORTS
+            # failure in its return value — it does not raise. So the except
+            # block below could never fire, and a sweep that deleted nothing
+            # because it crashed emitted "data_retention_completed,
+            # total_deleted=0" — indistinguishable from a healthy sweep on a
+            # day when nothing had expired.
+            #
+            # That is how 17 days of failed GDPR deletion produced no alert.
+            # The verdict has to be read, not assumed, exactly as the crisis
+            # queue reads escalate()'s success flag rather than trusting that
+            # the call returned.
+            if not result.get('success'):
+                telemetry.critical(
+                    "data_retention_failed",
+                    "Scheduled data retention did not complete — expired PHI may persist",
+                    error=str(result.get('error', 'unknown')),
+                    total_deleted=result.get('total_deleted', 0),
+                )
+                logger.error("🚨 Scheduled data retention FAILED: %s", result.get('error'))
+                return
+
             telemetry.event(
                 "data_retention_completed",
                 "Scheduled data retention enforcement finished",

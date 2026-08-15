@@ -238,7 +238,22 @@ class SecurityHeadersMiddleware:
     def _handle_csp_violation(self):
         """Handle CSP violation reports"""
         try:
-            violation_data = request.get_json()
+            # Browsers send CSP reports as `application/csp-report`, not
+            # `application/json`. Plain get_json() raises 415 on that media
+            # type, which the handler below turned into a 500 — so even once
+            # the request got past CSRF, no report was ever recorded.
+            violation_data = request.get_json(force=True, silent=True) or {}
+
+            # Both report formats: the legacy hyphenated top-level body and the
+            # Reporting-API envelope {"type": "csp-violation", "body": {...}}.
+            if isinstance(violation_data, list):
+                violation_data = violation_data[0] if violation_data else {}
+            if isinstance(violation_data, dict):
+                violation_data = (
+                    violation_data.get('csp-report')
+                    or violation_data.get('body')
+                    or violation_data
+                )
 
             if violation_data:
                 violation = {

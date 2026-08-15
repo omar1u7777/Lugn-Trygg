@@ -82,6 +82,18 @@ stripe==15.4.0
 
 # Database & Storage
 google-cloud-firestore==2.23.0
+# The gRPC transport under firestore was NOT pinned, so production silently
+# tracked whatever grpcio/google-api-core released last — the same failure the
+# CI tool versions had (see #163). On 2026-08-15 the retention sweep died with
+# "'_UnaryStreamMultiCallable' object has no attribute '_retry'", raised inside
+# google-cloud-firestore's OWN stream-retry path when a long-lived stream
+# faults (googleapis/python-firestore#939). Pinned to the versions production
+# is running so the environment is at least reproducible; the trigger itself —
+# one unbounded stream over every user — is fixed in data_retention_service by
+# paging. If that error returns, these two pins are the lever to move.
+grpcio==1.83.0
+grpcio-status==1.83.0
+google-api-core==2.34.0
 
 # Email Services
 resend==2.0.0

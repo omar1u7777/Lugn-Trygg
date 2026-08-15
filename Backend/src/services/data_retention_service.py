@@ -71,9 +71,7 @@ class DataRetentionService:
                 collections_processed = result['collections']
             else:
                 # Process all users
-                users = db.collection('users').stream()  # type: ignore
-                for user_doc in users:
-                    current_user_id: str = user_doc.id  # type: ignore
+                for current_user_id in self._iter_user_ids():
                     try:
                         result = self._process_user_retention(current_user_id)
                         total_deleted += result['total_deleted']
@@ -109,6 +107,63 @@ class DataRetentionService:
                 'total_deleted': 0,
                 'collections_processed': []
             }
+
+    # Bounded so one failing page costs at most this many users, and so the
+    # stream backing each page is short-lived enough not to hit a deadline.
+    USER_PAGE_SIZE = 200
+
+    def _iter_user_ids(self, page_size: int | None = None):
+        """Yield user ids, one cursor-paged batch at a time.
+
+        `db.collection('users').stream()` is a single long-lived gRPC stream and
+        it is consumed LAZILY: an exception surfaces inside the caller's `for`
+        loop, not at the .stream() call. It therefore escaped the per-user and
+        per-collection handlers, reached the top-level `except`, and aborted the
+        entire sweep — every remaining user skipped, `success: False` returned,
+        nothing deleted. That is how a GDPR Art. 17 obligation became one log
+        line.
+
+        It is not hypothetical. On 2026-08-15 the sweep died exactly this way
+        with "'_UnaryStreamMultiCallable' object has no attribute '_retry'", a
+        google-cloud-firestore/grpcio incompatibility in the library's own
+        stream-retry path (googleapis/python-firestore#939). The bug only became
+        reachable once the missing composite indexes were deployed and the sweep
+        got far enough to stream.
+
+        Paging bounds the blast radius to one page: a page that fails is logged
+        and skipped, and the sweep continues from the last id it did read.
+        Ordering by document id needs no composite index.
+        """
+        size = page_size or self.USER_PAGE_SIZE
+        cursor = None
+        pages_failed = 0
+
+        while True:
+            query = db.collection('users').order_by('__name__').limit(size)  # type: ignore
+            if cursor is not None:
+                query = query.start_after({'__name__': cursor})
+
+            try:
+                batch = list(query.stream())
+            except Exception as page_error:
+                # Cannot advance past a page we could not read: without an id to
+                # resume from, continuing would re-request the same page forever.
+                logger.error(
+                    "Failed to read users page after %r: %s. "
+                    "Retention sweep stops here; %d page(s) failed.",
+                    cursor, page_error, pages_failed + 1,
+                )
+                return
+
+            if not batch:
+                return
+
+            for doc in batch:
+                yield doc.id
+
+            if len(batch) < size:
+                return
+            cursor = batch[-1].id
 
     def _process_user_retention(self, user_id: str) -> dict[str, Any]:
         """Process data retention for a specific user"""

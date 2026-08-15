@@ -1603,7 +1603,8 @@
     "errorLoading": "Kunne ikke laste velværesdata",
     "retry": "Prøv igjen",
     "noWellnessData": "Ingen data tilgjengelig ennå",
-    "audioUnavailable": "Lyden kunne ikke spilles av. Timeren fortsetter — du kan meditere i stillhet eller prøve igjen senere."
+    "audioUnavailable": "Lyden kunne ikke spilles av. Timeren fortsetter — du kan meditere i stillhet eller prøve igjen senere.",
+    "sleepStory": "Godnatthistorie"
   },
   "profileHub": {
     "guest": "Gjest",
@@ -2089,8 +2090,18 @@
       "history": "Historikk"
     },
     "responseOptions": {
-      "labels": ["Ikke i det hele tatt", "Flere dager", "Mer enn halvparten av dagene", "Nesten hver dag"],
-      "descriptions": ["0 poeng", "1 poeng", "2 poeng", "3 poeng"]
+      "labels": [
+        "Ikke i det hele tatt",
+        "Flere dager",
+        "Mer enn halvparten av dagene",
+        "Nesten hver dag"
+      ],
+      "descriptions": [
+        "0 poeng",
+        "1 poeng",
+        "2 poeng",
+        "3 poeng"
+      ]
     },
     "severity": {
       "minimal": "Minimal",
@@ -2218,5 +2229,59 @@
       "physical_activity": "Fysisk aktivitet",
       "emotion_regulation": "Følelsesregulering"
     }
+  },
+  "breathing": {
+    "offlineMode": "Biofeedback er ikke tilgjengelig — pusteøvelsen fungerer likevel utmerket.",
+    "connecting": "Kobler til biofeedback...",
+    "retryConnection": "Prøv å koble til igjen",
+    "start": "Start pusteøvelse",
+    "abort": "⚠️ AVBRYT",
+    "abort_tooltip": "Avbryt øvelsen umiddelbart",
+    "abort_info": "❗ Trykk \"AVBRYT\" umiddelbart hvis du blir urolig, svimmel eller uvel",
+    "cycle": "Syklus",
+    "coherence": "Koherens",
+    "resonance": "Resonans",
+    "hideMetrics": "Skjul måleverdier",
+    "showMetrics": "Vis måleverdier",
+    "medical_disclaimer_title": "⚠️ Viktig medisinsk ansvarsfraskrivelse",
+    "medical_disclaimer": "Pusteøvelser er et supplement til medisinsk behandling, ikke en erstatning. Hvis du kjenner uro, matthet, svimmelhet eller andre symptomer under øvelsen – AVBRYT UMIDDELBART og kontakt lege.",
+    "inhale": "Pust inn",
+    "hold": "Hold",
+    "exhale": "Pust ut",
+    "rest": "Hvil",
+    "completed": "Ferdig!",
+    "basicMode": "Grunnmodus",
+    "hrvBiofeedback": "HRV-biofeedback",
+    "patternDescription": "Velg pustemønster — sirkelen animeres i sanntid basert på pusterytmen din.",
+    "patterns": {
+      "coherence": "❤️ Koherens 6bpm",
+      "relax": "😴 4-7-8",
+      "energize": "⚡ Box",
+      "sleep": "🌙 Søvn"
+    },
+    "soundOn": "Lyd på",
+    "soundOff": "Lyd av",
+    "hapticsOn": "Haptikk på",
+    "hapticsOff": "Haptikk av",
+    "fullscreen": "🗖 Fullskjerm",
+    "exitFullscreen": "🗗 Avslutt fullskjerm",
+    "interactiveGuide": "Interaktiv pusteguide",
+    "followInstructions": "Følg teksten i sirkelen og tallene for å skape et rolig pustemønster.",
+    "stressBefore": "Stress før start",
+    "stressBeforeHint": "Sett en rask baselinje før pusterunden.",
+    "cycles": "sykluser",
+    "hide": "Skjul",
+    "show": "Vis",
+    "why478": "Hvorfor 4-7-8?",
+    "science478": "4-7-8-pusting forlenger utpusten, noe som kan aktivere kroppens ro- og restitusjonssystem. Teknikken kan bidra til å senke opplevd stress, stabilisere pusterytmen og skape bedre fokus der og da.",
+    "stressAfter": "Stress etter øvelsen",
+    "change": "Endring",
+    "points": "poeng",
+    "resume": "▶️ Fortsett",
+    "pause": "⏸️ Pause",
+    "stop": "⏹️ Stopp",
+    "startNew": "🔁 Start ny runde",
+    "startExercise": "🚀 Start pusteøvelse",
+    "selectStressHint": "Velg stressnivå før start for å kunne sammenligne effekten etterpå."
   }
 }

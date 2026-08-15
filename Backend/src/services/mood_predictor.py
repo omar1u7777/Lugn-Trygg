@@ -5,7 +5,6 @@ Replaces np.polyfit() with sophisticated ML models.
 
 import logging
 import os
-import pickle
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -45,6 +44,7 @@ except ImportError:
     SHAP_AVAILABLE = False
 
 from ..config.firebase_config import db
+from ..utils.secure_pickle import PickleIntegrityError, load_verified
 
 logger = logging.getLogger(__name__)
 
@@ -348,14 +348,28 @@ class MoodPredictor:
         logger.info("✅ Mood Predictor initialized")
 
     def _load_models(self):
-        """Load pre-trained models from disk."""
+        """Load pre-trained models from disk.
+
+        Pickle files are HMAC-verified before deserialization: pickle.loads
+        executes arbitrary code, so anything able to write to MODEL_PATH would
+        otherwise get RCE in a process holding Firestore credentials. An
+        unsigned or tampered file is refused and the predictor falls back to
+        its heuristic path, which _predict_fallback already supports — the
+        same posture MLSentimentService takes.
+        """
         try:
             # Load Random Forest
             rf_path = os.path.join(self.model_path, 'mood_rf_model.pkl')
             if os.path.exists(rf_path):
-                with open(rf_path, 'rb') as f:
-                    self.rf_model = pickle.load(f)
-                logger.info("✅ Loaded Random Forest model")
+                try:
+                    self.rf_model = load_verified(rf_path)
+                    logger.info("✅ Loaded Random Forest model (integrity verified)")
+                except PickleIntegrityError as integrity_err:
+                    self.rf_model = None
+                    logger.error(
+                        "🚨 Refusing to load RF model — %s. Using fallback predictions.",
+                        integrity_err,
+                    )
             else:
                 logger.warning("⚠️ No pre-trained RF model found, will use fallback")
 
@@ -370,9 +384,14 @@ class MoodPredictor:
             # Load scaler
             scaler_path = os.path.join(self.model_path, 'mood_scaler.pkl')
             if os.path.exists(scaler_path):
-                with open(scaler_path, 'rb') as f:
-                    self.scaler = pickle.load(f)
-                logger.info("✅ Loaded feature scaler")
+                try:
+                    self.scaler = load_verified(scaler_path)
+                    logger.info("✅ Loaded feature scaler (integrity verified)")
+                except PickleIntegrityError as integrity_err:
+                    logger.error(
+                        "🚨 Refusing to load feature scaler — %s. Keeping a fresh scaler.",
+                        integrity_err,
+                    )
 
         except Exception as e:
             logger.error(f"Failed to load models: {e}")

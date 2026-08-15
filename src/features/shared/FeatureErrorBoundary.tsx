@@ -7,6 +7,7 @@
 import React, { Component, ReactNode } from 'react';
 import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { logger } from '../../utils/logger';
+import { captureException } from '../../services/sentryClient';
 
 
 interface Props {
@@ -47,15 +48,17 @@ export class FeatureErrorBoundary extends Component<Props, State> {
     // Call custom error handler if provided
     this.props.onError?.(error, errorInfo);
     
-    // In production, send to error tracking service
-    if (typeof window !== 'undefined' && window.Sentry) {
-      window.Sentry.captureException(error, {
-        extra: {
-          feature: this.props.featureName,
-          componentStack: errorInfo.componentStack,
-        },
-      });
-    }
+    // Report the crash. This was gated on `window.Sentry`, which nothing
+    // assigns — so every caught render crash in the app was dropped. The
+    // shared client queues the report if the SDK is still loading, which is
+    // common for crashes that happen during initial render.
+    captureException(error, {
+      tags: { feature: this.props.featureName, source: 'error-boundary' },
+      extra: {
+        feature: this.props.featureName,
+        componentStack: errorInfo.componentStack,
+      },
+    });
   }
 
   handleRetry = () => {
