@@ -73,7 +73,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.18",
     "autoprefixer": "^10.4.20",
-    "baseline-browser-mapping": "^2.10.10",
+    "baseline-browser-mapping": "^2.11.13",
     "chrome-launcher": "^1.2.1",
     "cross-env": "^10.1.0",
     "eslint": "^9.39.5",
