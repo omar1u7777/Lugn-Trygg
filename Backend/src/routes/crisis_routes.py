@@ -404,12 +404,37 @@ def check_escalation():
             return APIResponse.unauthorized('Authentication required')
         data = request.get_json(silent=True) or {}
 
-        # Get previous assessment
-        prev_assessment_doc = db.collection('crisis_assessments').document(user_id).get()  # type: ignore
-        if not prev_assessment_doc.exists:
+        # Get the user's most recent assessment.
+        #
+        # This used to read `.document(user_id)`, but assess_crisis_risk writes
+        # with `.add()`, which generates a random document id and carries
+        # user_id only as a FIELD. No document has ever existed at the user_id
+        # key, so this endpoint returned 404 for every user on every call —
+        # the escalation check on the crisis path has never once run. Query by
+        # the field, newest first, exactly as get_assessment_history does
+        # (composite index user_id ASC + assessment_timestamp DESC is already
+        # provisioned in firestore.indexes.json).
+        prev_query = db.collection('crisis_assessments')\
+            .where(filter=FieldFilter('user_id', '==', user_id))\
+            .order_by('assessment_timestamp', direction='DESCENDING')\
+            .limit(1)  # type: ignore
+
+        prev_docs = list(prev_query.stream())
+        if not prev_docs:
             return APIResponse.error("No previous assessment found", "NO_ASSESSMENT", 404)
 
-        prev_data = prev_assessment_doc.to_dict()
+        prev_data = prev_docs[0].to_dict() or {}
+
+        # A stored assessment missing these is corrupt, not a server fault —
+        # say so instead of raising a KeyError into the generic 500 handler.
+        if 'risk_level' not in prev_data or 'assessment_timestamp' not in prev_data:
+            logger.error(
+                "Corrupt crisis assessment for user %s: missing risk_level/assessment_timestamp",
+                user_id[:8],
+            )
+            return APIResponse.error(
+                "Stored assessment is incomplete", "ASSESSMENT_CORRUPT", 422
+            )
 
         # Recreate assessment object (simplified)
         from src.services.crisis_intervention import CrisisAssessment
@@ -423,7 +448,7 @@ def check_escalation():
         prev_assessment = CrisisAssessment(
             user_id=user_id,
             overall_risk_level=prev_data['risk_level'],
-            risk_score=prev_data['risk_score'],
+            risk_score=prev_data.get('risk_score', 0.0),
             active_indicators=active_indicators,
             risk_trends=prev_data.get('risk_trends', {}),
             intervention_recommendations=prev_data.get('intervention_recommendations', []),
@@ -472,6 +497,17 @@ def _escalate_crisis(user_id: str, assessment) -> None:
     provision — making it a silent no-op in production regardless of
     Twilio/SendGrid being configured correctly for every other crisis surface.
     """
+    # The audit-trail write and the durable notification enqueue are
+    # INDEPENDENT and must stay in separate try blocks.
+    #
+    # They used to share one try: a failure on the crisis_alerts write (quota,
+    # a transient Firestore error, a permission or index problem) jumped
+    # straight to the outer handler, which only logged — so enqueue_crisis_
+    # escalation was never reached and NO SMS, email or push was ever attempted
+    # for a critical-risk user, while /assess still answered 200 with
+    # needs_immediate_attention: true. The admin audit record is the less
+    # important of the two; it must never be able to suppress the path that
+    # reaches a human.
     try:
         alert_doc = {
             'user_id': user_id,
@@ -485,9 +521,19 @@ def _escalate_crisis(user_id: str, assessment) -> None:
         }
         db.collection('crisis_alerts').add(alert_doc)
         logger.info(f"Crisis alert persisted for user {user_id[:8]}...")
+    except Exception as alert_err:
+        logger.error(
+            "Failed to persist crisis alert for user %s (continuing to "
+            "escalation regardless): %s", user_id[:8], alert_err,
+        )
 
-        from ..services.crisis_escalation import CrisisAlert
-        from ..services.crisis_task_queue import CrisisQueueUnavailableError, enqueue_crisis_escalation
+    # Imported OUTSIDE the try: naming CrisisQueueUnavailableError in an except
+    # clause only works if the import already succeeded, otherwise the handler
+    # itself raises NameError.
+    from ..services.crisis_escalation import CrisisAlert
+    from ..services.crisis_task_queue import CrisisQueueUnavailableError, enqueue_crisis_escalation
+
+    try:
         durable_alert = CrisisAlert(
             user_id=user_id,
             risk_level=assessment.overall_risk_level,
@@ -497,13 +543,16 @@ def _escalate_crisis(user_id: str, assessment) -> None:
             timestamp=datetime.now(UTC),
             requires_immediate_action=assessment.overall_risk_level == 'critical',
         )
-        try:
-            enqueue_crisis_escalation(durable_alert)
-        except CrisisQueueUnavailableError:
-            logger.critical(
-                "🚨 /assess crisis escalation could not be queued for "
-                "user=%s. REQUIRES MANUAL REVIEW.", user_id,
-            )
-
+        enqueue_crisis_escalation(durable_alert)
+    except CrisisQueueUnavailableError:
+        logger.critical(
+            "🚨 /assess crisis escalation could not be queued for "
+            "user=%s. REQUIRES MANUAL REVIEW.", user_id,
+        )
     except Exception as e:
-        logger.error(f"Failed to escalate crisis for user {user_id[:8]}...: {e}")
+        # Any other failure here also means no human was notified — it is a
+        # CRITICAL, not an ERROR, and must page rather than sit in a log.
+        logger.critical(
+            "🚨 Failed to enqueue crisis escalation for user=%s: %s. "
+            "REQUIRES MANUAL REVIEW.", user_id, e,
+        )
