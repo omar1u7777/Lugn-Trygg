@@ -158,3 +158,154 @@ class TestBatching:
 
         assert deleted == doc_count
         assert batch.commit.call_count == expected_commits
+
+
+class TestOneBrokenStreamDoesNotAbortTheWholeSweep:
+    """The user enumeration used to be a single lazy `.stream()` sitting
+    outside every inner handler.
+
+    Firestore streams are consumed lazily, so a mid-iteration failure surfaced
+    in the caller's `for` loop, escaped the per-user and per-collection
+    handlers, hit the top-level `except`, and abandoned every remaining user.
+
+    It happened. On 2026-08-15 the sweep died with "'_UnaryStreamMultiCallable'
+    object has no attribute '_retry'" — a google-cloud-firestore/grpcio
+    incompatibility in the library's own stream-retry path, newly reachable
+    once the missing composite indexes were deployed and the sweep finally got
+    far enough to stream.
+    """
+
+    @staticmethod
+    def _doc(doc_id):
+        d = MagicMock()
+        d.id = doc_id
+        return d
+
+    def _paged_collection(self, pages):
+        """Build a users collection whose .stream() returns `pages` in order.
+
+        A page may be an Exception instance, meaning that page raises.
+        """
+        query = MagicMock()
+        query.order_by.return_value = query
+        query.limit.return_value = query
+        query.start_after.return_value = query
+
+        calls = iter(pages)
+
+        def stream():
+            page = next(calls)
+            if isinstance(page, Exception):
+                raise page
+            return iter([self._doc(i) for i in page])
+
+        query.stream.side_effect = stream
+        return query
+
+    def test_pages_through_all_users(self, service):
+        users = self._paged_collection([['u1', 'u2'], ['u3']])
+        with patch('src.services.data_retention_service.db') as mock_db:
+            mock_db.collection.return_value = users
+            assert list(service._iter_user_ids(page_size=2)) == ['u1', 'u2', 'u3']
+
+    def test_stops_cleanly_on_a_short_final_page(self, service):
+        """A page shorter than the limit is the last one — do not query again."""
+        users = self._paged_collection([['u1']])
+        with patch('src.services.data_retention_service.db') as mock_db:
+            mock_db.collection.return_value = users
+            assert list(service._iter_user_ids(page_size=10)) == ['u1']
+        assert users.stream.call_count == 1
+
+    def test_a_failing_page_does_not_discard_the_users_already_read(self, service):
+        """The whole point: users read before the failure are still processed."""
+        boom = RuntimeError("'_UnaryStreamMultiCallable' object has no attribute '_retry'")
+        users = self._paged_collection([['u1', 'u2'], boom])
+        with patch('src.services.data_retention_service.db') as mock_db:
+            mock_db.collection.return_value = users
+            assert list(service._iter_user_ids(page_size=2)) == ['u1', 'u2']
+
+    def test_a_failing_first_page_yields_nothing_rather_than_looping(self, service):
+        """Without an id to resume from, retrying would re-request forever."""
+        users = self._paged_collection([RuntimeError('transport died')])
+        with patch('src.services.data_retention_service.db') as mock_db:
+            mock_db.collection.return_value = users
+            assert list(service._iter_user_ids(page_size=2)) == []
+        assert users.stream.call_count == 1
+
+    def test_one_user_raising_does_not_stop_the_others(self, service):
+        """Pre-existing guarantee — kept pinned now that enumeration changed."""
+        users = self._paged_collection([['ok1', 'bad', 'ok2']])
+
+        def per_user(uid):
+            if uid == 'bad':
+                raise RuntimeError('this user explodes')
+            return {'total_deleted': 1, 'collections': [{'collection': 'moods'}]}
+
+        with patch('src.services.data_retention_service.db') as mock_db, \
+             patch.object(service, '_process_user_retention', side_effect=per_user), \
+             patch('src.services.data_retention_service.audit_service'):
+            mock_db.collection.return_value = users
+            result = service.apply_retention_policy()
+
+        assert result['success'] is True
+        assert result['total_deleted'] == 2
+
+
+class TestAFailedSweepAlertsInsteadOfReportingSuccess:
+    """apply_retention_policy REPORTS failure, it does not raise.
+
+    _run_data_retention's telemetry.critical sat in an `except` block that
+    therefore could never fire. A sweep that crashed emitted
+    "data_retention_completed, total_deleted=0" — the same signal a healthy
+    sweep emits on a day when nothing had expired.
+
+    That is why 17 days of failed GDPR deletion produced no alert. The verdict
+    has to be read, the way the crisis queue reads escalate()'s success flag
+    rather than trusting that the call returned.
+    """
+
+    def _run(self, retention_result):
+        from src.services.insight_scheduler import InsightNotificationScheduler
+
+        with patch(
+            'src.services.data_retention_service.DataRetentionService.apply_retention_policy',
+            return_value=retention_result,
+        ), patch('src.utils.telemetry.telemetry') as telemetry:
+            InsightNotificationScheduler()._run_data_retention()
+        return telemetry
+
+    def test_failure_emits_critical_and_no_completion_event(self):
+        telemetry = self._run({
+            'success': False,
+            'error': "'_UnaryStreamMultiCallable' object has no attribute '_retry'",
+            'total_deleted': 0,
+            'collections_processed': [],
+        })
+
+        assert telemetry.critical.called, "a failed sweep must page, not log quietly"
+        assert telemetry.critical.call_args[0][0] == 'data_retention_failed'
+
+        completed = [c for c in telemetry.event.call_args_list
+                     if c[0] and c[0][0] == 'data_retention_completed']
+        assert completed == [], "a failed sweep must not report completion"
+
+    def test_success_still_emits_the_completion_event(self):
+        telemetry = self._run({
+            'success': True,
+            'total_deleted': 12,
+            'collections_processed': [{'collection': 'notifications', 'deleted': 12}],
+        })
+
+        assert not telemetry.critical.called
+        assert telemetry.event.call_args[0][0] == 'data_retention_completed'
+
+    def test_a_healthy_sweep_that_deleted_nothing_is_not_an_alert(self):
+        """Zero deletions is normal on a day when nothing had expired."""
+        telemetry = self._run({
+            'success': True,
+            'total_deleted': 0,
+            'collections_processed': [],
+        })
+
+        assert not telemetry.critical.called
+        assert telemetry.event.call_args[0][0] == 'data_retention_completed'
