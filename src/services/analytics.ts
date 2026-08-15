@@ -5,6 +5,7 @@
  */
 
 import { logger } from '../utils/logger';
+import * as Sentry from './sentryClient';
 
 type AnalyticsProperties = Record<string, unknown>;
 
@@ -12,22 +13,14 @@ interface WebVitalMetric {
   value: number;
 }
 
-interface AmplitudeInstanceLike {
-  logEvent: (eventName: string, properties?: AnalyticsProperties) => void;
-  getSessionId?: () => number;
-  setUserId: (userId: string) => void;
-  setUserProperties: (properties: AnalyticsProperties) => void;
-  clearUserProperties?: () => void;
-}
-
-interface AmplitudeGlobal {
-  getInstance: () => AmplitudeInstanceLike;
-}
-
+/**
+ * `va` is installed by the <Analytics /> component from @vercel/analytics,
+ * mounted lazily in main.tsx. It is the only third-party analytics global this
+ * app actually loads — the previous `gtag`/`amplitude` declarations described
+ * scripts that were never added to the page.
+ */
 interface AnalyticsWindow extends Window {
-  gtag?: (...args: unknown[]) => void;
   va?: (...args: unknown[]) => void;
-  amplitude?: AmplitudeGlobal;
 }
 
 // CRITICAL FIX: Use function to safely get window reference to prevent TDZ errors
@@ -40,46 +33,13 @@ const getAppWindow = (): AnalyticsWindow | undefined => {
 
 const appWindow = getAppWindow();
 
-// Sentry for production error tracking
-// Only initialized when VITE_SENTRY_DSN is set — no-ops gracefully otherwise
-let Sentry: {
-  init: (options?: Record<string, unknown>) => void;
-  setUser: (user?: { id?: string; email?: string; username?: string }) => void;
-  captureException: (error?: Error, context?: Record<string, unknown>) => void;
-  captureMessage: (message?: string, level?: 'fatal' | 'error' | 'warning' | 'info' | 'debug') => void;
-  addBreadcrumb: (breadcrumb?: Record<string, unknown>) => void;
-};
-
-const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
-
-if (SENTRY_DSN) {
-  // Dynamic import to avoid bundling Sentry when not configured
-  import('@sentry/react').then((SentryModule) => {
-    Sentry = SentryModule;
-    Sentry.init({
-      dsn: SENTRY_DSN,
-      environment: import.meta.env.MODE || 'production',
-      tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
-      replaysSessionSampleRate: 0,
-      replaysOnErrorSampleRate: import.meta.env.PROD ? 1.0 : 0,
-      enabled: import.meta.env.PROD,
-    });
-    logger.debug('✅ Sentry initialized for error tracking');
-  }).catch((err) => {
-    logger.warn('⚠️ Failed to load Sentry SDK:', err);
-  });
-} else {
-  // No DSN configured — use silent no-ops (safe for development)
-  Sentry = {
-    init: () => {},
-    setUser: () => {},
-    captureException: () => {},
-    captureMessage: () => {},
-    addBreadcrumb: () => {},
-  };
-  if (import.meta.env.DEV) {
-    logger.debug('ℹ️ Sentry not configured (VITE_SENTRY_DSN not set) — error tracking disabled');
-  }
+// Sentry lives in ./sentryClient — it owns SDK loading and queues calls made
+// before the dynamic import resolves, so telemetry raised during page load
+// (crisis reports included) is replayed rather than dropped. logger.ts and
+// FeatureErrorBoundary report through the same module, replacing the
+// `window.Sentry` global that nothing ever assigned.
+if (import.meta.env.DEV && !Sentry.isSentryConfigured()) {
+  logger.debug('ℹ️ Sentry not configured (VITE_SENTRY_DSN not set) — error tracking disabled');
 }
 
 // Types for analytics
@@ -109,15 +69,39 @@ interface ErrorContext {
 }
 
 // Configuration
-const VERCEL_ANALYTICS_ID = import.meta.env.VITE_VERCEL_ANALYTICS_ID || '';
 const ENABLE_WEB_VITALS = import.meta.env.VITE_ENABLE_WEB_VITALS !== 'false';
-
-// Analytics instances
-const firebaseAnalytics: unknown = null;
-const amplitudeInstance: AmplitudeInstanceLike | null = null;
 
 // Production optimization: disable analytics in development unless explicitly enabled
 const ENABLE_ANALYTICS = import.meta.env.PROD || import.meta.env.VITE_FORCE_ANALYTICS === 'true';
+
+/**
+ * Deliver one event to every telemetry sink that is actually wired up.
+ *
+ * Previously each tracking function fanned out to three sinks guarded by
+ * `amplitudeInstance` and `firebaseAnalytics`, both of which were declared
+ * `const … = null` and never assigned — so those branches were unreachable
+ * and TypeScript reported the bodies as `never`. The Vercel branch was
+ * reachable but gated behind `VITE_VERCEL_ANALYTICS_ID`, an env var that
+ * @vercel/analytics/react does not use (the <Analytics /> component mounted
+ * in main.tsx auto-detects the project and installs `window.va`). With that
+ * var unset — it is not in render.yaml or the Vercel project — the last live
+ * sink was gated off too, and EVERY analytics.track() call in the app,
+ * including `Crisis Indicators Detected`, reached nothing but a debug log
+ * that production suppresses.
+ *
+ * Sinks now: Vercel Web Analytics when present, plus a Sentry breadcrumb so
+ * the events leading up to an error are attached to that error's report.
+ */
+const emit = (eventName: string, properties: AnalyticsProperties): void => {
+  appWindow?.va?.('event', { name: eventName, properties });
+
+  Sentry.addBreadcrumb({
+    category: 'analytics',
+    message: eventName,
+    level: 'info',
+    data: properties,
+  });
+};
 
 // Core Analytics Service
 export const analytics = {
@@ -132,24 +116,8 @@ export const analytics = {
     };
 
     try {
-      // Amplitude
-      if (amplitudeInstance) {
-        amplitudeInstance.logEvent('Page Viewed', pageData);
-      }
-
-      // Firebase
-      if (firebaseAnalytics && appWindow.gtag) {
-        appWindow.gtag('event', 'page_view', {
-          page_title: pageName,
-          page_location: window.location.href,
-          ...properties,
-        });
-      }
-
-      // Vercel Analytics
-      if (appWindow.va && VERCEL_ANALYTICS_ID) {
-        appWindow.va('pageview');
-      }
+      appWindow?.va?.('pageview');
+      emit('Page Viewed', pageData);
 
       logger.debug('📊 Page tracked:', pageData);
     } catch (error) {
@@ -161,27 +129,13 @@ export const analytics = {
   track: (eventName: string, properties: AnalyticsProperties = {}) => {
     const eventData = {
       timestamp: Date.now(),
-      sessionId: amplitudeInstance?.getSessionId?.() || Date.now(),
       ...properties,
     };
 
     try {
-      // Amplitude
-      if (amplitudeInstance) {
-        amplitudeInstance.logEvent(eventName, eventData);
-      }
+      emit(eventName, eventData);
 
-      // Firebase
-      if (firebaseAnalytics && appWindow.gtag) {
-        appWindow.gtag('event', eventName, properties);
-      }
-
-      // Vercel Analytics
-      if (appWindow.va && VERCEL_ANALYTICS_ID) {
-        appWindow.va('event', { name: eventName, properties });
-      }
-
-      logger.debug('📊 Event tracked:', eventName, eventData);
+      logger.debug(`📊 Event tracked: ${eventName}`, eventData);
     } catch (error) {
       logger.warn('Event tracking failed:', error);
     }
@@ -195,20 +149,6 @@ export const analytics = {
         ...properties,
         identifiedAt: Date.now(),
       };
-
-      // Amplitude
-      if (amplitudeInstance) {
-        amplitudeInstance.setUserId(userId);
-        amplitudeInstance.setUserProperties(userData);
-      }
-
-      // Firebase
-      if (firebaseAnalytics && appWindow.gtag) {
-        appWindow.gtag('config', import.meta.env.VITE_FIREBASE_MEASUREMENT_ID, {
-          user_id: userId,
-          custom_map: properties,
-        });
-      }
 
       // Sentry
       Sentry.setUser({
@@ -246,11 +186,6 @@ export const analytics = {
         },
       });
 
-      // Amplitude
-      if (amplitudeInstance) {
-        amplitudeInstance.logEvent('Error Occurred', errorData);
-      }
-
       logger.error('❌ Error tracked:', errorData);
     } catch (err) {
       logger.warn('Error tracking failed:', err);
@@ -269,35 +204,12 @@ export const analytics = {
     };
 
     try {
-      // Amplitude
-      if (amplitudeInstance) {
-        amplitudeInstance.logEvent('Performance Metric', performanceData);
-      }
-
-      // Firebase
-      if (firebaseAnalytics && appWindow.gtag) {
-        appWindow.gtag('event', 'performance', {
-          event_category: 'performance',
-          event_label: metric.name,
-          value: metric.value,
-          custom_map: {
-            unit: metric.unit,
-            category: metric.category,
-            connection: performanceData.connection,
-            device_memory: performanceData.deviceMemory,
-          },
-        });
-      }
-
-      // Sentry performance tracking
-      if (Sentry && typeof Sentry.addBreadcrumb === 'function') {
-        Sentry.addBreadcrumb({
-          category: 'performance',
-          message: `${metric.name}: ${metric.value}${metric.unit}`,
-          level: 'info',
-          data: performanceData,
-        });
-      }
+      Sentry.addBreadcrumb({
+        category: 'performance',
+        message: `${metric.name}: ${metric.value}${metric.unit}`,
+        level: 'info',
+        data: performanceData,
+      });
 
       logger.debug('⚡ Performance tracked:', performanceData);
     } catch (error) {
@@ -535,14 +447,15 @@ export function initializeAnalytics() {
 }
 
 /**
- * Track events with Amplitude
+ * Track a single event.
+ *
+ * These standalone helpers used to talk to `window.amplitude`, a global no
+ * script in this app ever loads — so like the object-form sinks above they
+ * delivered nothing. They now share the same `analytics.track` path.
  */
 export function trackEvent(eventName: string, properties?: AnalyticsProperties) {
   try {
-    if (typeof window !== 'undefined' && appWindow.amplitude) {
-      appWindow.amplitude.getInstance().logEvent(eventName, properties);
-    }
-    logger.debug(`📊 Event tracked: ${eventName}`, properties);
+    analytics.track(eventName, properties ?? {});
   } catch (error) {
     logger.error('Failed to track event:', error);
     trackError(error as Error);
@@ -554,10 +467,6 @@ export function trackEvent(eventName: string, properties?: AnalyticsProperties) 
  */
 export function setUserProperties(userId: string, properties: AnalyticsProperties) {
   try {
-    if (typeof window !== 'undefined' && appWindow.amplitude) {
-      appWindow.amplitude.getInstance().setUserId(userId);
-      appWindow.amplitude.getInstance().setUserProperties(properties);
-    }
     Sentry.setUser({ id: userId });
     logger.debug('👤 User properties set:', properties);
   } catch (error) {
@@ -570,9 +479,6 @@ export function setUserProperties(userId: string, properties: AnalyticsPropertie
  */
 export function clearUserData() {
   try {
-    if (typeof window !== 'undefined' && appWindow.amplitude) {
-      appWindow.amplitude.getInstance().clearUserProperties?.();
-    }
     Sentry.setUser(null);
     logger.debug('🧹 User data cleared');
   } catch (error) {
