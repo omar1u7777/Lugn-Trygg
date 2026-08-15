@@ -4,6 +4,7 @@ import { tokenStorage } from '../utils/secureStorage';
 import { logger } from '../utils/logger';
 import { API_ENDPOINTS } from '../api/constants';
 import { getCsrfToken, clearCsrfToken } from '../api/csrf';
+import { refreshAccessToken } from '../api/auth';
 // Importing the api client ensures the CSRF fetcher is registered before we
 // call getCsrfToken() — without this side-effect import the shared module
 // would return null on first invocation in this hook.
@@ -59,7 +60,18 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
       abortControllerRef.current.abort();
     }
 
-    abortControllerRef.current = new AbortController();
+    // Hold this invocation's controller locally as its identity. The aborted
+    // previous invocation resumes AFTER this one has already replaced the ref
+    // (it wakes on a microtask while this one is still awaiting the token and
+    // CSRF fetches), so every ref write below must first confirm the ref still
+    // points at us. Without that, the stale invocation's finally block flipped
+    // isStreaming to false and nulled readerRef for the stream that had just
+    // started — leaving a live stream with no visible indicator, no stop
+    // button, and no reader for stopStreaming()/unmount to cancel.
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const isCurrent = () => abortControllerRef.current === controller;
+
     setIsStreaming(true);
     setError(null);
 
@@ -79,7 +91,9 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
     // to send the first byte (Firestore query, OpenAI API, network issues).
     const streamTimeoutId = setTimeout(() => {
       logger.warn('Streaming timed out after 90s, aborting');
-      abortControllerRef.current?.abort();
+      // Abort OUR controller, never whatever the ref currently holds — a
+      // newer stream may own it by now.
+      controller.abort();
     }, 90_000);
 
     try {
@@ -94,13 +108,16 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
       // Always pull through the centralized CSRF manager — it owns the 30-min
       // TTL and re-fetches a fresh token if the cached one is expired. Sharing
       // state with the axios interceptor avoids cookie/header divergence.
+      // Mutable so the 401 path below can swap in a refreshed token.
+      let accessToken = token;
+
       const buildRequest = async () => {
         const csrfToken = await getCsrfToken();
         return fetch(`${baseUrl}${API_ENDPOINTS.CHATBOT.CHAT_STREAM}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${accessToken}`,
             ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
           },
           credentials: 'include',
@@ -109,11 +126,28 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
             user_id: userId,
             conversation_history: _conversationHistory,
           }),
-          signal: abortControllerRef.current?.signal,
+          signal: controller.signal,
         });
       };
 
       let response = await buildRequest();
+
+      // 401 means the in-memory access token expired. This path used to have
+      // no refresh at all — unlike every request that goes through the axios
+      // client — so leaving the chat open past the token lifetime turned every
+      // subsequent message into an opaque "Server error: 401" while the rest
+      // of the app silently refreshed and kept working. Refresh once through
+      // the shared helper (which reuses the httpOnly refresh cookie and logs
+      // the user out if the cookie is gone too), then retry.
+      if (response.status === 401) {
+        logger.warn('Chat stream got 401, refreshing access token and retrying once');
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) {
+          throw new Error('Session expired. Please sign in again.');
+        }
+        accessToken = refreshed;
+        response = await buildRequest();
+      }
 
       // 403 typically means the cached CSRF token expired (backend TTL: 2h).
       // Clear and retry once with a freshly-issued token.
@@ -134,7 +168,9 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No readable stream from server');
-      readerRef.current = reader;
+      if (isCurrent()) {
+        readerRef.current = reader;
+      }
 
       const decoder = new TextDecoder();
       let buffer = '';
@@ -204,8 +240,11 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
       logger.error('Streaming error:', error);
     } finally {
       clearTimeout(streamTimeoutId);
-      setIsStreaming(false);
-      readerRef.current = null;
+      // Only tear down shared state if a newer stream has not taken over.
+      if (isCurrent()) {
+        setIsStreaming(false);
+        readerRef.current = null;
+      }
     }
     // CRITICAL FIX: Empty dependency array - options accessed via ref to prevent recreating callback
   }, []);
