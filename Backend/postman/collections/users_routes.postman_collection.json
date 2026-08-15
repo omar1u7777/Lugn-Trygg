@@ -1326,6 +1326,196 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Activity Progress",
+      "item": [
+        {
+          "name": "GET /users/activity-progress - read counters",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/activity-progress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "activity-progress"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Returns 200 or 429', () => pm.expect([200, 429]).to.include(status));",
+                  "if (status === 200) {",
+                  "  const data = pm.response.json().data || pm.response.json();",
+                  "  pm.test('Payload carries activityProgress', () => {",
+                  "    pm.expect(data).to.have.property('activityProgress');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /users/activity-progress - merge takes the higher count",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/activity-progress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "activity-progress"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activityProgress\": {\n    \"exercises\": 5,\n    \"meditations\": 2,\n    \"articles\": 1\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Returns 200 or 429', () => pm.expect([200, 429]).to.include(status));",
+                  "if (status === 200) {",
+                  "  const data = pm.response.json().data || pm.response.json();",
+                  "  pm.collectionVariables.set('progressAfterFirstWrite', JSON.stringify(data.activityProgress || {}));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /users/activity-progress - a lower count never overwrites a higher one",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/activity-progress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "activity-progress"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activityProgress\": {\n    \"exercises\": 1,\n    \"meditations\": 0,\n    \"articles\": 0\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Returns 200 or 429', () => pm.expect([200, 429]).to.include(status));",
+                  "",
+                  "// These counters only ever increase. Taking the maximum is the one rule",
+                  "// that cannot lose progress — an overwrite would discard whichever side",
+                  "// was further along, which is the bug this endpoint exists to fix (#157).",
+                  "if (status === 200) {",
+                  "  const data = pm.response.json().data || pm.response.json();",
+                  "  pm.test('Stored exercises did not go backwards', () => {",
+                  "    pm.expect(data.activityProgress.exercises).to.be.at.least(5);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /users/activity-progress - NaN and negatives are rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/activity-progress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "activity-progress"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activityProgress\": {\n    \"exercises\": -3,\n    \"meditations\": \"abc\",\n    \"articles\": null\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A NaN reaching storage poisoned the frontend totals before the",
+                  "// endpoint started clamping. It must never be stored.",
+                  "pm.test('Malformed counters are clamped or rejected, never a 500', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 422, 429]);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json().data || pm.response.json();",
+                  "  pm.test('No negative counter was stored', () => {",
+                  "    Object.values(data.activityProgress).forEach(v => pm.expect(v).to.be.at.least(0));",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "event": [
