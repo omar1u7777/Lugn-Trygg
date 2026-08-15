@@ -5,6 +5,7 @@
  */
 
 import { logger } from './logger';
+import { base64ToBytes, bytesToBase64 } from './base64';
 
 // Type definitions for encrypted data structures
 interface EncryptedData {
@@ -75,9 +76,10 @@ export async function encryptData(data: string, key: CryptoKey): Promise<Encrypt
     dataBuffer
   );
   
-  // Convert to base64 for storage
-  const encrypted = btoa(String.fromCharCode(...new Uint8Array(encryptedBuffer)));
-  const ivBase64 = btoa(String.fromCharCode(...iv));
+  // Convert to base64 for storage. Chunked: spreading a whole ciphertext into
+  // String.fromCharCode throws RangeError on long transcripts.
+  const encrypted = bytesToBase64(new Uint8Array(encryptedBuffer));
+  const ivBase64 = bytesToBase64(iv);
   
   return {
     encrypted,
@@ -92,8 +94,8 @@ export async function decryptData(
   key: CryptoKey
 ): Promise<string> {
   // Convert from base64
-  const encryptedBuffer = Uint8Array.from(atob(encrypted), (c) => c.charCodeAt(0));
-  const ivBuffer = Uint8Array.from(atob(iv), (c) => c.charCodeAt(0));
+  const encryptedBuffer = base64ToBytes(encrypted);
+  const ivBuffer = base64ToBytes(iv);
   
   const decryptedBuffer = await window.crypto.subtle.decrypt(
     {
@@ -156,7 +158,7 @@ export async function deriveKeyFromPassword(
     ['encrypt', 'decrypt']
   );
   
-  const saltBase64 = btoa(String.fromCharCode(...saltBuffer));
+  const saltBase64 = bytesToBase64(saltBuffer);
   
   return { key, salt: saltBase64 };
 }

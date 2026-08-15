@@ -20,6 +20,21 @@ export default defineConfig({
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: 'http://localhost:3000',
 
+    /* Pin the browser locale.
+     *
+     * i18n detection order is ['localStorage', 'navigator', 'htmlTag'], so with
+     * no stored preference the app follows the browser. Playwright's Chromium
+     * defaults to en-US, which rendered the whole UI in English while every
+     * spec asserts on Swedish strings — `getByRole('button', {name: /logga
+     * in/i})`, `getByText('Laddar...')`. The specs did not fail because the app
+     * was broken; they failed because nobody pinned the language.
+     *
+     * sv-SE because Swedish is the app's fallbackLng and what the specs are
+     * written against. A spec that needs another language should set it
+     * explicitly with test.use({ locale: … }). */
+    locale: 'sv-SE',
+    timezoneId: 'Europe/Stockholm',
+
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
     /* Take screenshot on failure */

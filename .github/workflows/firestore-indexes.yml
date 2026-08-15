@@ -1,0 +1,141 @@
+name: Firestore Indexes
+
+# Why this workflow exists
+# ------------------------
+# firestore.indexes.json declared every index the app needs, firebase.json
+# pointed at it, and Backend/RUNBOOK.md documented the deploy command. Nothing
+# ran it. The file grew from 47 to 53 indexes and the six new ones were never
+# applied, so the daily GDPR retention sweep failed with FAILED_PRECONDITION
+# 7,183 times over 17 days — expired personal data was not being deleted, and
+# the only signal was a Sentry issue nobody had connected the dashboard to.
+#
+# An index file that is version-controlled but never applied is worse than no
+# file: it makes a reviewer believe the index exists.
+#
+# The emulator and the mocks used in tests never raise FAILED_PRECONDITION, so
+# CI cannot catch this by running tests. It has to be deployed.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'firestore.indexes.json'
+      - 'firestore.rules'
+      - 'firebase.json'
+      - '.github/workflows/firestore-indexes.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'firestore.indexes.json'
+      - 'firestore.rules'
+      - 'firebase.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FIREBASE_PROJECT: lugn-trygg-53d75
+
+jobs:
+  # Runs on every PR touching the index file. Needs no credentials, so it can
+  # never be skipped silently: a malformed file fails here rather than at
+  # deploy time.
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate firestore.indexes.json is well-formed
+        run: |
+          python - <<'PY'
+          import json, sys
+
+          with open('firestore.indexes.json', encoding='utf-8') as f:
+              data = json.load(f)
+
+          indexes = data.get('indexes')
+          if not isinstance(indexes, list) or not indexes:
+              sys.exit('firestore.indexes.json has no indexes array')
+
+          seen = {}
+          for i, idx in enumerate(indexes):
+              for key in ('collectionGroup', 'queryScope', 'fields'):
+                  if key not in idx:
+                      sys.exit(f'index #{i} is missing {key!r}')
+              signature = (
+                  idx['collectionGroup'],
+                  idx['queryScope'],
+                  tuple(
+                      (f.get('fieldPath'), f.get('order') or f.get('arrayConfig'))
+                      for f in idx['fields']
+                  ),
+              )
+              if signature in seen:
+                  sys.exit(
+                      f'index #{i} duplicates #{seen[signature]} '
+                      f'({idx["collectionGroup"]}) — Firestore rejects the deploy'
+                  )
+              seen[signature] = i
+
+          print(f'{len(indexes)} indexes, all well-formed and unique')
+          PY
+
+  # Only on master. Deploying is what was missing; doing it on every PR would
+  # apply indexes for changes that never merge.
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check for deploy credentials
+        id: creds
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$SA" ]; then
+            echo "has_creds=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_creds=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Loud on purpose. A silent skip here recreates exactly the failure this
+      # workflow exists to prevent: everyone believes the indexes are applied.
+      - name: Warn when credentials are absent
+        if: steps.creds.outputs.has_creds != 'true'
+        run: |
+          echo "::warning title=Firestore indexes NOT deployed::FIREBASE_SERVICE_ACCOUNT_JSON is not set, so firestore.indexes.json was validated but not applied. Run 'firebase deploy --only firestore:indexes --project ${FIREBASE_PROJECT}' by hand, or add the secret."
+
+      - name: Set up Node.js
+        if: steps.creds.outputs.has_creds == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Write service account
+        if: steps.creds.outputs.has_creds == 'true'
+        run: |
+          printf '%s' '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > "$RUNNER_TEMP/sa.json"
+          python -c "import json,os; json.load(open(os.environ['RUNNER_TEMP']+'/sa.json')); print('service account JSON parsed')"
+
+      # NOT --force. The live project carries 5 legacy indexes that are absent
+      # from this file (pre-standardisation camelCase keys on moods/memories/
+      # chat_sessions/insights). --force would delete them; without it the CLI
+      # only reports them. See Backend/RUNBOOK.md §2f before ever changing this.
+      - name: Deploy indexes
+        if: steps.creds.outputs.has_creds == 'true'
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: |
+          npx --yes firebase-tools@latest deploy \
+            --only firestore:indexes \
+            --project "$FIREBASE_PROJECT" \
+            --non-interactive
+
+      - name: Remove service account
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"

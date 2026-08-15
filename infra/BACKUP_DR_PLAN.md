@@ -1,5 +1,48 @@
 # Backup & Disaster Recovery Plan
 
+> ## ⚠️ NOT IN EFFECT — verified 2026-08-15
+>
+> ```
+> $ firebase firestore:backups:schedules:list --project lugn-trygg-53d75
+> No backup schedules for database (default) found.
+> $ firebase firestore:backups:list --project lugn-trygg-53d75
+> No backups found.
+> ```
+>
+> **There is currently no recovery point for production data of any kind.**
+> Every mood log, journal entry and therapy transcript in Firestore is
+> single-copy. A mistaken `firestore:delete`, a bad migration, or a
+> compromised service account is permanent.
+>
+> The mechanism this document describes — the Kubernetes CronJob in
+> `k8s/backup-cronjob.yaml` — runs nowhere. Production is a single Render web
+> service plus a Key Value instance (`render.yaml`); there is no Kubernetes
+> cluster, so nothing schedules that job. The RPO and RTO in §4 below are
+> therefore aspirational, not measured, and should be read as targets for a
+> mechanism that has not been switched on.
+>
+> This is the same failure the Firestore composite indexes had: declared in
+> the repository, documented in a runbook, never applied. An artefact that is
+> version-controlled but inert is worse than an absent one, because it makes a
+> reader believe the protection exists.
+>
+> **To switch on Firestore's own scheduled backups** (independent of the k8s
+> path, and the fastest way to stop being single-copy):
+>
+> ```bash
+> firebase firestore:backups:schedules:create \
+>   --project lugn-trygg-53d75 --recurrence DAILY --retention 7d
+> ```
+>
+> Two decisions belong to whoever runs it. Scheduled backups are billed. And
+> the retention window is a data-protection choice, not just an ops one:
+> backups preserve personal data, so a 30-day window means data erased under
+> GDPR Art. 17 survives in backups for 30 days. Seven days is the shorter end
+> of useful — the live database, not the backups, is where the 7-year clinical
+> retention in `data_retention_service.py` lives.
+>
+> Delete this block when a schedule exists and a restore has been tested.
+
 Day 4 requires automated backups for Firestore + Storage and a tested restore path. This document ties the existing Python backup service to concrete runbooks.
 
 ## 1. Automated Backups

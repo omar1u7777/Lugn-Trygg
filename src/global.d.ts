@@ -1,8 +1,3 @@
-// Minimal Sentry interface for CDN-loaded Sentry
-interface SentryClient {
-  captureException(error: unknown, context?: Record<string, unknown>): void;
-}
-
 // Minimal analytics interface
 interface AnalyticsClient {
   track(event: string, properties?: Record<string, unknown>): void;
@@ -33,8 +28,11 @@ declare global {
     React: typeof import('react');
     ReactDOM: typeof import('react-dom');
 
-    // Optional CDN-loaded services
-    Sentry?: SentryClient;
+    // Sentry is NOT a global in this app: it is loaded as an npm dependency
+    // by src/services/sentryClient.ts, which is the only supported way to
+    // report. A `window.Sentry?: SentryClient` declaration used to live here
+    // and made two dead call sites type-check for years. Report through
+    // sentryClient instead of reintroducing it.
     analytics?: AnalyticsClient;
 
     // Webkit prefix for AudioContext

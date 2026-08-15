@@ -212,6 +212,12 @@ def _handle_cors_preflight():
         response = Response('', status=204)
         origin = request.headers.get('Origin', '')
 
+        # Preflights are cached for Access-Control-Max-Age; they must vary on
+        # the request headers the decision depends on.
+        response.headers.add('Vary', 'Origin')
+        response.headers.add('Vary', 'Access-Control-Request-Method')
+        response.headers.add('Vary', 'Access-Control-Request-Headers')
+
         if is_origin_allowed(origin):
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
@@ -228,9 +234,17 @@ def _add_cors_to_response(response):
     """Add CORS headers to ALL responses (runs LAST in after_request chain)"""
     origin = request.headers.get('Origin', '')
 
-    origin_allowed = is_origin_allowed(origin)
+    # Vary: Origin on EVERY response, allowed or not — the response body and
+    # headers genuinely depend on the request Origin, so any shared cache (a
+    # CDN, a reverse proxy, the browser's own HTTP cache) must key on it.
+    # Without this, a response cached for one allowed origin gets replayed to
+    # another with the wrong Access-Control-Allow-Origin; combined with
+    # Allow-Credentials: true that is a cache-poisoning hazard. Set
+    # unconditionally so it is also present on the negative (no-ACAO) response,
+    # which is exactly the one that must not be reused for a different origin.
+    response.headers.add('Vary', 'Origin')
 
-    if origin_allowed:
+    if is_origin_allowed(origin):
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = CORS_ALLOWED_HEADERS
@@ -431,6 +445,12 @@ try:
         # activations/cancellations/payment failures never actually applied.
         # The signature check IS the auth for this endpoint, not CSRF.
         '/api/v1/subscription/webhook',
+        # Browser-generated CSP violation reports. The browser POSTs these
+        # itself with no CSRF cookie and no CSRF header, so the global gate
+        # answered 403 to EVERY report and CSP monitoring produced nothing.
+        # The endpoint stores a bounded, IP-anonymised record and grants no
+        # privileges, so exempting it cannot be used to change state.
+        '/api/security/csp-violation',
     }
     csrf_middleware = init_csrf_middleware(app, secret=csrf_secret, exempt_paths=csrf_exempt_paths)
     app.extensions['csrf_middleware'] = csrf_middleware

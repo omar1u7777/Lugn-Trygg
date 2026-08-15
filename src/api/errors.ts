@@ -2,7 +2,7 @@
  * Custom error classes for better error handling and type safety
  */
 
-import { AxiosError } from 'axios';
+import axios from 'axios';
 import { extractErrorMessage } from './errorMessage';
 
 /**
@@ -84,9 +84,32 @@ export class ApiError extends Error {
   }
 
   /**
-   * Creates an ApiError from an Axios error response
+   * Creates an ApiError from a caught error.
+   *
+   * Accepts `unknown`, not `AxiosError`. Every one of the ~68 call sites
+   * across src/api/ passes the binding from `catch (error: unknown)`, which
+   * did not type-check against the narrower signature — the single largest
+   * cluster of TypeScript errors in the project, and one that would have
+   * become 68 separate casts if fixed at the call sites. Narrowing belongs
+   * here, in the one place that already knows how to interpret the shape.
+   *
+   * Non-Axios throws (a TypeError from a bad response handler, a string, a
+   * rejected non-Error) previously reached the `error.response` check and
+   * produced a nonsense "Request setup error" with the real cause lost. They
+   * are now wrapped with their own message preserved.
    */
-  static fromAxiosError(error: AxiosError): ApiError {
+  static fromAxiosError(error: unknown): ApiError {
+    if (error instanceof ApiError) {
+      return error;
+    }
+
+    if (!axios.isAxiosError(error)) {
+      const message = error instanceof Error ? error.message : String(error);
+      return new ApiError(message || 'Unknown error', {
+        ...(error instanceof Error ? { cause: error } : {}),
+      });
+    }
+
     if (error.response) {
       // This had its own message-precedence rule, close to but not the same as
       // extractErrorMessage's: it took `error` even when that field held a bare

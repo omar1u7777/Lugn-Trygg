@@ -153,11 +153,23 @@ def _setup_db_for_safety_plan_get(mock_db):
     mock_db.collection.side_effect = col
 
 
-def _setup_db_for_check_escalation(mock_db):
-    """Configure mock_db so check-escalation finds a previous assessment."""
+def _setup_db_for_check_escalation(mock_db, doc_fields=None):
+    """Configure mock_db so check-escalation finds a previous assessment.
+
+    Assessments are written with `.add()`, so they live at auto-generated
+    document ids with user_id as a FIELD — they are found by QUERY, never at
+    `.document(user_id)`.
+
+    This helper used to mock `.document(user_id).get()` as an existing document
+    while leaving `.stream()` empty, which is the inverse of production. That
+    made the tests pass against a handler that could only ever 404 in real use,
+    and it is why the bug survived: the mock supplied a document Firestore
+    never creates. Streaming a result from the query is what actually mirrors
+    the write path.
+    """
     assessment_doc = MagicMock()
     assessment_doc.exists = True
-    assessment_doc.to_dict.return_value = {
+    assessment_doc.to_dict.return_value = doc_fields if doc_fields is not None else {
         "user_id": "testuser1234567890ab",
         "risk_level": "low",
         "risk_score": 0.15,
@@ -169,14 +181,17 @@ def _setup_db_for_check_escalation(mock_db):
     }
 
     assessment_collection = MagicMock()
-    assessment_doc_ref = MagicMock()
-    assessment_doc_ref.get.return_value = assessment_doc
-    assessment_doc_ref.set = MagicMock()
-    assessment_collection.document.return_value = assessment_doc_ref
     assessment_collection.where.return_value = assessment_collection
     assessment_collection.order_by.return_value = assessment_collection
     assessment_collection.limit.return_value = assessment_collection
-    assessment_collection.stream.return_value = []
+    assessment_collection.stream.return_value = [assessment_doc]
+    # Deliberately empty: nothing in production ever writes here, so a handler
+    # that reads it must fail rather than quietly pass.
+    missing_doc = MagicMock()
+    missing_doc.exists = False
+    assessment_doc_ref = MagicMock()
+    assessment_doc_ref.get.return_value = missing_doc
+    assessment_collection.document.return_value = assessment_doc_ref
 
     original_side_effect = mock_db.collection.side_effect
 
@@ -395,6 +410,94 @@ class TestIndicators:
         assert "emotional" in grouped
 
 
+class TestEscalationIsIndependentOfTheAuditWrite:
+    """The path that reaches a human must not depend on the audit-trail write.
+
+    _escalate_crisis used to do the crisis_alerts write and the durable
+    enqueue in ONE try block. A Firestore hiccup on the alert write jumped
+    past enqueue_crisis_escalation to a handler that only logged — so no SMS,
+    email or push was attempted for a critical-risk user while /assess still
+    answered 200 with needs_immediate_attention: true.
+    """
+
+    def _high_risk(self, mock_crisis_service):
+        mock_crisis_service.assess_crisis_risk.return_value = _make_assessment(
+            overall_risk_level="critical",
+            risk_score=0.92,
+            active_indicators=[_make_indicator()],
+        )
+
+    def test_escalation_still_enqueued_when_alert_write_fails(
+        self, client, auth_headers, mock_db, mock_crisis_service
+    ):
+        self._high_risk(mock_crisis_service)
+
+        failing_alerts = MagicMock()
+        failing_alerts.add.side_effect = RuntimeError("Firestore unavailable")
+        original_side_effect = mock_db.collection.side_effect
+
+        def col(name):
+            if name == "crisis_alerts":
+                return failing_alerts
+            if original_side_effect:
+                return original_side_effect(name)
+            return MagicMock()
+
+        mock_db.collection.side_effect = col
+
+        with patch(
+            "src.services.crisis_task_queue.enqueue_crisis_escalation"
+        ) as mock_enqueue:
+            resp = client.post(
+                f"{BASE}/assess",
+                json={"recent_text_content": "jag orkar inte mer"},
+                headers=auth_headers,
+            )
+
+        assert resp.status_code == 200
+        assert mock_enqueue.called, (
+            "a failed crisis_alerts write must not stop the escalation that "
+            "reaches a human"
+        )
+
+    def test_escalation_enqueued_on_high_risk(
+        self, client, auth_headers, mock_db, mock_crisis_service
+    ):
+        self._high_risk(mock_crisis_service)
+
+        with patch(
+            "src.services.crisis_task_queue.enqueue_crisis_escalation"
+        ) as mock_enqueue:
+            resp = client.post(
+                f"{BASE}/assess",
+                json={"recent_text_content": "jag orkar inte mer"},
+                headers=auth_headers,
+            )
+
+        assert resp.status_code == 200
+        assert mock_enqueue.called
+
+    def test_queue_unavailable_does_not_fail_the_request(
+        self, client, auth_headers, mock_db, mock_crisis_service
+    ):
+        """The caller still gets their assessment; the CRITICAL is the ops signal."""
+        from src.services.crisis_task_queue import CrisisQueueUnavailableError
+
+        self._high_risk(mock_crisis_service)
+
+        with patch(
+            "src.services.crisis_task_queue.enqueue_crisis_escalation",
+            side_effect=CrisisQueueUnavailableError("down"),
+        ):
+            resp = client.post(
+                f"{BASE}/assess",
+                json={"recent_text_content": "jag orkar inte mer"},
+                headers=auth_headers,
+            )
+
+        assert resp.status_code == 200
+
+
 class TestCheckEscalation:
     """Tests for POST /api/v1/crisis/check-escalation"""
 
@@ -428,10 +531,53 @@ class TestCheckEscalation:
 
     def test_check_escalation_no_previous_assessment(self, client, auth_headers, mock_db, mock_crisis_service):
         """When no previous assessment exists, expect 404."""
-        # Default mock_db returns exists=False
+        # Default mock_db streams nothing back for the assessment query.
         resp = client.post(
             f"{BASE}/check-escalation",
             json={"current_context": {}},
             headers=auth_headers,
         )
         assert resp.status_code == 404
+
+    def test_check_escalation_finds_assessment_written_by_assess(
+        self, client, auth_headers, mock_db, mock_crisis_service
+    ):
+        """Regression: /assess stores with .add(), so /check-escalation must QUERY.
+
+        The handler used to read `crisis_assessments.document(user_id)`. Since
+        assess_crisis_risk writes via `.add()` — auto-generated id, user_id only
+        as a field — no such document has ever existed and this endpoint
+        returned 404 for every user on every call. Assert on the Firestore
+        calls, not just the status code, so reverting to a document-id read
+        fails here even if a mock happens to answer.
+        """
+        _setup_db_for_check_escalation(mock_db)
+        mock_crisis_service.should_escalate_crisis.return_value = False
+
+        resp = client.post(
+            f"{BASE}/check-escalation",
+            json={"current_context": {}},
+            headers=auth_headers,
+        )
+
+        assert resp.status_code == 200
+        collection = mock_db.collection("crisis_assessments")
+        assert collection.where.called, "must find the assessment by user_id field"
+        assert collection.order_by.called, "must take the most recent assessment"
+        assert collection.stream.called
+
+    def test_check_escalation_rejects_corrupt_assessment(
+        self, client, auth_headers, mock_db, mock_crisis_service
+    ):
+        """A stored assessment missing required fields is 422, not a 500."""
+        _setup_db_for_check_escalation(
+            mock_db,
+            doc_fields={"user_id": "testuser1234567890ab", "risk_score": 0.4},
+        )
+
+        resp = client.post(
+            f"{BASE}/check-escalation",
+            json={"current_context": {}},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422

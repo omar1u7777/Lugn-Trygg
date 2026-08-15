@@ -217,13 +217,19 @@ export default defineConfig({
           ) {
             return "http";
           }
-          if (
-            id.includes("node_modules/jspdf") ||
-            id.includes("node_modules/html2canvas") ||
-            id.includes("node_modules/pdfmake")
-          ) {
-            return "pdf-tools";
-          }
+          // jspdf is NOT forced into a manual chunk. It is only ever reached
+          // through `await import('jspdf')` in MoodAnalytics (PDF export), but
+          // naming the chunk pulled it into the entry's static graph: Vite
+          // emitted <link rel="modulepreload" href=".../pdf-tools-*.js"> in
+          // index.html, so every first visit downloaded 576 kB / 175 kB gzip
+          // for a feature almost nobody uses on load.
+          //
+          // Left to Rollup it becomes a plain async chunk, fetched when the
+          // user actually exports — the same reasoning already applied to
+          // recharts and @sentry/react above.
+          //
+          // html2canvas and pdfmake were named here too and are not
+          // dependencies of this project at all.
           if (
             id.includes("node_modules/dompurify") ||
             id.includes("node_modules/crypto-js") ||

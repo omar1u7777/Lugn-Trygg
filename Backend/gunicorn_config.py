@@ -57,6 +57,25 @@ graceful_timeout = 120
 keepalive = 10  # Increased keepalive for better connection reuse
 
 # Request handling - prevent memory leaks and optimize performance
+#
+# MEASURED, 2026-08-15, production, one instance, zero user traffic:
+# the worker recycles every 71:55–74:54, eleven times across the day. That
+# regularity is the answer to "is this an OOM kill?" — it is not. An OOM kill
+# tracks memory growth and lands irregularly; this tracks a request counter.
+# 1000 requests over ~73 min is one every 4.4 s, which is Render's health
+# check, and the ±1.5 min spread is exactly what max_requests_jitter=50 buys
+# at that rate.
+#
+# So the recycle is working as designed. What it also does is hide something:
+# RSS climbs from ~270 MB to ~385 MB between recycles, against a 512 MB limit,
+# with nobody using the app. Roughly 115 MB per 1000 health checks.
+#
+# Do NOT raise max_requests to "reduce restart churn" without first learning
+# whether that growth plateaus. If it is linear, the recycle is the only thing
+# standing between this instance and an OOM kill, and raising the number
+# converts a graceful 5-second restart into an abrupt one that drops in-flight
+# SSE streams. Find the growth first; the counter is the symptom's dressing,
+# not the cure.
 max_requests = 1000  # Restart worker after 1000 requests (more frequent for stability)
 max_requests_jitter = 50  # Add randomness to avoid all workers restarting at once
 

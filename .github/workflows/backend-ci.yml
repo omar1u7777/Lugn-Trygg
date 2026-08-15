@@ -50,6 +50,28 @@ jobs:
       - name: Ruff lint
         run: ruff check src --output-format=github
 
+      # The repo carries 46 Postman collections (~1.2 MB) that nothing verified
+      # still matched the API. An audit found 21 requests aimed at the
+      # pre-/api/v1/ URL scheme, plus two whole blueprints — admin and
+      # predictive — with no collection at all, including
+      # /api/v1/admin/users/<id>/status and /api/v1/predictive/crisis-check.
+      #
+      # Collections rot silently: when an endpoint moves, nothing fails, the
+      # request just stops matching anything. This surfaces that on every push.
+      #
+      # Blocking. The 21 pre-/api/v1/ paths that prompted this check were
+      # corrected in the same change, so stale is zero and --strict costs
+      # nothing today — it only fires when a future change moves an endpoint
+      # and leaves a collection behind. Deliberate 404 probes are recognised
+      # and excluded, so this cannot go off for a healthy negative test.
+      #
+      # UNCOVERED routes are reported here but enforced in
+      # tests/test_postman_drift.py, which now requires 100%: the admin and
+      # predictive blueprints sat entirely uncovered precisely because the bar
+      # had slack in it.
+      - name: Postman collection drift
+        run: python scripts/check_postman_drift.py --strict
+
       - name: Run tests
         env:
           FLASK_ENV: testing

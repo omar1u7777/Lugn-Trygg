@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from "axios";
+import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, AxiosHeaders, InternalAxiosRequestConfig } from "axios";
 import { getBackendUrl } from "../config/env";
 import { tokenStorage, purgeUserScopedStorage } from "../utils/secureStorage";
 import { logger } from "../utils/logger";
@@ -31,6 +31,12 @@ export interface ApiConfig extends AxiosRequestConfig {
   _retry?: boolean;
   _csrfRetry?: boolean;
   retryCount?: number;
+  /**
+   * Set once the request body has been persisted to the offline queue.
+   * Retrying after that point would submit the same write twice: once from
+   * the retry that happens to reconnect, and once more when the queue replays.
+   */
+  _offlineQueued?: boolean;
 }
 
 /**
@@ -125,9 +131,12 @@ const subscribeTokenRefresh = (cb: (token: string | null) => void) => {
   refreshSubscribers.push(cb);
 };
 
-// Cache for dynamic imports to improve performance
-let analyticsModule: ReturnType<typeof import('../services/analytics.lazy')> | null = null;
-let offlineStorageModule: ReturnType<typeof import('../services/offlineStorage')> | null = null;
+// Cache for dynamic imports to improve performance.
+// These were typed `ReturnType<typeof import(...)>`, but a module namespace is
+// not callable, so ReturnType's constraint was violated — the annotation never
+// described what the variables actually hold.
+let analyticsModule: typeof import('../services/analytics.lazy') | null = null;
+let offlineStorageModule: typeof import('../services/offlineStorage') | null = null;
 
 // Helper functions for analytics
 const getAnalytics = async () => {
@@ -186,6 +195,31 @@ const trackError = async (
   }
 };
 
+/** Coerce an axios request body into the plain object the offline queue stores. */
+const normalizeQueuedBody = (data: unknown): Record<string, unknown> => {
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    // FormData/Blob cannot be JSON-persisted; queueing them would replay an
+    // empty body, which is worse than declining to queue the payload.
+    if (data instanceof FormData || data instanceof Blob) {
+      return {};
+    }
+    return data as Record<string, unknown>;
+  }
+
+  if (typeof data === 'string') {
+    try {
+      const parsed: unknown = JSON.parse(data);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Not JSON — fall through.
+    }
+  }
+
+  return {};
+};
+
 // Helper function to handle offline queuing
 const queueOfflineRequest = async (
   method: 'POST' | 'PUT' | 'DELETE',
@@ -194,7 +228,11 @@ const queueOfflineRequest = async (
 ) => {
   try {
     const { queueRequest } = await getOfflineStorage();
-    queueRequest(method, url, data);
+    // The queue stores a JSON object. An axios request body reaches here as
+    // whatever the caller passed — often already a JSON string, sometimes
+    // FormData. Normalize so a string body round-trips as its parsed object
+    // instead of being persisted as an unusable scalar and replayed wrong.
+    queueRequest(method, url, normalizeQueuedBody(data));
     logger.info('Request queued for offline sync');
   } catch (error) {
     logger.error('Failed to queue request:', error);
@@ -244,6 +282,7 @@ const handleRateLimitError = async (error: AxiosError, originalRequest: ApiConfi
 const handleTimeoutError = async (error: AxiosError, originalRequest: ApiConfig): Promise<never> => {
   logger.warn("Request timeout - checking offline status");
   if (!navigator.onLine) {
+    originalRequest._offlineQueued = true;
     await queueOfflineRequest(
       (originalRequest.method?.toUpperCase() as 'POST' | 'PUT' | 'DELETE') || 'POST',
       originalRequest.url || '',
@@ -269,6 +308,7 @@ const handleNetworkError = async (error: AxiosError, originalRequest: ApiConfig)
   });
 
   if (!navigator.onLine && originalRequest) {
+    originalRequest._offlineQueued = true;
     await queueOfflineRequest(
       (originalRequest.method?.toUpperCase() as 'POST' | 'PUT' | 'DELETE') || 'POST',
       originalRequest.url || '',
@@ -385,6 +425,21 @@ const handle401Error = async (error: AxiosError, originalRequest: ApiConfig): Pr
   throw error;
 };
 
+/**
+ * Does this 403 body come from the CSRF middleware?
+ *
+ * `error.response.data` is typed `unknown`/`{}` by axios, so the previous
+ * `data?.error?.includes('CSRF')` did not type-check and would have thrown at
+ * runtime for any non-string `error` field. Narrow explicitly.
+ */
+const isCsrfRejection = (data: unknown): boolean => {
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
+  const message = (data as { error?: unknown }).error;
+  return typeof message === 'string' && message.includes('CSRF');
+};
+
 const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | never> => {
   const originalRequest = error.config as ApiConfig | undefined;
 
@@ -434,7 +489,7 @@ const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | n
     if (error.response.status === 403
         && !originalRequest._csrfRetry
         && originalRequest.headers?.[AUTHORIZATION_HEADER]
-        && error.response.data?.error?.includes('CSRF')) {
+        && isCsrfRejection(error.response.data)) {
       originalRequest._csrfRetry = true;
       clearCsrfToken();
       const freshCsrf = await getSharedCsrfToken();
@@ -469,7 +524,14 @@ const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | n
 // Retry logic for transient errors (NOT 429, NOT 500 — rate limits need backoff, server bugs won't self-resolve)
 const shouldRetry = (error: AxiosError): boolean => {
   const status = error.response?.status;
-  return !!(status && [408, 502, 503, 504].includes(status));
+  if (!status || ![408, 502, 503, 504].includes(status)) {
+    return false;
+  }
+  // A request already persisted to the offline queue must not also be
+  // retried: if a retry happens to reconnect and succeed, the queued copy
+  // still replays on the next sync and the write lands twice (a duplicate
+  // mood entry, a duplicate journal save).
+  return !(error.config as ApiConfig | undefined)?._offlineQueued;
 };
 
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
@@ -526,9 +588,11 @@ api.interceptors.response.use(
 // Request interceptor for adding Authorization and CSRF headers
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-    // Ensure headers object exists
+    // Ensure headers object exists. An AxiosHeaders instance, not a bare
+    // object literal: axios expects the class here, and the literal did not
+    // satisfy AxiosRequestHeaders.
     if (!config.headers) {
-      config.headers = {};
+      config.headers = new AxiosHeaders();
     }
 
     // Get token from secure storage
