@@ -825,7 +825,7 @@
     "notePlaceholder": "Vad får dig att känna så här idag? ",
     "reflectionAdded": "Reflektion tillagd",
     "characterTip": "Tips: 15+ tecken ger bättre personlig uppföljning",
-    "characters": "tecken",
+    "characters": "tecken kvar",
     "logging": "Loggar...",
     "logCompleteCheckIn": "Logga komplett check-in",
     "logMood": "Logga humör",
@@ -946,7 +946,7 @@
     "continueJourney": "Fortsätt din resa mot inre lugn. Du gör fantastiska framsteg!",
     "xpProgress": "XP: {{current}} / {{next}}",
     "percentToLevel": "{{percent}}% till nivå {{level}}",
-    "daysCount": "{{count}} Dagar",
+    "daysCount": "{{count}} dagar",
     "currentStreak": "Nuvarande Streak",
     "unlockedAchievements": "Upplåsta Achievements",
     "moodCheckins": "Humör incheckningar",
@@ -989,7 +989,9 @@
         "title": "Humörmästare",
         "description": "Logga 50 humör totalt"
       }
-    }
+    },
+    "daysCount_one": "{{count}} dag",
+    "daysCount_other": "{{count}} dagar"
   },
   "worldAnalytics": {
     "title": "📊 Dina Insikter & Analys",
@@ -2142,8 +2144,18 @@
       "history": "Historik"
     },
     "responseOptions": {
-      "labels": ["Inte alls", "Flera dagar", "Mer än hälften av dagarna", "Nästan varje dag"],
-      "descriptions": ["0 poäng", "1 poäng", "2 poäng", "3 poäng"]
+      "labels": [
+        "Inte alls",
+        "Flera dagar",
+        "Mer än hälften av dagarna",
+        "Nästan varje dag"
+      ],
+      "descriptions": [
+        "0 poäng",
+        "1 poäng",
+        "2 poäng",
+        "3 poäng"
+      ]
     },
     "severity": {
       "minimal": "Minimal",

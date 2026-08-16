@@ -900,7 +900,7 @@
     "notePlaceholder": "Hva får deg til å føle slik i dag? ✨",
     "reflectionAdded": "Refleksjon lagt til",
     "characterTip": "Tips: 15+ tegn gir bedre personlig oppfølging",
-    "characters": "tegn",
+    "characters": "tegn igjen",
     "logging": "Logger...",
     "logCompleteCheckIn": "Logg komplett check-in",
     "logMood": "Logg humør",
@@ -946,7 +946,7 @@
     "continueJourney": "Fortsätt din resa mot inre lugn. Du gör fantastiska framsteg!",
     "xpProgress": "XP: {{current}} / {{next}}",
     "percentToLevel": "{{percent}}% till nivå {{level}}",
-    "daysCount": "{{count}} Dagar",
+    "daysCount": "{{count}} dager",
     "currentStreak": "Nuvarande Streak",
     "unlockedAchievements": "Upplåsta Achievements",
     "moodCheckins": "Humör incheckningar",
@@ -989,7 +989,9 @@
         "title": "Humörmästare",
         "description": "Logga 50 humör totalt"
       }
-    }
+    },
+    "daysCount_one": "{{count}} dag",
+    "daysCount_other": "{{count}} dager"
   },
   "worldAnalytics": {
     "title": "📊 Dina Insikter & Analys",
