@@ -531,11 +531,37 @@ def log_mood() -> Response | tuple[Response, int]:
                 else:
                     final_score = 5  # Default to neutral
 
+            # Sentiment used to come ONLY from free text: text_to_analyze is
+            # `note or mood_text`, so an entry logged with just a score and no
+            # note produced sentiment_analysis = None and was stored NEUTRAL —
+            # however low the score was. That is why "Ledsen" (2/10) showed
+            # "Känsla: Neutral" in 8 of 8 observed cases while "Orolig" (3/10),
+            # which happened to carry text, came out NEGATIVE. The lowest mood
+            # in the app was the one systematically hidden from the statistics,
+            # the filters and the recommendation engine.
+            #
+            # The user's own 1-10 score is not inference — it is what they said.
+            # It decides the sentiment whenever there is no text to read, using
+            # the same boundaries as CANONICAL_MOOD_SCALE so the label and the
+            # sentiment can never disagree. Real text still wins: NLP on a
+            # sentence knows more than a number does.
+            derived_sentiment = None
+            if not sentiment_analysis and user_score is not None:
+                if user_score >= 7:
+                    derived_sentiment = 'POSITIVE'
+                elif user_score >= 5:
+                    derived_sentiment = 'NEUTRAL'
+                else:
+                    derived_sentiment = 'NEGATIVE'
+
             mood_data = {
                 'mood_text': final_mood_text,
                 'note': note,
                 'timestamp': timestamp,
-                'sentiment': sentiment_analysis.get('sentiment', 'NEUTRAL') if sentiment_analysis else 'NEUTRAL',
+                'sentiment': (
+                    sentiment_analysis.get('sentiment', 'NEUTRAL') if sentiment_analysis
+                    else (derived_sentiment or 'NEUTRAL')
+                ),
                 'score': final_score,  # User's 1-10 score (or inferred)
                 'sentiment_score': sentiment_analysis.get('score', 0) if sentiment_analysis else 0,  # AI sentiment score
                 'emotions_detected': sentiment_analysis.get('emotions', []) if sentiment_analysis else [],

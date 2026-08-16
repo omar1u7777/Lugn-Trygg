@@ -90,6 +90,18 @@ export const API_ENDPOINTS = {
     EXERCISE_COMPLETE: '/api/v1/chatbot/exercise',
     /** POST close session — triggers background summary generation */
     SESSION_CLOSE: '/api/v1/chatbot/session/close',
+    /** GET therapeutic-framework analysis of the conversation */
+    ANALYSIS_FRAMEWORK: '/api/v1/chatbot/analysis/framework',
+    /** GET conversation quality scoring */
+    ANALYSIS_QUALITY: '/api/v1/chatbot/analysis/quality',
+    /** GET therapeutic progress over time */
+    ANALYSIS_PROGRESS: '/api/v1/chatbot/analysis/progress',
+  } as const,
+
+  /** Advanced mood analysis endpoints */
+  ADVANCED_MOOD: {
+    /** GET AI mood forecast — append ?days=&include_patterns= */
+    FORECAST: '/api/v1/advanced-mood/forecast',
   } as const,
 
   /** Referral system endpoints */
