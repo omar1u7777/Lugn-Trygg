@@ -139,9 +139,10 @@ def test_discovers_blueprint_roots_registered_with_an_empty_rule():
 def test_every_registered_route_is_versioned_or_a_known_exception():
     """Only /api/docs and /api/health live outside /api/v1.
 
-    This is what makes the 21 unversioned collection requests genuine drift
-    rather than a second supported scheme. If an unversioned blueprint is ever
-    added back, this fails and the drift report needs revisiting.
+    Note what this does NOT mean. Legacy /api/<segment>/ URLs still work,
+    because main.py's LegacyAPIRewriter promotes them before Flask routes —
+    see TestTheLegacyRewriterIsModelled. This asserts the shape of the route
+    table, not that unversioned client URLs are broken.
     """
     unexpected = [
         p
@@ -192,8 +193,11 @@ def test_every_route_has_a_collection_request():
 def test_no_collection_request_targets_a_dead_endpoint():
     """Stale must stay at zero — CI runs this check with --strict.
 
-    Twenty-one requests used the pre-/api/v1/ scheme and would 404 against
-    every deployed version. They were corrected; this keeps them corrected.
+    "Stale" means a request that matches no route once the legacy rewriter has
+    been applied. Twenty-one requests used the pre-/api/v1/ scheme; those were
+    NOT dead — the rewriter promotes them — and versioning them was tidying
+    rather than a fix. This guards the real case: a request pointing at an
+    endpoint that no longer exists under any spelling.
     """
     stale = drift.analyse()["stale"]
     assert stale == [], f"{len(stale)} request(s) target no registered route: {stale}"
@@ -231,3 +235,75 @@ def test_admin_and_predictive_now_have_collections():
     uncovered = set(result['uncovered'])
     assert not any(p.startswith('/api/v1/admin/') for p in uncovered)
     assert not any(p.startswith('/api/v1/predictive/') for p in uncovered)
+
+
+class TestTheLegacyRewriterIsModelled:
+    """main.py installs a WSGI shim before Flask routing.
+
+    LegacyAPIRewriter promotes /api/<segment>/... to /api/v1/<segment>/... for
+    a fixed segment list. A checker that compares raw collection URLs against
+    Flask's route table therefore calls every legacy path stale — which is what
+    this one did, reporting 21 of them as dead. Probing production settles it:
+    /api/auth/login answers 400 (the handler, rejecting an empty body), not
+    404. They were compatibility URLs, not broken ones.
+    """
+
+    def test_legacy_paths_resolve_to_their_v1_form(self):
+        assert drift.apply_legacy_rewrite('/api/mood/log') == '/api/v1/mood/log'
+        assert drift.apply_legacy_rewrite('/api/auth/login') == '/api/v1/auth/login'
+
+    def test_already_versioned_paths_are_untouched(self):
+        assert drift.apply_legacy_rewrite('/api/v1/mood/log') == '/api/v1/mood/log'
+
+    def test_segments_outside_the_list_are_untouched(self):
+        """/api/docs and /api/health are genuinely unversioned."""
+        assert drift.apply_legacy_rewrite('/api/docs/spec') == '/api/docs/spec'
+        assert drift.apply_legacy_rewrite('/api/health/ready') == '/api/health/ready'
+
+    def test_the_segment_list_is_read_from_main_not_duplicated(self):
+        """Duplicating it here is how the two would drift apart."""
+        segments = drift.legacy_rewrite_segments()
+        assert len(segments) > 30
+        assert {'mood', 'auth', 'crisis', 'security'} <= segments
+
+    def test_a_legacy_collection_request_is_not_reported_as_stale(self):
+        routes = drift.registered_routes()
+        assert any(drift.matches(drift.normalise('/api/mood/log'), r) for r in routes)
+
+
+class TestTheCspEndpointIsReachable:
+    """The CSP report endpoint was registered at a path nothing routes to.
+
+    'security' is in the rewriter's segment list, so a POST to
+    /api/security/csp-violation arrived as /api/v1/security/csp-violation —
+    where the only matching rule is main.py's catch-all OPTIONS preflight
+    handler. Production returned 405 behind the 403 the CSRF gate produced
+    first. Both were verified against the live service.
+    """
+
+    def test_the_rule_is_registered_where_the_rewriter_delivers(self):
+        """Asserted against the source, not drift.registered_routes().
+
+        The checker only discovers `@blueprint.route` decorators under
+        src/routes/. This endpoint is registered with app.add_url_rule from
+        src/middleware/security_headers.py, so the checker cannot see it — a
+        blind spot worth knowing about when reading its 100% coverage number.
+        """
+        from pathlib import Path
+        src = (Path(__file__).resolve().parents[1]
+               / 'src' / 'middleware' / 'security_headers.py').read_text(encoding='utf-8')
+        assert "'/api/v1/security/csp-violation'," in src
+        assert "methods=['POST']" in src
+
+    def test_the_report_uri_points_at_the_registered_rule(self):
+        """A report-uri the browser cannot reach collects nothing."""
+        from pathlib import Path
+        src = (Path(__file__).resolve().parents[1]
+               / 'src' / 'middleware' / 'security_headers.py').read_text(encoding='utf-8')
+        assert "'report-uri': \"/api/v1/security/csp-violation\"" in src
+
+    def test_the_path_is_csrf_exempt(self):
+        """Browsers send CSP reports with no CSRF cookie and no header."""
+        from pathlib import Path
+        src = (Path(__file__).resolve().parents[1] / 'main.py').read_text(encoding='utf-8')
+        assert "'/api/v1/security/csp-violation'," in src
