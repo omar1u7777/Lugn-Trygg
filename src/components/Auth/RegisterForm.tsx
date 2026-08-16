@@ -204,6 +204,8 @@ const RegisterForm: React.FC = () => {
             </label>
             <Input
               id="name"
+              name="name"
+              autoComplete="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -231,6 +233,8 @@ const RegisterForm: React.FC = () => {
             </label>
             <Input
               id="email"
+              name="email"
+              autoComplete="username"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -281,6 +285,8 @@ const RegisterForm: React.FC = () => {
             </label>
             <PasswordInput
               id="password"
+              name="password"
+              autoComplete="new-password"
               value={password}
               onChange={setPassword}
               placeholder={t('registerForm.passwordPlaceholder')}
@@ -304,6 +310,8 @@ const RegisterForm: React.FC = () => {
             </label>
             <PasswordInput
               id="confirmPassword"
+              name="confirmPassword"
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={setConfirmPassword}
               placeholder={t('registerForm.confirmPasswordPlaceholder')}
