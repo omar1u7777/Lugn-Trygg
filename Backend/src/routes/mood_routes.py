@@ -811,6 +811,36 @@ def get_moods() -> dict[str, Any] | tuple[dict[str, Any], int]:
         if sentiment_filter:
             mood_ref = mood_ref.where(filter=FieldFilter('sentiment', '==', sentiment_filter))
 
+        # The REAL size of the filtered set, before paging.
+        #
+        # This used to be reported as len(moods) — the size of the page. With
+        # the default limit of 50 the API therefore answered `total: 50` for a
+        # user with 121 entries, and every surface that reads `total` believed
+        # it: /mood-list, /insights, /gamification, /social and /journal all
+        # displayed 50 and labelled it "Totalt", while /profile (which counts
+        # separately) said 121. Averages, sentiment splits, trends, streaks and
+        # the AI recommendations were all computed over fewer than half the
+        # user's data, and the error grew the longer someone used the app.
+        #
+        # A count() aggregation is one round trip and does not read documents.
+        # Filters are already applied to mood_ref at this point; ordering and
+        # paging are not, which is exactly what the count should ignore.
+        total_count: int | None = None
+        try:
+            count_result = mood_ref.count().get()
+            # google-cloud-firestore returns [[AggregationResult]]; older
+            # versions flatten it. Both shapes appear in this codebase already
+            # (see crisis_task_queue.get_queue_health).
+            try:
+                total_count = int(count_result[0][0].value)
+            except (IndexError, TypeError, AttributeError):
+                total_count = int(count_result[0].value)
+        except Exception as count_error:
+            # A missing aggregation index or an old client must not break the
+            # listing — but the caller has to be able to tell "unknown" from a
+            # real number, so total is omitted rather than guessed.
+            logger.warning(f"Mood count aggregation failed, omitting total: {count_error}")
+
         # Order by timestamp descending and limit results
         query = mood_ref.order_by('timestamp', direction='DESCENDING').limit(limit)
 
@@ -839,13 +869,22 @@ def get_moods() -> dict[str, Any] | tuple[dict[str, Any], int]:
             moods = all_moods[:limit]
 
         # Return dict for cache decorator - it will jsonify
-        return {
+        response: dict[str, Any] = {
             'moods': moods,
-            'total': len(moods),
+            # Size of THIS page. Named so it cannot be mistaken for the total
+            # again — the old key meant one thing and was read as the other.
+            'count': len(moods),
             'limit': limit,
-            'has_more': len(moods) == limit,
-            'offset': offset
-        }, 200
+            'offset': offset,
+        }
+        if total_count is not None:
+            response['total'] = total_count
+            response['has_more'] = offset + len(moods) < total_count
+        else:
+            # Unknown rather than wrong. `has_more` keeps the old heuristic,
+            # which is right except exactly at a page boundary.
+            response['has_more'] = len(moods) == limit
+        return response, 200
 
     except Exception as e:
         logger.error(f"❌ Failed to get moods: {str(e)}", exc_info=True)
