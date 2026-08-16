@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { getMoods } from "../api/api";
+import { getAllMoods } from "../api/mood";
 import { useAuth } from "../contexts/AuthContext";
 import { useSubscription } from "../contexts/SubscriptionContext";
 import { useTranslation } from "react-i18next";
@@ -85,7 +85,11 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
       try {
         setLoading(retryCount === 0); // Only show loading on first attempt
         setError(null);
-        const moodDataRaw = await getMoods(user.user_id);
+        // Pages until the server is out of entries. A single unpaged call
+        // returned the backend default of 50 and this component then
+        // filtered, counted and averaged that slice as if it were the
+        // user's whole history.
+        const moodDataRaw = await getAllMoods(user.user_id);
         let moodData: MoodEntry[] = Array.isArray(moodDataRaw) ? (moodDataRaw as MoodEntry[]) : [];
 
         // REAL SUBSCRIPTION LIMIT: Filter moods for free users (7 days only)
