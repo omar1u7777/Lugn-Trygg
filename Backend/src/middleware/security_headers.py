@@ -50,8 +50,25 @@ class SecurityHeadersMiddleware:
         """Initialize middleware with Flask app"""
         self.app = app
 
-        # Register CSP violation endpoint
-        app.add_url_rule('/api/security/csp-violation', 'csp_violation', self._handle_csp_violation, methods=['POST'])
+        # Register CSP violation endpoint under /api/v1.
+        #
+        # It used to live at '/api/security/csp-violation', which no request
+        # could ever reach. main.py installs a LegacyAPIRewriter WSGI shim that
+        # rewrites /api/<segment>/... to /api/v1/<segment>/... for every segment
+        # in its list, and 'security' is one of them. So a POST to the old path
+        # arrived at Flask as /api/v1/security/csp-violation, where the only
+        # matching rule is the catch-all OPTIONS preflight handler — 405 — while
+        # the real rule sat at an address nothing was routed to. Before that it
+        # was 403, because the CSRF gate ran first on the rewritten path.
+        #
+        # Registering it where the rewriter actually delivers makes both URLs
+        # work: /api/security/csp-violation still arrives here after rewriting.
+        app.add_url_rule(
+            '/api/v1/security/csp-violation',
+            'csp_violation',
+            self._handle_csp_violation,
+            methods=['POST'],
+        )
 
         # Register security headers
         app.after_request(self._add_security_headers)
@@ -123,7 +140,9 @@ class SecurityHeadersMiddleware:
             'base-uri': "'self'",
             'form-action': "'self'",
             'frame-ancestors': "'none'",
-            'report-uri': "/api/security/csp-violation",
+            # Must match the registered rule; the legacy path only worked by
+            # accident of the rewriter and then died in routing.
+            'report-uri': "/api/v1/security/csp-violation",
             'report-to': "'csp-endpoint'",
         }
 

@@ -450,6 +450,13 @@ try:
         # answered 403 to EVERY report and CSP monitoring produced nothing.
         # The endpoint stores a bounded, IP-anonymised record and grants no
         # privileges, so exempting it cannot be used to change state.
+        #
+        # The v1 path is the one that matters: LegacyAPIRewriter below rewrites
+        # /api/security/... to /api/v1/security/... before Flask sees it, so
+        # request.path here is always the rewritten form. Exempting only the
+        # legacy spelling silently did nothing — verified against production.
+        # Both are listed so a future change to the rewriter cannot re-break it.
+        '/api/v1/security/csp-violation',
         '/api/security/csp-violation',
     }
     csrf_middleware = init_csrf_middleware(app, secret=csrf_secret, exempt_paths=csrf_exempt_paths)
