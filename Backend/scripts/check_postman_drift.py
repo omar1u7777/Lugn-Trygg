@@ -6,7 +6,8 @@ Why this exists
 The repo carries 46 Postman collections across Backend/postman/ and tools/postman/,
 roughly 1.2 MB of request definitions. Nothing verified they still matched the API.
 An audit in August 2026 found 21 requests still pointing at the pre-`/api/v1/`
-URL scheme — they would 404 against every deployed version — and two whole
+URL scheme (tidied since, though they were never broken — see
+`apply_legacy_rewrite`) and two whole
 blueprints (admin, predictive) with no collection at all, including
 `/api/v1/admin/users/<id>/status` and `/api/v1/predictive/crisis-check`.
 
@@ -77,13 +78,53 @@ def is_negative_test(path: str) -> bool:
     return any(marker in lowered for marker in NEGATIVE_TEST_MARKERS)
 
 
+def legacy_rewrite_segments() -> frozenset[str]:
+    """The segments main.py's LegacyAPIRewriter promotes to /api/v1/.
+
+    Read from main.py rather than duplicated here, so the two cannot drift.
+    """
+    if not MAIN_PY.exists():
+        return frozenset()
+    src = MAIN_PY.read_text(encoding="utf-8", errors="replace")
+    block = re.search(r"_V1_SEGMENTS\s*=\s*frozenset\(\[(.*?)\]\)", src, re.S)
+    if not block:
+        return frozenset()
+    return frozenset(re.findall(r"'([^']+)'", block.group(1)))
+
+
+_V1_SEGMENTS = legacy_rewrite_segments()
+
+
+def apply_legacy_rewrite(path: str) -> str:
+    """Model the WSGI shim that runs before Flask ever sees the request.
+
+    main.py installs LegacyAPIRewriter, which rewrites /api/<segment>/... to
+    /api/v1/<segment>/... for a fixed list of segments. So `/api/mood/log` is
+    not a dead URL — it reaches the same handler as `/api/v1/mood/log`.
+
+    Without this, the checker compared collection URLs against Flask's route
+    table and called every legacy path stale. It reported 21 of them, and the
+    claim that they "would 404 against any deployed version" was wrong:
+    probing production, `/api/auth/login` answers 400 (the handler, rejecting
+    an empty body), not 404. Versioning them explicitly is still worth doing —
+    the shim is a compatibility layer, not a contract — but they were never
+    broken, and a checker that cannot tell the difference will invent work.
+    """
+    if not path.startswith("/api/") or path.startswith("/api/v1/"):
+        return path
+    parts = path.split("/")
+    if len(parts) >= 3 and parts[2] in _V1_SEGMENTS:
+        return "/api/v1/" + "/".join(parts[2:])
+    return path
+
+
 def normalise(path: str) -> str:
     """Collapse every flavour of path parameter to a single '*' token."""
     path = path.split("?")[0].split("#")[0].rstrip("/")
     path = re.sub(r"\{\{[^}]+\}\}", "*", path)      # {{userId}}
     path = re.sub(r"<[^>]+>", "*", path)             # <user_id>, <int:page>
     path = re.sub(r"(?<=/):[A-Za-z_]\w*", "*", path)  # :id
-    return path or "/"
+    return apply_legacy_rewrite(path) or "/"
 
 
 def matches(concrete: str, pattern: str) -> bool:
