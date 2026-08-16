@@ -316,8 +316,19 @@ const RegisterForm: React.FC = () => {
 
           {/* Terms & Privacy checkboxes */}
           <div className="space-y-3">
-            <label className="flex items-start gap-3 cursor-pointer">
+            {/* Two DISTINCT consents. The first rendered `privacyLink` too, so
+                both rows read "Jag accepterar integritetspolicyn" — byte for
+                byte identical — while the validation message asked for "villkoren
+                OCH integritetspolicyn". `termsLink` already existed in every
+                locale; the wrong key was simply wired in.
+
+                Both still point at /privacy because no terms document exists on
+                any route. That is a content gap, not a code one, and it is worse
+                than it looks: /privacy is a settings panel behind auth, so a new
+                user cannot read either document before agreeing to it. */}
+            <label htmlFor="accept-terms" className="flex items-start gap-3 cursor-pointer">
               <input
+                id="accept-terms"
                 type="checkbox"
                 checked={acceptTerms}
                 onChange={(e) => setAcceptTerms(e.target.checked)}
@@ -327,13 +338,14 @@ const RegisterForm: React.FC = () => {
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
                 {t('registerForm.acceptTermsPrefix')}{" "}
-                <Link to="/privacy" className="text-primary-600 dark:text-primary-400 underline hover:no-underline" target="_blank">
-                  {t('registerForm.privacyLink')}
+                <Link to="/privacy" className="text-primary-600 dark:text-primary-400 underline hover:no-underline" target="_blank" rel="noopener noreferrer">
+                  {t('registerForm.termsLink')}
                 </Link>
               </span>
             </label>
-            <label className="flex items-start gap-3 cursor-pointer">
+            <label htmlFor="accept-privacy" className="flex items-start gap-3 cursor-pointer">
               <input
+                id="accept-privacy"
                 type="checkbox"
                 checked={acceptPrivacy}
                 onChange={(e) => setAcceptPrivacy(e.target.checked)}
@@ -343,7 +355,7 @@ const RegisterForm: React.FC = () => {
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
                 {t('registerForm.acceptPrivacyPrefix')}{" "}
-                <Link to="/privacy" className="text-primary-600 dark:text-primary-400 underline hover:no-underline" target="_blank">
+                <Link to="/privacy" className="text-primary-600 dark:text-primary-400 underline hover:no-underline" target="_blank" rel="noopener noreferrer">
                   {t('registerForm.privacyLink')}
                 </Link>
               </span>
