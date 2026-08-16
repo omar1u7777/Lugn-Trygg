@@ -203,11 +203,20 @@ const Sidebar: React.FC = memo(() => {
                 className="flex items-center justify-between w-full px-4 py-2.5 mt-1 rounded-xl text-[#6d645d] dark:text-gray-400 hover:bg-[#f2e4d4] dark:hover:bg-slate-800 font-medium transition-all duration-200"
                 aria-expanded={isPremiumExpanded}
                 aria-controls="premium-nav-section"
+                // The count badge is visually separated but sits inside the
+                // button, so it was concatenated straight into the accessible
+                // name: screen readers announced "Premium-funktioner11". The
+                // label states the count in words and the badge is hidden from
+                // assistive tech, which already knows it from the label.
+                aria-label={`${t('sidebar.premiumFeatures', 'Premium-funktioner')} (${PREMIUM_NAV_ITEMS.length})`}
               >
                 <div className="flex items-center gap-3">
                   <SparklesIcon className="w-5 h-5 text-amber-500" />
                   <span className="text-sm">{t('sidebar.premiumFeatures', 'Premium-funktioner')}</span>
-                  <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                  <span
+                    aria-hidden="true"
+                    className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                  >
                     {PREMIUM_NAV_ITEMS.length}
                   </span>
                 </div>
