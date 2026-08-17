@@ -166,7 +166,9 @@ describe('MoodList Component', () => {
     }, { timeout: 3000 });
     
     // Should show stats
-    expect(screen.getByText('Totalt')).toBeInTheDocument();
+    // 'Visade', not 'Totalt': the figure counts what is currently
+    // displayed, after the free tier's 7-day window and any active filter.
+    expect(screen.getByText('Visade')).toBeInTheDocument();
     expect(screen.getByText('Positiva')).toBeInTheDocument();
     expect(screen.getByText('Negativa')).toBeInTheDocument();
   });

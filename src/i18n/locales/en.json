@@ -2285,5 +2285,8 @@
       "physical_activity": "Physical Activity",
       "emotion_regulation": "Emotion Regulation"
     }
+  },
+  "moodList": {
+    "shown": "Shown"
   }
 }

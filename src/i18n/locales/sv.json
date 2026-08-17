@@ -2283,5 +2283,8 @@
       "physical_activity": "Fysisk aktivitet",
       "emotion_regulation": "Känslohantering"
     }
+  },
+  "moodList": {
+    "shown": "Visade"
   }
 }

@@ -2285,5 +2285,8 @@
     "startNew": "🔁 Start ny runde",
     "startExercise": "🚀 Start pusteøvelse",
     "selectStressHint": "Velg stressnivå før start for å kunne sammenligne effekten etterpå."
+  },
+  "moodList": {
+    "shown": "Viste"
   }
 }
