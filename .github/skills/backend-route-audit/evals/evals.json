@@ -1,0 +1,47 @@
+{
+  "skill_name": "backend-route-audit",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Kan du audita referral_routes.py live mot produktion och fixa det som är trasigt? Filen ligger i Backend/src/routes/referral_routes.py.",
+      "expected_output": "Discovers and fixes two real, currently-live bugs in referral_routes.py: (1) GET /api/v1/referral/leaderboard?limit=<non-numeric> crashes with a 500 instead of returning 400 (unguarded int() call), and (2) POST /api/v1/referral/rewards/redeem has a non-atomic read-check-deduct race condition that lets concurrent requests over-redeem rewards. Produces a Postman collection covering the referral_routes endpoints, run live against production with the leaderboard bug reproduced and then re-verified as fixed.",
+      "files": [],
+      "expectations": [
+        "A valid Postman v2.1 collection JSON file was produced covering referral_routes endpoints",
+        "The collection includes a request that sends a non-numeric `limit` to GET /referral/leaderboard",
+        "referral_routes.py's get_leaderboard() has the non-numeric limit crash fixed (int() call wrapped in try/except returning a 400)",
+        "referral_routes.py's redeem_reward() race condition is addressed (wrapped in a Firestore transaction) or, if not fixed, is explicitly called out in the summary as a real finding rather than silently missed",
+        "The live Postman run actually executed against https://lugn-trygg-backend.onrender.com (evidence of real HTTP responses, not simulated)",
+        "Only a disposable e2e test account was used -- no real/guessed user credentials referenced anywhere",
+        "A local git commit exists in the worktree recording the code fix(es)"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "kan du köra en snabb koll av voice-routes (Backend/src/routes/voice_routes.py) mot produktion och se att allt funkar, skriv gärna en postman-collection också",
+      "expected_output": "Confirms voice_routes.py is already correct (it has no known bugs) without inventing problems that don't exist. Produces a Postman collection covering status/transcribe/analyze-emotion/save-recording/recordings, run live against production, mostly passing.",
+      "files": [],
+      "expectations": [
+        "A valid Postman v2.1 collection JSON file was produced covering voice_routes endpoints (status, transcribe, analyze-emotion, save-recording, recordings)",
+        "The summary does NOT claim to have found and fixed a bug in voice_routes.py that doesn't actually exist in the source",
+        "No unnecessary/unjustified code changes were made to voice_routes.py",
+        "The live Postman run actually executed against https://lugn-trygg-backend.onrender.com",
+        "Only a disposable e2e test account was used for auth"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Test the users_routes domain (Backend/src/routes/users_routes.py) end-to-end against the live backend and give me a Postman collection for it.",
+      "expected_output": "Finds that GET /api/v1/users/meditation-sessions?limit=<non-numeric> returns 500 live in production, but correctly determines the fix is ALREADY present in the current source (try/except around the int() call) -- i.e. recognizes this as a pending-deploy gap rather than re-applying a redundant fix or being confused by the mismatch between live behavior and source code. Produces a Postman collection covering users_routes endpoints.",
+      "files": [],
+      "expectations": [
+        "A valid Postman v2.1 collection JSON file was produced covering users_routes endpoints",
+        "The collection includes a request that sends a non-numeric `limit` to GET /users/meditation-sessions",
+        "The summary correctly identifies that the int-parsing fix for meditation-sessions already exists in the worktree's current users_routes.py source, rather than claiming to have newly fixed it or leaving the live/source mismatch unexplained",
+        "No duplicate/redundant try-except was stacked on top of the existing one in users_routes.py",
+        "The live Postman run actually executed against https://lugn-trygg-backend.onrender.com",
+        "Only a disposable e2e test account was used for auth"
+      ]
+    }
+  ]
+}

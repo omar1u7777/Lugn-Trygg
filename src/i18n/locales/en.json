@@ -739,7 +739,7 @@
     "notePlaceholder": "What's making you feel this way today? ✨",
     "reflectionAdded": "Reflection added",
     "characterTip": "Tip: 15+ characters gives better personal follow-up",
-    "characters": "characters",
+    "characters": "characters left",
     "logging": "Logging...",
     "logCompleteCheckIn": "Log complete check-in",
     "logMood": "Log mood",
@@ -903,7 +903,7 @@
     "continueJourney": "Continue your journey toward inner calm. You're making amazing progress!",
     "xpProgress": "XP: {{current}} / {{next}}",
     "percentToLevel": "{{percent}}% to level {{level}}",
-    "daysCount": "{{count}} Days",
+    "daysCount": "{{count}} days",
     "currentStreak": "Current Streak",
     "unlockedAchievements": "Unlocked Achievements",
     "moodCheckins": "Mood check-ins",
@@ -946,7 +946,9 @@
         "title": "Mood Master",
         "description": "Log 50 moods total"
       }
-    }
+    },
+    "daysCount_one": "{{count}} day",
+    "daysCount_other": "{{count}} days"
   },
   "worldAnalytics": {
     "title": "📊 Your Insights & Analysis",
@@ -2144,8 +2146,18 @@
       "history": "History"
     },
     "responseOptions": {
-      "labels": ["Not at all", "Several days", "More than half the days", "Nearly every day"],
-      "descriptions": ["0 points", "1 point", "2 points", "3 points"]
+      "labels": [
+        "Not at all",
+        "Several days",
+        "More than half the days",
+        "Nearly every day"
+      ],
+      "descriptions": [
+        "0 points",
+        "1 point",
+        "2 points",
+        "3 points"
+      ]
     },
     "severity": {
       "minimal": "Minimal",
@@ -2273,5 +2285,8 @@
       "physical_activity": "Physical Activity",
       "emotion_regulation": "Emotion Regulation"
     }
+  },
+  "moodList": {
+    "shown": "Shown"
   }
 }

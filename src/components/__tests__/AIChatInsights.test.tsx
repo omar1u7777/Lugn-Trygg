@@ -74,7 +74,7 @@ describe('AIChatInsights', () => {
   it('says the analysis could not be fetched instead of leaving the tab blank', async () => {
     // Each tab renders only when its own data arrived, so one rejected call
     // left an empty panel — indistinguishable from having no insights yet.
-    mockEndpoints({ '/chatbot/analysis/framework': Promise.reject(new Error('upstream down')) });
+    mockEndpoints({ '/api/v1/chatbot/analysis/framework': Promise.reject(new Error('upstream down')) });
 
     render(<AIChatInsights />);
 
@@ -83,7 +83,7 @@ describe('AIChatInsights', () => {
   });
 
   it('keeps the tabs that did load usable when another one fails', async () => {
-    mockEndpoints({ '/chatbot/analysis/framework': Promise.reject(new Error('upstream down')) });
+    mockEndpoints({ '/api/v1/chatbot/analysis/framework': Promise.reject(new Error('upstream down')) });
 
     render(<AIChatInsights />);
 
@@ -98,7 +98,7 @@ describe('AIChatInsights', () => {
 
   it('treats an unsuccessful response body as a failure, not as empty insights', async () => {
     mockEndpoints({
-      '/chatbot/analysis/framework': Promise.resolve({ data: { success: false, data: null } }),
+      '/api/v1/chatbot/analysis/framework': Promise.resolve({ data: { success: false, data: null } }),
     });
 
     render(<AIChatInsights />);

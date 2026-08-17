@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Rolig & Trygg",
+    "name": "Lugn & Trygg",
     "description": "Din personlige mentalhelseassistent"
   },
   "common": {
@@ -900,7 +900,7 @@
     "notePlaceholder": "Hva får deg til å føle slik i dag? ✨",
     "reflectionAdded": "Refleksjon lagt til",
     "characterTip": "Tips: 15+ tegn gir bedre personlig oppfølging",
-    "characters": "tegn",
+    "characters": "tegn igjen",
     "logging": "Logger...",
     "logCompleteCheckIn": "Logg komplett check-in",
     "logMood": "Logg humør",
@@ -946,7 +946,7 @@
     "continueJourney": "Fortsätt din resa mot inre lugn. Du gör fantastiska framsteg!",
     "xpProgress": "XP: {{current}} / {{next}}",
     "percentToLevel": "{{percent}}% till nivå {{level}}",
-    "daysCount": "{{count}} Dagar",
+    "daysCount": "{{count}} dager",
     "currentStreak": "Nuvarande Streak",
     "unlockedAchievements": "Upplåsta Achievements",
     "moodCheckins": "Humör incheckningar",
@@ -989,7 +989,9 @@
         "title": "Humörmästare",
         "description": "Logga 50 humör totalt"
       }
-    }
+    },
+    "daysCount_one": "{{count}} dag",
+    "daysCount_other": "{{count}} dager"
   },
   "worldAnalytics": {
     "title": "📊 Dina Insikter & Analys",
@@ -1328,25 +1330,25 @@
     "pageLabel": "Innloggingsside",
     "skipToForm": "Hopp til innloggingsskjemaet",
     "introLabel": "Introduksjon",
-    "infoLabel": "Om Rolig & Trygg",
+    "infoLabel": "Om Lugn & Trygg",
     "formLabel": "Innloggingsskjema",
     "tagline": "Din mentale helsekompanjong i hverdagen",
     "loginCta": "Logg inn for å fortsette med humørlogg, AI-støtte og personlige innsikter.",
-    "description": "Følg humøret ditt, få personlig AI-støtte og bygg bærekraftige vaner i ditt eget tempo, sammen med tusenvis av andre som bruker Rolig & Trygg.",
+    "description": "Følg humøret ditt, få personlig AI-støtte og bygg bærekraftige vaner i ditt eget tempo.",
     "featuresLabel": "Funksjoner",
     "feature1": "Dataene dine er beskyttet og deles aldri uten ditt samtykke.",
     "feature2": "Få daglige innsikter, små belønninger og støtte som hjelper deg med å holde rutiner over tid.",
     "feature3": "AI-støtte for mental helse som tilbyr refleksjon og praktiske strategier tilpasset deg."
   },
   "onboarding": {
-    "step1Title": "Velkommen til Rolig & Trygg",
+    "step1Title": "Velkommen til Lugn & Trygg",
     "step1Desc": "Din personlige mental helse-app",
     "step2Title": "Sett målene dine",
     "step2Desc": "Hva ønsker du å oppnå?",
     "step3Title": "Start reisen din",
     "step3Desc": "Du er klar!",
     "welcomeHeading": "Hei! Vi er glade for at du er her.",
-    "welcomeBody": "Rolig & Trygg hjelper deg med å håndtere stress, forbedre den mentale helsen din og finne ro i hverdagen.",
+    "welcomeBody": "Lugn & Trygg hjelper deg med å håndtere stress, forbedre den mentale helsen din og finne ro i hverdagen.",
     "journeyBegins": "✨ Din personlige reise begynner her",
     "welcomeNote": "Med dine valgte mål vil vi gi deg personlige anbefalinger for å støtte den mentale helsen din.",
     "readyHeading": "Du er nå klar til å begynne!",
@@ -2283,5 +2285,8 @@
     "startNew": "🔁 Start ny runde",
     "startExercise": "🚀 Start pusteøvelse",
     "selectStressHint": "Velg stressnivå før start for å kunne sammenligne effekten etterpå."
+  },
+  "moodList": {
+    "shown": "Viste"
   }
 }

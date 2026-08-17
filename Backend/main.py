@@ -120,7 +120,16 @@ logger.info("✅ Configuration loaded from pydantic-settings (single source of t
 
 # CORS Headers configuration - ALL supported headers including CSRF variants
 # This is a constant and doesn't depend on environment variables
-CORS_ALLOWED_HEADERS = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token, X-CSRFToken, x-csrftoken, x-csrf-token'
+# X-Request-ID and X-Trace-ID are read by src/middleware/correlation.py — the
+# server asks for them and its own CORS policy rejected them. A browser that
+# sent either got a failed preflight and the request died before any response,
+# surfacing as ERR_NETWORK rather than anything nameable. That is what left
+# /analytics stuck on its loading state.
+CORS_ALLOWED_HEADERS = (
+    'Content-Type, Authorization, X-Requested-With, Accept, Origin, '
+    'X-CSRF-Token, X-CSRFToken, x-csrftoken, x-csrf-token, '
+    'X-Request-ID, X-Trace-ID'
+)
 
 
 def _anonymize_ip(ip_address: str) -> str:
