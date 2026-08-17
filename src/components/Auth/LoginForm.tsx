@@ -330,6 +330,8 @@ const LoginForm = () => {
              <Input
                label={t('loginForm.emailLabel', '📧 E-postadress')}
                id="email"
+               name="email"
+               autoComplete="username"
                data-testid="login-email-input"
                 type="email"
                 value={email}
@@ -359,12 +361,14 @@ const LoginForm = () => {
               </label>
               <PasswordInput
                 id="password"
+                name="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={setPassword}
                 placeholder={t('loginForm.passwordPlaceholder', 'Ange ditt lösenord')}
                 required
                 disabled={loading}
-                error={validationErrors.password || (error ? t('loginForm.passwordRequired') : undefined)}
+                error={validationErrors.password}
                 dataTestId="login-password-input"
                 ariaDescribedBy={error || validationErrors.password ? "login-error password-error" : undefined}
                 ariaInvalid={!!(error || validationErrors.password)}

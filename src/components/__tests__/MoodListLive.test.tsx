@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import MoodList from '../MoodList';
-import { getMoods } from '../../api/api';
+import { getAllMoods } from '../../api/mood';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -42,8 +42,8 @@ vi.mock('../../utils/logger', () => ({
   logger: { debug: () => {}, error: () => {}, warn: () => {}, info: () => {} },
 }));
 
-vi.mock('../../api/api', () => ({
-  getMoods: vi.fn(),
+vi.mock('../../api/mood', () => ({
+  getAllMoods: vi.fn(),
 }));
 
 describe('BUG B: Floating point precision in score display', () => {
@@ -52,7 +52,7 @@ describe('BUG B: Floating point precision in score display', () => {
   });
 
   test('formats raw float 0.10000000149011612 without precision artifacts', async () => {
-    vi.mocked(getMoods).mockResolvedValueOnce([
+    vi.mocked(getAllMoods).mockResolvedValueOnce([
       {
         id: '1',
         mood_text: 'Precision test',
@@ -79,7 +79,7 @@ describe('BUG E: Legacy sentiment_score (-1 to +1) displayed as 1-10', () => {
   });
 
   test('legacy score -0.2 is converted to valid 1-10 range', async () => {
-    vi.mocked(getMoods).mockResolvedValueOnce([
+    vi.mocked(getAllMoods).mockResolvedValueOnce([
       {
         id: '1',
         mood_text: 'Legacy mood',
@@ -100,7 +100,7 @@ describe('BUG E: Legacy sentiment_score (-1 to +1) displayed as 1-10', () => {
   });
 
   test('legacy score 0.4 is converted to valid 1-10 range', async () => {
-    vi.mocked(getMoods).mockResolvedValueOnce([
+    vi.mocked(getAllMoods).mockResolvedValueOnce([
       {
         id: '1',
         mood_text: 'Legacy positive',

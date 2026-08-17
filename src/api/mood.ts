@@ -159,6 +159,72 @@ export const getMoods = async (_userId: string, signal?: AbortSignal) => {
   }
 };
 
+/** The backend caps `limit` at 100; asking for more silently gets 100. */
+const MOOD_PAGE_SIZE = 100;
+
+/**
+ * Hard stop on how many entries one call will assemble.
+ *
+ * Consumers of this function filter and aggregate the whole set in the browser,
+ * so it has to be bounded by something. 5,000 daily entries is roughly thirteen
+ * years of use — far past the point where the client should be doing the
+ * aggregating at all. Reaching it is a signal to move those sums server-side,
+ * so it warns rather than truncating quietly.
+ */
+const MAX_MOODS_FETCHED = 5000;
+
+/**
+ * Retrieve every mood entry, paging until the server says there are no more.
+ *
+ * `getMoods` above issues one request with no `limit`, so the backend applies
+ * its default of 50 — and the response envelope, including `total` and
+ * `has_more`, was discarded. Callers received an array of 50 and treated it as
+ * the user's entire history: /mood-list showed "Totalt 50" for someone with
+ * 121 entries, and every average, sentiment split and streak was computed over
+ * that slice. Fixing the server's `total` (it used to report the page size)
+ * makes the number honest; this makes the DATA complete.
+ */
+export const getAllMoods = async (
+  _userId: string,
+  signal?: AbortSignal
+): Promise<GenericObject[]> => {
+  const collected: GenericObject[] = [];
+  let offset = 0;
+
+  try {
+    for (;;) {
+      const response = await api.get(
+        `${API_ENDPOINTS.MOOD.GET_MOODS}?limit=${MOOD_PAGE_SIZE}&offset=${offset}`,
+        signal ? { signal } : undefined
+      );
+      const data = response.data?.data || response.data;
+      const page: GenericObject[] = Array.isArray(data?.moods) ? data.moods : [];
+      collected.push(...page);
+
+      // Stop on an empty or short page even if has_more disagrees: trusting a
+      // flag alone turns one server-side mistake into an infinite loop.
+      if (page.length === 0 || page.length < MOOD_PAGE_SIZE) break;
+      if (data?.has_more === false) break;
+
+      offset += page.length;
+      if (collected.length >= MAX_MOODS_FETCHED) {
+        logger.warn(
+          `Mood history hit the ${MAX_MOODS_FETCHED}-entry client cap; ` +
+          'aggregates below this point are incomplete and should move server-side.'
+        );
+        break;
+      }
+    }
+    return collected;
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') return collected;
+    logger.error('API Mood Fetch error:', error);
+    // Whatever was already read beats nothing — the caller degrades to a
+    // partial history rather than an empty one.
+    return collected;
+  }
+};
+
 /**
  * Deletes a single mood entry by ID
  * @param moodId - The mood entry ID to delete

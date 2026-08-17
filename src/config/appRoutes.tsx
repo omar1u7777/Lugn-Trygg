@@ -102,7 +102,15 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/story-insights', component: StoryInsights, protected: true },
   { path: '/admin/performance', component: PerformanceDashboard, protected: true, requireAdmin: true },
   { path: '/admin/monitoring', component: MonitoringDashboard, protected: true, requireAdmin: true },
-  { path: '/crisis', component: CrisisPageWrapper, protected: true },
+  // PUBLIC, deliberately. /crisis carries 112, Självmordslinjen 90101, Mind,
+  // 1177, BRIS and jourhavande präst. It was `protected: true`, so a person in
+  // acute crisis who was logged out — or whose session had silently expired,
+  // which this app does — met a login form instead of a phone number.
+  //
+  // The page needs no identity to do its job: CrisisPage.tsx is static content
+  // with no useAuth, no fetch and no API call. There is nothing to protect and
+  // everything to lose. This must stay public.
+  { path: '/crisis', component: CrisisPageWrapper, protected: false },
   { path: '/onboarding', component: OnboardingFlowWrapper, protected: true },
   { path: '/privacy', component: PrivacySettingsWrapper, protected: true },
 ];

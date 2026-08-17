@@ -4,6 +4,7 @@ Implements automated data retention and deletion policies
 """
 
 import logging
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -62,6 +63,7 @@ class DataRetentionService:
 
         total_deleted = 0
         collections_processed = []
+        users_processed = 0
 
         try:
             if user_id:
@@ -70,15 +72,47 @@ class DataRetentionService:
                 total_deleted = result['total_deleted']
                 collections_processed = result['collections']
             else:
-                # Process all users
-                for current_user_id in self._iter_user_ids():
+                # Process all users, resuming where a budget-limited run stopped.
+                started = time.monotonic()
+                resume_from = self._read_cursor()
+                if resume_from:
+                    logger.info("🗑️ Retention resuming after user %s", resume_from)
+
+                last_seen: str | None = resume_from
+                for current_user_id in self._iter_user_ids(start_after=resume_from):
+                    if time.monotonic() - started > self.SWEEP_BUDGET_SECONDS:
+                        # Stop on our own terms rather than being killed mid-user.
+                        self._write_cursor(last_seen)
+                        logger.warning(
+                            "🗑️ Retention hit its %ds budget after %d users; "
+                            "%d records deleted. Resuming after %r next run.",
+                            self.SWEEP_BUDGET_SECONDS, users_processed,
+                            total_deleted, last_seen,
+                        )
+                        return {
+                            'success': True,
+                            'partial': True,
+                            'resume_after': last_seen,
+                            'users_processed': users_processed,
+                            'total_deleted': total_deleted,
+                            'collections_processed': collections_processed,
+                            'timestamp': datetime.now(UTC).isoformat(),
+                        }
+
                     try:
                         result = self._process_user_retention(current_user_id)
                         total_deleted += result['total_deleted']
                         collections_processed.extend(result['collections'])
                     except Exception as e:
                         logger.error(f"Failed to process retention for user {current_user_id}: {str(e)}")
-                        continue
+                    finally:
+                        # Advance even when a user failed: retrying that one
+                        # user forever would starve everybody after them.
+                        last_seen = current_user_id
+                        users_processed += 1
+
+                # Reached the end of the collection — next run starts fresh.
+                self._write_cursor(None)
 
             # Audit the retention operation
             audit_service.log_event(
@@ -112,7 +146,50 @@ class DataRetentionService:
     # stream backing each page is short-lived enough not to hit a deadline.
     USER_PAGE_SIZE = 200
 
-    def _iter_user_ids(self, page_size: int | None = None):
+    # Wall-clock budget for one sweep.
+    #
+    # The sweep runs in a daemon thread of a Gunicorn worker that recycles on
+    # max_requests. On 2026-08-16 it started at 03:03:26 and the worker was
+    # replaced at 03:15:33 — twelve minutes in. Nothing was logged after
+    # "Starting": a killed process raises nothing, so apply_retention_policy
+    # never returned, the success verdict was never read, and telemetry.critical
+    # never fired. Sentry showed a clean night.
+    #
+    # A sweep that knows it can be killed bounds itself instead. Twenty minutes
+    # is comfortably inside the shortest recycle interval observed (34 min) and
+    # turns "vanished" into "partial, resumes tomorrow".
+    #
+    # This does NOT make a web worker the right home for a daily GDPR sweep —
+    # a Render Cron Job is. It makes the current home survivable and, more
+    # importantly, honest about what it managed.
+    SWEEP_BUDGET_SECONDS = 20 * 60
+
+    # Where the resume point lives between runs.
+    CURSOR_DOC = ('system', 'data_retention_cursor')
+
+    def _read_cursor(self) -> str | None:
+        """The user id the last budget-limited sweep stopped after."""
+        try:
+            snap = db.collection(self.CURSOR_DOC[0]).document(self.CURSOR_DOC[1]).get()  # type: ignore
+            if snap.exists:
+                return (snap.to_dict() or {}).get('last_user_id')
+        except Exception as e:
+            logger.warning("Could not read retention cursor, starting from the top: %s", e)
+        return None
+
+    def _write_cursor(self, last_user_id: str | None) -> None:
+        """Persist the resume point, or clear it when a sweep finished."""
+        try:
+            ref = db.collection(self.CURSOR_DOC[0]).document(self.CURSOR_DOC[1])  # type: ignore
+            if last_user_id is None:
+                ref.set({'last_user_id': None, 'updated_at': datetime.now(UTC)})
+            else:
+                ref.set({'last_user_id': last_user_id, 'updated_at': datetime.now(UTC)})
+        except Exception as e:
+            # Losing the cursor costs a restart from the top, not correctness.
+            logger.warning("Could not persist retention cursor: %s", e)
+
+    def _iter_user_ids(self, page_size: int | None = None, start_after: str | None = None):
         """Yield user ids, one cursor-paged batch at a time.
 
         `db.collection('users').stream()` is a single long-lived gRPC stream and
@@ -135,7 +212,7 @@ class DataRetentionService:
         Ordering by document id needs no composite index.
         """
         size = page_size or self.USER_PAGE_SIZE
-        cursor = None
+        cursor = start_after
         pages_failed = 0
 
         while True:
@@ -157,6 +234,13 @@ class DataRetentionService:
 
             if not batch:
                 return
+
+            # A heartbeat per page. The old sweep logged "Starting" and then
+            # nothing until it finished, so a run that died left no way to tell
+            # whether it had processed nobody or almost everybody.
+            logger.info(
+                "🗑️ Retention: read %d users after %r", len(batch), cursor,
+            )
 
             for doc in batch:
                 yield doc.id

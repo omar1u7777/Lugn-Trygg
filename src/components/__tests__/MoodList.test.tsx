@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import MoodList from '../MoodList';
-import { getMoods } from '../../api/api';
+import { getAllMoods } from '../../api/mood';
 
 // ── Mocks ──
 
@@ -53,8 +53,8 @@ vi.mock('../../utils/logger', () => ({
   },
 }));
 
-vi.mock('../../api/api', () => ({
-  getMoods: vi.fn().mockResolvedValue([
+vi.mock('../../api/mood', () => ({
+  getAllMoods: vi.fn().mockResolvedValue([
     {
       id: '1',
       mood_text: 'Glad',
@@ -166,7 +166,9 @@ describe('MoodList Component', () => {
     }, { timeout: 3000 });
     
     // Should show stats
-    expect(screen.getByText('Totalt')).toBeInTheDocument();
+    // 'Visade', not 'Totalt': the figure counts what is currently
+    // displayed, after the free tier's 7-day window and any active filter.
+    expect(screen.getByText('Visade')).toBeInTheDocument();
     expect(screen.getByText('Positiva')).toBeInTheDocument();
     expect(screen.getByText('Negativa')).toBeInTheDocument();
   });
@@ -181,17 +183,17 @@ describe('MoodList - additional branch coverage', () => {
     );
 
   test('shows error state when getMoods throws', async () => {
-    vi.mocked(getMoods).mockRejectedValueOnce(new Error('Network error'));
+    vi.mocked(getAllMoods).mockRejectedValueOnce(new Error('Network error'));
     renderMoodList();
     // After max retries, error should be shown
     // Just verify moods is called
     await waitFor(() => {
-      expect(getMoods).toHaveBeenCalled();
+      expect(getAllMoods).toHaveBeenCalled();
     });
   });
 
   test('displays empty state message when no moods', async () => {
-    vi.mocked(getMoods).mockResolvedValueOnce([]);
+    vi.mocked(getAllMoods).mockResolvedValueOnce([]);
     renderMoodList();
     await waitFor(() => {
       expect(screen.queryByText(/Glad/i)).not.toBeInTheDocument();
@@ -199,7 +201,7 @@ describe('MoodList - additional branch coverage', () => {
   });
 
   test('searches within emotions_detected field', async () => {
-    vi.mocked(getMoods).mockResolvedValueOnce([
+    vi.mocked(getAllMoods).mockResolvedValueOnce([
       {
         id: '1',
         mood_text: 'Neutral day',
@@ -230,7 +232,7 @@ describe('MoodList - additional branch coverage', () => {
   });
 
   test('filters moods by neutral sentiment', async () => {
-    vi.mocked(getMoods).mockResolvedValueOnce([
+    vi.mocked(getAllMoods).mockResolvedValueOnce([
       { id: '1', mood_text: 'Glad', timestamp: new Date().toISOString(), sentiment: 'POSITIVE', score: 8, emotions_detected: [] },
       { id: '2', mood_text: 'Neutral', timestamp: new Date().toISOString(), sentiment: 'NEUTRAL', score: 5, emotions_detected: [] },
     ]);
@@ -288,7 +290,7 @@ describe('MoodList - additional branch coverage', () => {
   });
 
   test('mood without sentiment defaults to NEUTRAL display', async () => {
-    vi.mocked(getMoods).mockResolvedValueOnce([
+    vi.mocked(getAllMoods).mockResolvedValueOnce([
       {
         id: '1',
         mood_text: 'No sentiment mood',
@@ -303,7 +305,7 @@ describe('MoodList - additional branch coverage', () => {
   });
 
   test('handles mood with firestore-like timestamp object', async () => {
-    vi.mocked(getMoods).mockResolvedValueOnce([
+    vi.mocked(getAllMoods).mockResolvedValueOnce([
       {
         id: '1',
         mood_text: 'Firestore mood',
@@ -333,13 +335,13 @@ describe('MoodList - additional branch coverage', () => {
   test('refresh button triggers data refetch', async () => {
     renderMoodList();
     await waitFor(() => screen.getByText('Glad'));
-    const initialCallCount = vi.mocked(getMoods).mock.calls.length;
+    const initialCallCount = vi.mocked(getAllMoods).mock.calls.length;
 
     const refreshBtn = screen.getByLabelText('Uppdatera');
     fireEvent.click(refreshBtn);
 
     await waitFor(() => {
-      expect(vi.mocked(getMoods).mock.calls.length).toBeGreaterThan(initialCallCount);
+      expect(vi.mocked(getAllMoods).mock.calls.length).toBeGreaterThan(initialCallCount);
     });
   });
 
