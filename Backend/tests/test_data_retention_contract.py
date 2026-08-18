@@ -193,7 +193,11 @@ class TestOneBrokenStreamDoesNotAbortTheWholeSweep:
 
         calls = iter(pages)
 
-        def stream():
+        def stream(**kwargs):
+            # Production passes a deadline; a mock that refuses kwargs would
+            # hide a regression that removed it.
+            assert 'timeout' in kwargs, "every Firestore call must run on a deadline"
+            assert kwargs['timeout'] > 0
             page = next(calls)
             if isinstance(page, Exception):
                 raise page
@@ -216,21 +220,48 @@ class TestOneBrokenStreamDoesNotAbortTheWholeSweep:
             assert list(service._iter_user_ids(page_size=10)) == ['u1']
         assert users.stream.call_count == 1
 
-    def test_a_failing_page_does_not_discard_the_users_already_read(self, service):
-        """The whole point: users read before the failure are still processed."""
+    def test_a_failing_page_yields_what_it_read_then_raises(self, service):
+        """Users read before the failure are still handed over — then it raises.
+
+        Raising matters as much as yielding. Returning quietly would end the
+        generator, which the caller cannot distinguish from reaching the last
+        page, and the caller responds to that by CLEARING the resume cursor.
+        A timed-out page would then look like a completed sweep.
+        """
+        from src.services.data_retention_service import RetentionEnumerationError
+
         boom = RuntimeError("'_UnaryStreamMultiCallable' object has no attribute '_retry'")
         users = self._paged_collection([['u1', 'u2'], boom])
+        seen = []
         with patch('src.services.data_retention_service.db') as mock_db:
             mock_db.collection.return_value = users
-            assert list(service._iter_user_ids(page_size=2)) == ['u1', 'u2']
+            with pytest.raises(RetentionEnumerationError):
+                for uid in service._iter_user_ids(page_size=2):
+                    seen.append(uid)
+        assert seen == ['u1', 'u2']
 
-    def test_a_failing_first_page_yields_nothing_rather_than_looping(self, service):
+    def test_a_failing_first_page_raises_rather_than_looping(self, service):
         """Without an id to resume from, retrying would re-request forever."""
+        from src.services.data_retention_service import RetentionEnumerationError
+
         users = self._paged_collection([RuntimeError('transport died')])
         with patch('src.services.data_retention_service.db') as mock_db:
             mock_db.collection.return_value = users
-            assert list(service._iter_user_ids(page_size=2)) == []
+            with pytest.raises(RetentionEnumerationError):
+                list(service._iter_user_ids(page_size=2))
         assert users.stream.call_count == 1
+
+    def test_a_failed_enumeration_keeps_the_resume_cursor(self, service):
+        """The position must survive, or the users after it are skipped again."""
+        users = self._paged_collection([['u1'], RuntimeError('transport died')])
+        with patch('src.services.data_retention_service.db') as mock_db,              patch.object(service, '_read_cursor', return_value=None),              patch.object(service, '_write_cursor') as write_cursor,              patch.object(service, '_process_user_retention',
+                          return_value={'total_deleted': 0, 'collections': []}),              patch('src.services.data_retention_service.audit_service'):
+            mock_db.collection.return_value = users
+            service.USER_PAGE_SIZE = 1
+            result = service.apply_retention_policy()
+
+        assert result['success'] is False
+        write_cursor.assert_not_called(), "clearing the cursor would skip everyone after u1"
 
     def test_one_user_raising_does_not_stop_the_others(self, service):
         """Pre-existing guarantee — kept pinned now that enumeration changed."""
