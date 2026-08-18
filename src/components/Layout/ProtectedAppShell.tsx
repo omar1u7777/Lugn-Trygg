@@ -8,6 +8,7 @@ import { LoadingSpinner } from '../LoadingStates';
 import { useTranslation } from 'react-i18next';
 import WorldClassDashboardSkeleton from '../WorldClassDashboardSkeleton';
 import { useAuth } from '../../contexts/AuthContext';
+import { ROUTES } from '../../config/appRoutes';
 
 // CSS imports moved to src/main.tsx so they load on ALL pages (including
 // auth pages like login / register).  Keeping them here caused the login
@@ -21,6 +22,11 @@ const ProtectedAppShell: React.FC = () => {
   const { isLoggedIn, isInitialized } = useAuth();
   const isDashboardRoute = location.pathname === '/dashboard';
   const isContentHeavyRoute = location.pathname.startsWith('/recommendations') || location.pathname.startsWith('/wellness');
+  // Unknown paths fall through to the 404 route and are treated as protected,
+  // so a typo cannot expose anything.
+  const isPublicRoute = ROUTES.some(
+    (route) => route.path === location.pathname && route.protected === false
+  );
 
   // Show loading state while authentication is being checked
   if (!isInitialized) {
@@ -37,8 +43,18 @@ const ProtectedAppShell: React.FC = () => {
     );
   }
 
-  // Redirect to login if not authenticated
-  if (!isLoggedIn) {
+  // Redirect to login if not authenticated — UNLESS the route says it is public.
+  //
+  // This shell wraps every app route, so it used to redirect regardless of what
+  // the route itself declared. `protected: false` in appRoutes only reached
+  // renderRouteElement, one level further in, which meant a route could be
+  // marked public and still demand a login. /crisis was exactly that: the flag
+  // was flipped, the fix shipped, and production still answered a person in
+  // acute crisis with a login form instead of 112.
+  //
+  // A flag that does not do what it says is worse than no flag, because the
+  // next person will trust it too. The shell reads it now.
+  if (!isLoggedIn && !isPublicRoute) {
     logger.debug('🔒 ProtectedAppShell: Not logged in, redirecting to login');
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
