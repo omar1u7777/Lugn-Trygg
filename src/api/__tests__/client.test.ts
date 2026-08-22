@@ -354,6 +354,30 @@ describe('response interceptor', () => {
       getSpy.mockRestore();
     });
 
+    // A wrong current password is not an expired session. Refreshing and
+    // replaying re-sends the same wrong password, and both endpoints carry
+    // @rate_limit_by_endpoint on the backend — so one typo spent two attempts
+    // against the lockout allowance, and reported a Sentry error every time
+    // (177 of them since 2026-06-21, issue JAVASCRIPT-REACT-1Q).
+    it.each([
+      '/api/v1/auth/change-password',
+      '/api/v1/auth/change-email',
+    ])('does not refresh or replay a 401 from %s', async (url) => {
+      const { rejected } = getResponseInterceptorHandlers();
+      const postSpy = vi.spyOn(api, 'post');
+      const error = {
+        config: { url, method: 'post', headers: {}, startTime: undefined },
+        response: { status: 401, statusText: 'Unauthorized', data: {}, headers: {} },
+        request: {},
+        message: '401',
+        isAxiosError: true,
+      };
+
+      await expect(rejected(error)).rejects.toBeDefined();
+      expect(postSpy).not.toHaveBeenCalled();
+      postSpy.mockRestore();
+    });
+
     it('skips 401 handling for auth/refresh endpoint', async () => {
       const { rejected } = getResponseInterceptorHandlers();
       const error = {
@@ -391,6 +415,20 @@ describe('request interceptor edge cases', () => {
     // Authorization header from token storage should be set
     expect(result.headers['Authorization']).toBe('Bearer mock-access-token');
     getSpy.mockRestore();
+  });
+
+  // The tempting fix for the 401 replay was to add these two to
+  // SESSION_ENDPOINTS. That list also drives the CSRF bypass, so it would have
+  // stripped the token from the only two endpoints that change credentials.
+  it('still sends a CSRF token to change-password', async () => {
+    const fulfilled = getRequestInterceptorFulfilled();
+    const config = {
+      url: '/api/v1/auth/change-password',
+      method: 'post',
+      headers: new axios.AxiosHeaders(),
+    };
+    const result = await fulfilled(config as any);
+    expect(result.headers['X-CSRF-Token']).toBeDefined();
   });
 
   it('skips CSRF header when already set', async () => {

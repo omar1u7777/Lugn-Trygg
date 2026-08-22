@@ -43,6 +43,33 @@ const SESSION_ENDPOINTS = [
 const isSessionEndpoint = (url?: string): boolean =>
   !!url && SESSION_ENDPOINTS.some(path => url.includes(path));
 
+/**
+ * Endpoints that re-verify a credential the user just typed, inside a session
+ * that is already valid.
+ *
+ * The comment above states the rule and this list is the other half of it: a
+ * 401 here means "that password is wrong", not "your token expired". Refreshing
+ * and replaying cannot help, because the replay sends the same wrong password.
+ *
+ * It is not merely useless. Both endpoints carry @rate_limit_by_endpoint on the
+ * backend, so the replay spends a SECOND attempt on the same typo — two strikes
+ * per mistake, which halves the real allowance before a user locks themselves
+ * out. It also produced a Sentry error for every mistyped password: 177 of them
+ * since 2026-06-21, still arriving (JAVASCRIPT-REACT-1Q).
+ *
+ * Deliberately NOT added to SESSION_ENDPOINTS, tempting as that looks. That
+ * list also drives the CSRF bypass further down, and these two run inside a
+ * live session: stripping their CSRF token would remove protection from the
+ * two endpoints that change credentials.
+ */
+const CREDENTIAL_CHECK_ENDPOINTS = [
+  '/auth/change-password',
+  '/auth/change-email',
+];
+
+const isCredentialCheckEndpoint = (url?: string): boolean =>
+  !!url && CREDENTIAL_CHECK_ENDPOINTS.some(path => url.includes(path));
+
 // Error messages (keeping Swedish as per original)
 const RATE_LIMIT_MESSAGE = (retryAfter: number) => `För många förfrågningar. Försök igen om ${retryAfter} sekunder.`;
 const OFFLINE_MESSAGE = "Nätverksfel. Förfrågan sparad för senare synkronisering.";
@@ -503,7 +530,10 @@ const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | n
     };
     logger.error("API Error Response:", errorData);
 
-    if (error.response.status === 401 && !originalRequest._retry && !isSessionEndpoint(originalRequest.url)) {
+    if (error.response.status === 401
+        && !originalRequest._retry
+        && !isSessionEndpoint(originalRequest.url)
+        && !isCredentialCheckEndpoint(originalRequest.url)) {
       return await handle401Error(error, originalRequest);
     }
 
