@@ -8,6 +8,8 @@ import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from google.api_core import exceptions as gapi_exceptions
+from google.api_core import retry as gapi_retry
 from google.cloud.firestore import FieldFilter
 
 from ..firebase_config import db
@@ -203,6 +205,32 @@ class DataRetentionService:
     # and resume next run instead of vanishing.
     QUERY_TIMEOUT_SECONDS = 30
 
+    # Passed explicitly on every call, and the reason is not politeness.
+    #
+    # google-cloud-firestore's _retry_query_after_exception (query.py) reads
+    # `gapic_callable._retry` to decide whether a faulted stream is retryable —
+    # but ONLY on the branch taken when the caller left retry at DEFAULT. On
+    # some grpcio builds that attribute does not exist, and the lookup raises
+    # AttributeError from inside the library's own error handling, replacing
+    # whatever the real failure was. That is the
+    # "'_UnaryStreamMultiCallable' object has no attribute '_retry'" this sweep
+    # died on: not our bug, but ours to avoid.
+    #
+    # Supplying a Retry means `retry is DEFAULT` is False, the lookup is never
+    # reached, and a transient fault is retried on our terms instead of on an
+    # attribute that may or may not be there.
+    QUERY_RETRY = gapi_retry.Retry(
+        predicate=gapi_retry.if_exception_type(
+            gapi_exceptions.ServiceUnavailable,
+            gapi_exceptions.DeadlineExceeded,
+            gapi_exceptions.InternalServerError,
+        ),
+        initial=1.0,
+        maximum=8.0,
+        multiplier=2.0,
+        timeout=QUERY_TIMEOUT_SECONDS,
+    )
+
     # Where the resume point lives between runs.
     CURSOR_DOC = ('system', 'data_retention_cursor')
 
@@ -260,7 +288,7 @@ class DataRetentionService:
                 query = query.start_after({'__name__': cursor})
 
             try:
-                batch = list(query.stream(timeout=self.QUERY_TIMEOUT_SECONDS))
+                batch = list(query.stream(retry=self.QUERY_RETRY, timeout=self.QUERY_TIMEOUT_SECONDS))
             except Exception as page_error:
                 # Cannot advance past a page we could not read: without an id to
                 # resume from, continuing would re-request the same page forever.
@@ -337,7 +365,7 @@ class DataRetentionService:
                 collection_ref = db.collection('users').document(user_id).collection(collection_name)  # type: ignore
 
                 # Query for old documents
-                old_docs = collection_ref.where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream(timeout=self.QUERY_TIMEOUT_SECONDS)
+                old_docs = collection_ref.where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream(retry=self.QUERY_RETRY, timeout=self.QUERY_TIMEOUT_SECONDS)
 
                 # Delete in batches
                 batch = db.batch()  # type: ignore
@@ -361,7 +389,7 @@ class DataRetentionService:
             elif collection_name == 'voice_recordings':
                 # Voice data is stored in mood entries, check mood timestamps
                 moods_ref = db.collection('users').document(user_id).collection('moods')  # type: ignore
-                old_moods = moods_ref.where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream(timeout=self.QUERY_TIMEOUT_SECONDS)
+                old_moods = moods_ref.where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream(retry=self.QUERY_RETRY, timeout=self.QUERY_TIMEOUT_SECONDS)
 
                 batch = db.batch()  # type: ignore
                 batch_count = 0
@@ -388,7 +416,7 @@ class DataRetentionService:
                 field_name = 'user_id' if collection_name == 'feedback' else 'referrer_id'
                 collection_ref = db.collection(collection_name)  # type: ignore
                 old_docs = collection_ref.where(filter=FieldFilter(field_name, '==', user_id)) \
-                                       .where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream(timeout=self.QUERY_TIMEOUT_SECONDS)
+                                       .where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream(retry=self.QUERY_RETRY, timeout=self.QUERY_TIMEOUT_SECONDS)
 
                 batch = db.batch()  # type: ignore
                 batch_count = 0
@@ -417,7 +445,7 @@ class DataRetentionService:
                 # which is what this branch used to (incorrectly) assume.
                 collection_ref = db.collection(collection_name)  # type: ignore
                 old_docs = collection_ref.where(filter=FieldFilter('user_id', '==', user_id)) \
-                                       .where(filter=FieldFilter('created_at', '<', cutoff_date)).stream(timeout=self.QUERY_TIMEOUT_SECONDS)
+                                       .where(filter=FieldFilter('created_at', '<', cutoff_date)).stream(retry=self.QUERY_RETRY, timeout=self.QUERY_TIMEOUT_SECONDS)
 
                 batch = db.batch()  # type: ignore
                 batch_count = 0
@@ -442,7 +470,7 @@ class DataRetentionService:
                 # users/{uid} subcollection with an ISO 'timestamp' field.
                 collection_ref = db.collection('notifications')  # type: ignore
                 old_docs = collection_ref.where(filter=FieldFilter('userId', '==', user_id)) \
-                                       .where(filter=FieldFilter('sentAt', '<', cutoff_date)).stream(timeout=self.QUERY_TIMEOUT_SECONDS)
+                                       .where(filter=FieldFilter('sentAt', '<', cutoff_date)).stream(retry=self.QUERY_RETRY, timeout=self.QUERY_TIMEOUT_SECONDS)
 
                 batch = db.batch()  # type: ignore
                 batch_count = 0
@@ -497,26 +525,26 @@ class DataRetentionService:
             if collection_name in ['moods', 'memories', 'chat_sessions', 'ai_conversations',
                                  'conversations', 'wellness_activities', 'achievements']:
                 collection_ref = db.collection('users').document(user_id).collection(collection_name)  # type: ignore
-                old_docs = collection_ref.where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream(timeout=self.QUERY_TIMEOUT_SECONDS)
+                old_docs = collection_ref.where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream(retry=self.QUERY_RETRY, timeout=self.QUERY_TIMEOUT_SECONDS)
                 return len(list(old_docs))
 
             elif collection_name in ['feedback', 'referrals']:
                 field_name = 'user_id' if collection_name == 'feedback' else 'referrer_id'
                 collection_ref = db.collection(collection_name)  # type: ignore
                 old_docs = collection_ref.where(filter=FieldFilter(field_name, '==', user_id)) \
-                                       .where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream(timeout=self.QUERY_TIMEOUT_SECONDS)
+                                       .where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream(retry=self.QUERY_RETRY, timeout=self.QUERY_TIMEOUT_SECONDS)
                 return len(list(old_docs))
 
             elif collection_name in ('insights', 'journal_entries'):
                 collection_ref = db.collection(collection_name)  # type: ignore
                 old_docs = collection_ref.where(filter=FieldFilter('user_id', '==', user_id)) \
-                                       .where(filter=FieldFilter('created_at', '<', cutoff_date)).stream(timeout=self.QUERY_TIMEOUT_SECONDS)
+                                       .where(filter=FieldFilter('created_at', '<', cutoff_date)).stream(retry=self.QUERY_RETRY, timeout=self.QUERY_TIMEOUT_SECONDS)
                 return len(list(old_docs))
 
             elif collection_name == 'notifications':
                 collection_ref = db.collection('notifications')  # type: ignore
                 old_docs = collection_ref.where(filter=FieldFilter('userId', '==', user_id)) \
-                                       .where(filter=FieldFilter('sentAt', '<', cutoff_date)).stream(timeout=self.QUERY_TIMEOUT_SECONDS)
+                                       .where(filter=FieldFilter('sentAt', '<', cutoff_date)).stream(retry=self.QUERY_RETRY, timeout=self.QUERY_TIMEOUT_SECONDS)
                 return len(list(old_docs))
 
         except Exception as e:
