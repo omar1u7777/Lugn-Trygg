@@ -198,6 +198,10 @@ class TestOneBrokenStreamDoesNotAbortTheWholeSweep:
             # hide a regression that removed it.
             assert 'timeout' in kwargs, "every Firestore call must run on a deadline"
             assert kwargs['timeout'] > 0
+            # An explicit retry keeps the library off its own gapic_callable
+            # ._retry lookup, which is the line that raised
+            # "'_UnaryStreamMultiCallable' object has no attribute '_retry'".
+            assert kwargs.get('retry') is not None, "every call must carry an explicit retry"
             page = next(calls)
             if isinstance(page, Exception):
                 raise page
