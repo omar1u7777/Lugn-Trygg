@@ -87,6 +87,19 @@ class DataRetentionService:
                 # Process all users, resuming where a budget-limited run stopped.
                 started = time.monotonic()
                 resume_from = self._read_cursor()
+
+                # A killed sweep cannot report its own death — the worker is
+                # gone before it can log. The only durable trace is the flag
+                # its last checkpoint left behind, so the NEXT run is what
+                # raises the alarm.
+                if self._previous_run_was_interrupted():
+                    from src.utils.telemetry import telemetry
+                    telemetry.critical(
+                        'data_retention_interrupted',
+                        'The previous retention sweep was killed before it finished',
+                        resume_after=str(resume_from),
+                    )
+
                 if resume_from:
                     logger.info("🗑️ Retention resuming after user %s", resume_from)
 
@@ -94,7 +107,7 @@ class DataRetentionService:
                 for current_user_id in self._iter_user_ids(start_after=resume_from):
                     if time.monotonic() - started > self.SWEEP_BUDGET_SECONDS:
                         # Stop on our own terms rather than being killed mid-user.
-                        self._write_cursor(last_seen)
+                        self._write_cursor(last_seen, in_progress=False)
                         logger.warning(
                             "🗑️ Retention hit its %ds budget after %d users; "
                             "%d records deleted. Resuming after %r next run.",
@@ -123,10 +136,15 @@ class DataRetentionService:
                         last_seen = current_user_id
                         users_processed += 1
 
+                    # Checkpoint on the page boundary, so the flag and the
+                    # position always mean "this page is fully processed".
+                    if users_processed % self.USER_PAGE_SIZE == 0:
+                        self._write_cursor(last_seen, in_progress=True)
+
                 # Reached the end of the collection — next run starts fresh.
                 # Only on a genuine end: RetentionEnumerationError skips this
                 # and is handled below, preserving the cursor.
-                self._write_cursor(None)
+                self._write_cursor(None, in_progress=False)
 
             # Audit the retention operation
             audit_service.log_event(
@@ -151,6 +169,9 @@ class DataRetentionService:
             # The cursor is deliberately left where it was: this run does not
             # know where it stopped, so tomorrow resumes from the last position
             # it DID confirm rather than starting over or skipping ahead.
+            # Terminal, but NOT killed — clear the flag without touching the
+            # position, which must survive exactly as it was.
+            self._clear_in_progress()
             logger.error("Data retention could not enumerate users: %s", e)
             return {
                 'success': False,
@@ -160,6 +181,12 @@ class DataRetentionService:
                 'collections_processed': collections_processed,
             }
         except Exception as e:
+            # Terminal too: the run failed, but it was not killed, and the flag
+            # must only ever mean the latter. Guarded on the sweep, because a
+            # single-user call does not own the cursor — clearing the flag on
+            # its behalf would erase the evidence that last night's sweep died.
+            if user_id is None:
+                self._clear_in_progress()
             logger.error(f"Data retention failed: {str(e)}")
             return {
                 'success': False,
@@ -172,6 +199,29 @@ class DataRetentionService:
     # stream backing each page is short-lived enough not to hit a deadline.
     USER_PAGE_SIZE = 200
 
+    # It doubles as the checkpoint cadence: the resume position is made
+    # durable at each page boundary, so the stored position always means
+    # "this page is fully processed".
+    #
+    # The budget below can only stop a sweep that is still alive to read it,
+    # and this one usually is not: it needs ~19.5 minutes and lives inside a
+    # Gunicorn worker that recycles on max_requests. Four consecutive runs:
+    #
+    #   2026-08-19  died after 12.7 min, 6 pages
+    #   2026-08-20  died after 12.8 min, 6 pages
+    #   2026-08-21  COMPLETED in 19.4 min, 1499 users
+    #   2026-08-22  worker recycled after 11.5 min, 5 pages
+    #
+    # Three of the four were killed, and because the position was only written
+    # on a clean stop, all three threw away every user they had processed. The
+    # next run started from the top and died in the same place. Only the run
+    # that happened to get a fresh worker ever finished.
+    #
+    # Checkpointing per page makes being killed merely "stopped early": the
+    # next run resumes where this one got to, so the collection is swept across
+    # however many runs it takes instead of only on a lucky night. One small
+    # document write per page — 8 per sweep at current user counts.
+
     # Wall-clock budget for one sweep.
     #
     # The sweep runs in a daemon thread of a Gunicorn worker that recycles on
@@ -181,13 +231,22 @@ class DataRetentionService:
     # never returned, the success verdict was never read, and telemetry.critical
     # never fired. Sentry showed a clean night.
     #
-    # A sweep that knows it can be killed bounds itself instead. Twenty minutes
-    # is comfortably inside the shortest recycle interval observed (34 min) and
-    # turns "vanished" into "partial, resumes tomorrow".
+    # I wrote that this was "comfortably inside the shortest recycle interval
+    # observed (34 min)". That reasoning was wrong, and four nights of logs
+    # show it. The interval does not matter: the sweep starts at a fixed time
+    # and inherits whatever is LEFT of the current worker's life, which is
+    # roughly uniform across that interval. A 20-minute budget therefore loses
+    # far more often than it wins — observed kills at 11.5, 12.7 and 12.8
+    # minutes against one completion at 19.4.
     #
-    # This does NOT make a web worker the right home for a daily GDPR sweep —
-    # a Render Cron Job is. It makes the current home survivable and, more
-    # importantly, honest about what it managed.
+    # The budget is kept at 20 anyway, because the fix for being killed is the
+    # per-page checkpoint above, not a shorter deadline. Lowering it under the
+    # typical survival time would guarantee that NO run ever completes, and
+    # would also silence the interrupted-sweep alarm — which is the evidence
+    # that this job needs a different home.
+    #
+    # That home is a Render Cron Job. This makes the current one survivable
+    # and honest about what it managed; it does not make it right.
     SWEEP_BUDGET_SECONDS = 20 * 60
 
     # Every Firestore call in this sweep runs on a deadline.
@@ -244,17 +303,53 @@ class DataRetentionService:
             logger.warning("Could not read retention cursor, starting from the top: %s", e)
         return None
 
-    def _write_cursor(self, last_user_id: str | None) -> None:
-        """Persist the resume point, or clear it when a sweep finished."""
+    def _previous_run_was_interrupted(self) -> bool:
+        """True when the last sweep never reached a terminal state.
+
+        Every way a sweep can stop on purpose clears this flag. So if it is
+        still set, the process holding the sweep died — and a dead process
+        logs nothing, which is precisely why three killed runs in four days
+        looked exactly like no runs at all.
+        """
+        try:
+            snap = db.collection(self.CURSOR_DOC[0]).document(self.CURSOR_DOC[1]).get()  # type: ignore
+            if snap.exists:
+                return bool((snap.to_dict() or {}).get('in_progress'))
+        except Exception as e:
+            logger.warning("Could not read retention cursor state: %s", e)
+        return False
+
+    def _write_cursor(self, last_user_id: str | None, *, in_progress: bool = False) -> None:
+        """Persist the resume point and whether the sweep is still running.
+
+        `in_progress=True` is written only by the mid-sweep checkpoint. Every
+        terminal path writes False, so a True left in the document means the
+        run never reached one.
+        """
         try:
             ref = db.collection(self.CURSOR_DOC[0]).document(self.CURSOR_DOC[1])  # type: ignore
-            if last_user_id is None:
-                ref.set({'last_user_id': None, 'updated_at': datetime.now(UTC)})
-            else:
-                ref.set({'last_user_id': last_user_id, 'updated_at': datetime.now(UTC)})
+            ref.set({
+                'last_user_id': last_user_id,
+                'in_progress': in_progress,
+                'updated_at': datetime.now(UTC),
+            })
         except Exception as e:
             # Losing the cursor costs a restart from the top, not correctness.
             logger.warning("Could not persist retention cursor: %s", e)
+
+    def _clear_in_progress(self) -> None:
+        """Mark the run terminal without touching the resume position.
+
+        Used when enumeration failed. Rewriting the position from this run's
+        local variable would risk overwriting a real cursor with None if the
+        READ was the thing that failed, and the whole point of that path is
+        that the position survives untouched. merge=True leaves it alone.
+        """
+        try:
+            ref = db.collection(self.CURSOR_DOC[0]).document(self.CURSOR_DOC[1])  # type: ignore
+            ref.set({'in_progress': False, 'updated_at': datetime.now(UTC)}, merge=True)
+        except Exception as e:
+            logger.warning("Could not clear retention in-progress flag: %s", e)
 
     def _iter_user_ids(self, page_size: int | None = None, start_after: str | None = None):
         """Yield user ids, one cursor-paged batch at a time.

@@ -15,7 +15,7 @@ config with no matching branch in _delete_expired_data would be swept every
 day, delete nothing, and report success. Both directions are pinned below.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -160,20 +160,8 @@ class TestBatching:
         assert batch.commit.call_count == expected_commits
 
 
-class TestOneBrokenStreamDoesNotAbortTheWholeSweep:
-    """The user enumeration used to be a single lazy `.stream()` sitting
-    outside every inner handler.
-
-    Firestore streams are consumed lazily, so a mid-iteration failure surfaced
-    in the caller's `for` loop, escaped the per-user and per-collection
-    handlers, hit the top-level `except`, and abandoned every remaining user.
-
-    It happened. On 2026-08-15 the sweep died with "'_UnaryStreamMultiCallable'
-    object has no attribute '_retry'" — a google-cloud-firestore/grpcio
-    incompatibility in the library's own stream-retry path, newly reachable
-    once the missing composite indexes were deployed and the sweep finally got
-    far enough to stream.
-    """
+class PagedUsers:
+    """Builds a mock users collection that pages the way Firestore does."""
 
     @staticmethod
     def _doc(doc_id):
@@ -209,6 +197,22 @@ class TestOneBrokenStreamDoesNotAbortTheWholeSweep:
 
         query.stream.side_effect = stream
         return query
+
+
+class TestOneBrokenStreamDoesNotAbortTheWholeSweep(PagedUsers):
+    """The user enumeration used to be a single lazy `.stream()` sitting
+    outside every inner handler.
+
+    Firestore streams are consumed lazily, so a mid-iteration failure surfaced
+    in the caller's `for` loop, escaped the per-user and per-collection
+    handlers, hit the top-level `except`, and abandoned every remaining user.
+
+    It happened. On 2026-08-15 the sweep died with "'_UnaryStreamMultiCallable'
+    object has no attribute '_retry'" — a google-cloud-firestore/grpcio
+    incompatibility in the library's own stream-retry path, newly reachable
+    once the missing composite indexes were deployed and the sweep finally got
+    far enough to stream.
+    """
 
     def test_pages_through_all_users(self, service):
         users = self._paged_collection([['u1', 'u2'], ['u3']])
@@ -265,7 +269,9 @@ class TestOneBrokenStreamDoesNotAbortTheWholeSweep:
             result = service.apply_retention_policy()
 
         assert result['success'] is False
-        write_cursor.assert_not_called(), "clearing the cursor would skip everyone after u1"
+        cleared = [c for c in write_cursor.call_args_list if c.args[0] is None]
+        assert not cleared, "clearing the cursor would skip everyone after u1"
+
 
     def test_one_user_raising_does_not_stop_the_others(self, service):
         """Pre-existing guarantee — kept pinned now that enumeration changed."""
@@ -344,3 +350,95 @@ class TestAFailedSweepAlertsInsteadOfReportingSuccess:
 
         assert not telemetry.critical.called
         assert telemetry.event.call_args[0][0] == 'data_retention_completed'
+
+
+class TestAKilledSweepStillMakesProgress(PagedUsers):
+    """The sweep needs ~19.5 minutes and runs inside a Gunicorn worker that
+    recycles on max_requests. Four consecutive nights:
+
+        2026-08-19  died after 12.7 min, 6 pages
+        2026-08-20  died after 12.8 min, 6 pages
+        2026-08-21  COMPLETED in 19.4 min, 1499 users
+        2026-08-22  worker recycled after 11.5 min, 5 pages
+
+    The 20-minute budget never fired, because a budget can only stop a sweep
+    that is still alive to read it. And since the resume position was written
+    only on a clean stop, each of the three killed runs discarded every user it
+    had processed; the next run began at the top and died in the same place.
+
+    A killed process cannot log, so all three were indistinguishable from
+    nothing happening at all.
+    """
+
+    def _sweep(self, service, users, *, page_size, interrupted=False):
+        """Run a full sweep against `users`, with the durable state mocked."""
+        with patch('src.services.data_retention_service.db') as mock_db,              patch.object(service, '_read_cursor', return_value=None),              patch.object(service, '_previous_run_was_interrupted', return_value=interrupted),              patch.object(service, '_write_cursor') as write_cursor,              patch.object(service, '_process_user_retention',
+                          return_value={'total_deleted': 0, 'collections': []}),              patch('src.services.data_retention_service.audit_service'),              patch('src.utils.telemetry.telemetry') as telemetry:
+            mock_db.collection.return_value = users
+            service.USER_PAGE_SIZE = page_size
+            result = service.apply_retention_policy()
+        return result, write_cursor, telemetry
+
+    def test_the_position_is_durable_before_the_sweep_ends(self, service):
+        """The whole failure was that progress existed only in memory."""
+        users = self._paged_collection([['u1', 'u2'], ['u3']])
+        _, write_cursor, _ = self._sweep(service, users, page_size=2)
+
+        assert write_cursor.call_args_list[0] == call('u2', in_progress=True),             "a sweep killed after u2 must resume at u2, not start over"
+
+    def test_finishing_clears_the_position_and_the_flag(self, service):
+        """Otherwise the next run would resume near the end and skip everyone."""
+        users = self._paged_collection([['u1', 'u2'], ['u3']])
+        result, write_cursor, _ = self._sweep(service, users, page_size=2)
+
+        assert result['success'] is True
+        assert write_cursor.call_args_list[-1] == call(None, in_progress=False)
+
+    def test_an_unfinished_previous_run_is_reported(self, service):
+        """The only trace a killed sweep leaves is the flag. Read it, or the
+        silence stays indistinguishable from health."""
+        users = self._paged_collection([['u1']])
+        _, _, telemetry = self._sweep(service, users, page_size=2, interrupted=True)
+
+        assert telemetry.critical.call_count == 1
+        assert telemetry.critical.call_args.args[0] == 'data_retention_interrupted'
+
+    def test_a_clean_previous_run_is_not_reported(self, service):
+        """An alarm that fires every night is one nobody reads."""
+        users = self._paged_collection([['u1']])
+        _, _, telemetry = self._sweep(service, users, page_size=2, interrupted=False)
+
+        assert telemetry.critical.call_count == 0
+
+    def test_clearing_the_flag_leaves_the_position_alone(self, service):
+        """End to end against one stored document, because the alarm reading
+        what the checkpoint wrote is the entire mechanism — mocking both halves
+        would pin nothing.
+
+        _clear_in_progress runs on the path where enumeration failed, which is
+        exactly the path whose promise is that the position survives untouched.
+        """
+        stored: dict = {}
+
+        def _set(payload, merge=False):
+            if not merge:
+                stored.clear()
+            stored.update(payload)
+
+        snap = MagicMock()
+        snap.exists = True
+        snap.to_dict.side_effect = lambda: dict(stored)
+        ref = MagicMock()
+        ref.set.side_effect = _set
+        ref.get.return_value = snap
+
+        with patch('src.services.data_retention_service.db') as mock_db:
+            mock_db.collection.return_value.document.return_value = ref
+
+            service._write_cursor('u9', in_progress=True)
+            assert service._previous_run_was_interrupted() is True
+            assert service._read_cursor() == 'u9'
+
+            service._clear_in_progress()
+            assert service._previous_run_was_interrupted() is False
+            assert service._read_cursor() == 'u9'
