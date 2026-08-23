@@ -57,6 +57,10 @@ const isSessionEndpoint = (url?: string): boolean =>
  * out. It also produced a Sentry error for every mistyped password: 177 of them
  * since 2026-06-21, still arriving (JAVASCRIPT-REACT-1Q).
  *
+ * Being on this list is necessary but NOT sufficient: the 401 must also carry
+ * the API's UNAUTHORIZED code. See isCredentialRejection below for why the URL
+ * on its own would break the expired-token case.
+ *
  * Deliberately NOT added to SESSION_ENDPOINTS, tempting as that looks. That
  * list also drives the CSRF bypass further down, and these two run inside a
  * live session: stripping their CSRF token would remove protection from the
@@ -69,6 +73,26 @@ const CREDENTIAL_CHECK_ENDPOINTS = [
 
 const isCredentialCheckEndpoint = (url?: string): boolean =>
   !!url && CREDENTIAL_CHECK_ENDPOINTS.some(path => url.includes(path));
+
+/**
+ * Whether a 401 came from a handler rejecting a credential, rather than from
+ * the token layer rejecting the session.
+ *
+ * The URL alone is not enough to tell those apart, and getting that wrong is
+ * worse than the bug being fixed. Both endpoints sit behind @jwt_required, so
+ * a 401 from either can equally mean "your access token expired" — and those
+ * expire after 15 minutes, which is easily spent reading a settings page and
+ * typing a password carefully. Suppressing the refresh for that case would
+ * tell a user with the RIGHT password that it was wrong.
+ *
+ * The two are distinguishable by body. jwt_required answers with a bare
+ * {error: "<message>"} — "Missing or invalid Authorization header", "Invalid
+ * token", "Token expired". Only APIResponse.unauthorized emits the envelope
+ * {success: false, error: "UNAUTHORIZED", message: ...}, and only handlers
+ * call it, so the machine-readable code cannot collide with a token message.
+ */
+const isCredentialRejection = (error: AxiosError): boolean =>
+  (error.response?.data as { error?: unknown } | undefined)?.error === 'UNAUTHORIZED';
 
 // Error messages (keeping Swedish as per original)
 const RATE_LIMIT_MESSAGE = (retryAfter: number) => `För många förfrågningar. Försök igen om ${retryAfter} sekunder.`;
@@ -533,7 +557,7 @@ const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | n
     if (error.response.status === 401
         && !originalRequest._retry
         && !isSessionEndpoint(originalRequest.url)
-        && !isCredentialCheckEndpoint(originalRequest.url)) {
+        && !(isCredentialCheckEndpoint(originalRequest.url) && isCredentialRejection(error))) {
       return await handle401Error(error, originalRequest);
     }
 

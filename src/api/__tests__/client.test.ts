@@ -367,7 +367,13 @@ describe('response interceptor', () => {
       const postSpy = vi.spyOn(api, 'post');
       const error = {
         config: { url, method: 'post', headers: {}, startTime: undefined },
-        response: { status: 401, statusText: 'Unauthorized', data: {}, headers: {} },
+        response: {
+          status: 401,
+          statusText: 'Unauthorized',
+          // APIResponse.unauthorized — the shape a handler returns.
+          data: { success: false, error: 'UNAUTHORIZED', message: 'Current password is incorrect' },
+          headers: {},
+        },
         request: {},
         message: '401',
         isAxiosError: true,
@@ -375,6 +381,50 @@ describe('response interceptor', () => {
 
       await expect(rejected(error)).rejects.toBeDefined();
       expect(postSpy).not.toHaveBeenCalled();
+      postSpy.mockRestore();
+    });
+
+    // The other half of the rule, and the more expensive one to get wrong.
+    // Both endpoints sit behind @jwt_required, so a 401 from them can equally
+    // mean the 15-minute access token expired while the user was reading the
+    // settings page. Matching on the URL alone would suppress the refresh
+    // here too, and tell someone with the RIGHT password that it was wrong.
+    it.each([
+      ['Token expired'],
+      ['Missing or invalid Authorization header'],
+    ])('still refreshes when change-password 401s with %s', async (message) => {
+      const postSpy = vi.spyOn(api, 'post').mockResolvedValueOnce({
+        data: { data: { accessToken: 'refreshed-token' } },
+      } as any);
+      vi.spyOn(api, 'request').mockResolvedValueOnce({ data: { ok: true } } as any);
+
+      const { rejected } = getResponseInterceptorHandlers();
+      const error = {
+        config: {
+          url: '/api/v1/auth/change-password',
+          method: 'post',
+          headers: {},
+          startTime: undefined,
+          _retry: false,
+        },
+        response: {
+          status: 401,
+          statusText: 'Unauthorized',
+          // jwt_required — a bare message, no machine-readable code.
+          data: { error: message },
+          headers: {},
+        },
+        request: {},
+        message: '401',
+        isAxiosError: true,
+      };
+
+      try {
+        await rejected(error);
+      } catch {
+        // The refresh chain is not fully mocked; only that it was ENTERED matters.
+      }
+      expect(postSpy).toHaveBeenCalled();
       postSpy.mockRestore();
     });
 
