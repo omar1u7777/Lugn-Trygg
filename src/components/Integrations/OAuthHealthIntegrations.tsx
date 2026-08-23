@@ -4,17 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import SyncHistory from './SyncHistory';
 import { LazyHealthDataCharts as HealthDataCharts } from '../Charts/LazyChartWrapper';
 import { logger } from '../../utils/logger';
+import { analyzeHealthMoodPatterns, type HealthMoodAnalysisResult } from '../../api/integrations';
 
-
-interface AnalysisResult {
-    status: string;
-    patterns: string[];
-    recommendations: string[];
-    mood_average?: number;
-    mood_trend?: string;
-    health_summary?: Record<string, unknown>;
-    message?: string;
-}
 
 import { useTranslation } from 'react-i18next';
 
@@ -28,7 +19,7 @@ const OAuthHealthIntegrations: React.FC = () => {
     const [analyzing, setAnalyzing] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
-    const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+    const [analysisResult, setAnalysisResult] = useState<HealthMoodAnalysisResult | null>(null);
 
     useEffect(() => {
         if (user?.user_id) {
@@ -119,10 +110,7 @@ const OAuthHealthIntegrations: React.FC = () => {
         setAnalyzing(true);
 
         try {
-            const { default: api } = await import('../../api/client');
-            const { API_ENDPOINTS } = await import('../../api/constants');
-            const response = await api.post(API_ENDPOINTS.INTEGRATION.HEALTH_ANALYZE);
-            const result: AnalysisResult = response.data?.data || response.data;
+            const result = await analyzeHealthMoodPatterns();
             setAnalysisResult(result);
             
             if (result.status === 'insufficient_data') {

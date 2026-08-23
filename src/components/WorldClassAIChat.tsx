@@ -175,13 +175,12 @@ const ChatMarkdown: React.FC<{ text: string }> = ({ text }) => {
 
 const MessageBubble: React.FC<{
   message: ChatMessage;
-  isLast: boolean;
   isStreaming?: boolean;
   ttsSupported?: boolean;
   isSpeaking?: boolean;
   onSpeak?: () => void;
   onStopSpeak?: () => void;
-}> = ({ message, _isLast, isStreaming = false, ttsSupported = false, isSpeaking = false, onSpeak, onStopSpeak }) => {
+}> = ({ message, isStreaming = false, ttsSupported = false, isSpeaking = false, onSpeak, onStopSpeak }) => {
   const { t } = useTranslation();
   const isUser = message.role === 'user';
   const showSpeakButton = !isUser && !isStreaming && ttsSupported && (message.content?.trim().length ?? 0) > 0;
@@ -685,11 +684,10 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                 </div>
               )}
 
-              {displayedMessages.map((msg, i) => (
+              {displayedMessages.map((msg) => (
                 <MessageBubble
                   key={msg.id}
                   message={msg}
-                  isLast={i === displayedMessages.length - 1}
                   isStreaming={false}
                   ttsSupported={ttsSupported}
                   isSpeaking={speakingId === msg.id}
@@ -707,7 +705,6 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                     content: currentMessage.content,
                     timestamp: currentMessage.timestamp
                   }} 
-                  isLast={true}
                   isStreaming={!currentMessage.isComplete}
                 />
               )}
