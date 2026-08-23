@@ -205,14 +205,20 @@ class DataRetentionService:
     #
     # The budget below can only stop a sweep that is still alive to read it,
     # and this one usually is not: it needs ~19.5 minutes and lives inside a
-    # Gunicorn worker that recycles on max_requests. Four consecutive runs:
+    # Gunicorn worker that recycles on max_requests. Five consecutive runs:
     #
     #   2026-08-19  died after 12.7 min, 6 pages
     #   2026-08-20  died after 12.8 min, 6 pages
     #   2026-08-21  COMPLETED in 19.4 min, 1499 users
     #   2026-08-22  worker recycled after 11.5 min, 5 pages
+    #   2026-08-23  worker recycled after 14.4 min, 6 pages
     #
-    # Three of the four were killed, and because the position was only written
+    # The last is the one that settles it: it is the first run on the budget
+    # code above, and the budget still never fired. The job was claimed by pid
+    # 10323 at 03:22:40 and gunicorn logged "Autorestarting worker after
+    # current request" for that same pid at 03:37:02.
+    #
+    # Four of the five were killed, and because the position was only written
     # on a clean stop, all three threw away every user they had processed. The
     # next run started from the top and died in the same place. Only the run
     # that happened to get a fresh worker ever finished.
@@ -236,8 +242,8 @@ class DataRetentionService:
     # show it. The interval does not matter: the sweep starts at a fixed time
     # and inherits whatever is LEFT of the current worker's life, which is
     # roughly uniform across that interval. A 20-minute budget therefore loses
-    # far more often than it wins — observed kills at 11.5, 12.7 and 12.8
-    # minutes against one completion at 19.4.
+    # far more often than it wins — observed kills at 11.5, 12.7, 12.8 and
+    # 14.4 minutes against one completion at 19.4.
     #
     # The budget is kept at 20 anyway, because the fix for being killed is the
     # per-page checkpoint above, not a shorter deadline. Lowering it under the

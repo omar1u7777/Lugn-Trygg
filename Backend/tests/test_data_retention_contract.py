@@ -354,17 +354,19 @@ class TestAFailedSweepAlertsInsteadOfReportingSuccess:
 
 class TestAKilledSweepStillMakesProgress(PagedUsers):
     """The sweep needs ~19.5 minutes and runs inside a Gunicorn worker that
-    recycles on max_requests. Four consecutive nights:
+    recycles on max_requests. Five consecutive nights:
 
         2026-08-19  died after 12.7 min, 6 pages
         2026-08-20  died after 12.8 min, 6 pages
         2026-08-21  COMPLETED in 19.4 min, 1499 users
         2026-08-22  worker recycled after 11.5 min, 5 pages
+        2026-08-23  worker recycled after 14.4 min, 6 pages
 
-    The 20-minute budget never fired, because a budget can only stop a sweep
-    that is still alive to read it. And since the resume position was written
-    only on a clean stop, each of the three killed runs discarded every user it
-    had processed; the next run began at the top and died in the same place.
+    The 20-minute budget never fired once, not even on 08-23, which was the
+    first night it ran in production. A budget can only stop a sweep that is
+    still alive to read it. And since the resume position was written only on
+    a clean stop, each of the four killed runs discarded every user it had
+    processed; the next run began at the top and died in the same place.
 
     A killed process cannot log, so all three were indistinguishable from
     nothing happening at all.
