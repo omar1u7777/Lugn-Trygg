@@ -127,11 +127,6 @@ const SocialHub: React.FC = () => {
     fetchSocialData();
   }, [user?.user_id]);
 
-  const _handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    logger.debug('SocialHub tab changed', { newTab: newValue });
-    setActiveTab(newValue);
-  };
-
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
       {/* Hero Section */}

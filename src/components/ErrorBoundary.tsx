@@ -3,7 +3,7 @@
  * WCAG 2.1 AA compliant error handling with accessibility features
  */
 
-import React, { Component, ErrorInfo, ReactNode } from 'react'
+import { Component, ErrorInfo, ReactNode } from 'react'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
 
