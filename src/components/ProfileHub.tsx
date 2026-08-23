@@ -225,11 +225,6 @@ const ProfileHub: React.FC = () => {
     fetchProfileData();
   }, [updateSettings, user?.createdAt, user?.user_id, cancelSave, showSnackbar, t]);
 
-  const _handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    logger.debug('👤 PROFILE HUB - Tab changed', { newTab: newValue });
-    setActiveTab(newValue);
-  };
-
   const handleSettingChange = (setting: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
     // Refuse to save when the stored preferences never loaded — the values in
     // state are defaults, not the user's, and persisting them would overwrite
@@ -256,14 +251,6 @@ const ProfileHub: React.FC = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email) return 'E-postadress krävs';
     if (!emailRegex.test(email)) return 'Ogiltig e-postadress';
-    return null;
-  };
-
-  const _validatePassword = (password: string): string | null => {
-    if (!password) return 'Lösenord krävs';
-    if (password.length < 8) return 'Lösenord måste vara minst 8 tecken';
-    // Only show error for missing requirements if user has tried to submit
-    // Visual feedback will guide them for other requirements
     return null;
   };
 
