@@ -54,8 +54,7 @@ const isSessionEndpoint = (url?: string): boolean =>
  * It is not merely useless. Both endpoints carry @rate_limit_by_endpoint on the
  * backend, so the replay spends a SECOND attempt on the same typo — two strikes
  * per mistake, which halves the real allowance before a user locks themselves
- * out. It also produced a Sentry error for every mistyped password: 177 of them
- * since 2026-06-21, still arriving (JAVASCRIPT-REACT-1Q).
+ * out.
  *
  * Being on this list is necessary but NOT sufficient: the 401 must also carry
  * the API's UNAUTHORIZED code. See isCredentialRejection below for why the URL

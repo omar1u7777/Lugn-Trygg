@@ -357,8 +357,7 @@ describe('response interceptor', () => {
     // A wrong current password is not an expired session. Refreshing and
     // replaying re-sends the same wrong password, and both endpoints carry
     // @rate_limit_by_endpoint on the backend — so one typo spent two attempts
-    // against the lockout allowance, and reported a Sentry error every time
-    // (177 of them since 2026-06-21, issue JAVASCRIPT-REACT-1Q).
+    // against the lockout allowance.
     it.each([
       '/api/v1/auth/change-password',
       '/api/v1/auth/change-email',
