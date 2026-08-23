@@ -55,7 +55,7 @@ jobs:
       # plain `npm run type-check`.
       - name: TypeScript type check (ratchet)
         env:
-          MAX_TS_ERRORS: '282'
+          MAX_TS_ERRORS: '275'
         run: |
           set -o pipefail
           npm run type-check 2>&1 | tee /tmp/tsc.log || true
