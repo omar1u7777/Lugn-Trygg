@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { withSignal } from "./requestOptions";
 import { API_ENDPOINTS } from "./constants";
 import { logger } from "../utils/logger";
 import { extractErrorMessage } from "./errorMessage";
@@ -106,7 +107,7 @@ export const getDashboardSummary = async (userId: string, forceRefresh = false, 
 
     const response = await api.get<APIResponseWrapper<DashboardSummary>>(url, {
       params: forceRefresh ? { forceRefresh: 'true' } : {},
-      signal,
+      ...withSignal(signal),
     });
     const duration = performance.now() - startTime;
 
