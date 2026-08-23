@@ -4,12 +4,24 @@ import { logger } from './logger';
  * Automated testing and validation of accessibility features
  */
 
-interface AuditResult {
+/**
+ * `TDetails` is the payload each audit reports alongside its verdict, and it
+ * differs per audit — an array of contrast results here, a focus-management
+ * record there.
+ *
+ * The signatures below used to say `AuditResult & { details: X }` to express
+ * that. An intersection does not OVERRIDE a property, it intersects it, so
+ * `details` had to satisfy both `Record<string, unknown>` and `X` at once —
+ * unsatisfiable for the array cases, since arrays carry a numeric index
+ * signature and not a string one. Every one of those four methods was
+ * therefore returning a type no value could have.
+ */
+interface AuditResult<TDetails = Record<string, unknown>> {
   passed: boolean;
   violations: string[];
   warnings: string[];
   score: number;
-  details: Record<string, unknown>;
+  details: TDetails;
 }
 
 interface ColorContrastResult {
@@ -95,7 +107,7 @@ export class AccessibilityAuditor {
   /**
    * Audit color contrast ratios
    */
-  async auditColorContrast(): Promise<AuditResult & { details: ColorContrastResult[] }> {
+  async auditColorContrast(): Promise<AuditResult<ColorContrastResult[]>> {
     const violations: string[] = [];
     const warnings: string[] = [];
     const contrastResults: ColorContrastResult[] = [];
@@ -158,7 +170,7 @@ export class AccessibilityAuditor {
   /**
    * Audit focus management
    */
-  async auditFocusManagement(): Promise<AuditResult & { details: FocusManagementResult }> {
+  async auditFocusManagement(): Promise<AuditResult<FocusManagementResult>> {
     const violations: string[] = [];
     const warnings: string[] = [];
 
@@ -232,7 +244,7 @@ export class AccessibilityAuditor {
   /**
    * Audit ARIA compliance
    */
-  async auditAriaCompliance(): Promise<AuditResult & { details: AriaComplianceResult }> {
+  async auditAriaCompliance(): Promise<AuditResult<AriaComplianceResult>> {
     const violations: string[] = [];
     const warnings: string[] = [];
 
@@ -320,7 +332,7 @@ export class AccessibilityAuditor {
   /**
    * Audit screen reader support
    */
-  async auditScreenReaderSupport(): Promise<AuditResult & { details: ScreenReaderResult }> {
+  async auditScreenReaderSupport(): Promise<AuditResult<ScreenReaderResult>> {
     const violations: string[] = [];
     const warnings: string[] = [];
 
@@ -543,11 +555,14 @@ export class AccessibilityAuditor {
         const s = color.trim();
 
         // #RGB shorthand → #RRGGBB
-        if (/^#[0-9a-f]{3}$/i.test(s)) {
-          const r = parseInt(s[1] + s[1], 16);
-          const g = parseInt(s[2] + s[2], 16);
-          const b = parseInt(s[3] + s[3], 16);
-          return [r, g, b];
+        // Captured rather than indexed: s[1] is `string | undefined` under
+        // noUncheckedIndexedAccess even though the test above guarantees it.
+        const shorthand = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(s);
+        if (shorthand) {
+          const [, r, g, b] = shorthand;
+          if (r && g && b) {
+            return [parseInt(r + r, 16), parseInt(g + g, 16), parseInt(b + b, 16)];
+          }
         }
 
         // #RRGGBB
@@ -562,7 +577,10 @@ export class AccessibilityAuditor {
         // rgb(r, g, b) / rgba(r, g, b, a)
         const rgbMatch = s.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
         if (rgbMatch) {
-          return [parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])];
+          const [, r, g, b] = rgbMatch;
+          if (r && g && b) {
+            return [parseInt(r, 10), parseInt(g, 10), parseInt(b, 10)];
+          }
         }
 
         return null;
