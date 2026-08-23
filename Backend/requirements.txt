@@ -71,7 +71,7 @@ pinecone==9.1.0
 # AudioService already catches ImportError and returns a graceful response.
 # librosa==0.11.0
 # soundfile==0.13.1
-scipy==1.17.0
+scipy==1.17.1
 
 # Explainable AI (optional - has fallback)
 # shap EXCLUDED: not on the critical path; ExplainabilityService handles ImportError.
