@@ -12,6 +12,13 @@
  *
  * These pin the shape those signatures now promise, and the contrast maths
  * underneath it, because the parser was edited at the same time.
+ *
+ * Everything goes through the public auditColorContrast rather than the
+ * parser, which is a closure with no way in from outside. That also fixes
+ * which branch of it runs: getComputedStyle normalises colour to rgb() in
+ * jsdom and in browsers alike, so the rgb() branch is the one production
+ * exercises. The #RGB and #RRGGBB branches are consequently NOT covered here
+ * and cannot be from this direction.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -53,6 +60,22 @@ describe('auditColorContrast', () => {
     expect(result.details[0]?.ratio).toBeCloseTo(21, 1);
     expect(result.details[0]?.isCompliant).toBe(true);
     expect(result.violations).toHaveLength(0);
+  });
+
+  it('weights the channels the way WCAG does, in the right order', async () => {
+    // Every other case here is achromatic — black, white, grey — where r, g
+    // and b are equal and a parser that swapped two channels would still pass
+    // all of them. These two colours are the check that they are not
+    // interchangeable.
+    //
+    // Relative luminance weights the channels 0.2126 R, 0.7152 G, 0.0722 B, so
+    // against white, pure red lands near 4:1 and pure blue near 8.6:1 — from
+    // the same three bytes in a different order.
+    const red = await auditWith('rgb(255, 0, 0)', 'rgb(255, 255, 255)');
+    const blue = await auditWith('rgb(0, 0, 255)', 'rgb(255, 255, 255)');
+
+    expect(red.details[0]?.ratio).toBeCloseTo(4.0, 1);
+    expect(blue.details[0]?.ratio).toBeCloseTo(8.59, 1);
   });
 
   it('is symmetric — the order of the two colours cannot matter', async () => {
