@@ -1,4 +1,5 @@
 import { api, unwrapApiResponse } from "./client";
+import { withSignal } from "./requestOptions";
 import { ApiError } from "./errors";
 import { API_ENDPOINTS } from "./constants";
 import { logger } from "../utils/logger";
@@ -276,7 +277,7 @@ export const chatWithAI = async (
       message,
     }, {
       timeout: 60000, // 60 second timeout for AI chat (longer than default 15s)
-      signal,
+      ...withSignal(signal),
     });
     // Handle both APIResponse (data wrapper) and direct format
     const raw = response.data as unknown as Record<string, unknown>;

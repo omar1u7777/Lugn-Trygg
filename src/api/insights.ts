@@ -4,6 +4,7 @@
  */
 
 import { api } from './client';
+import { withSignal } from './requestOptions';
 import { ApiError } from './errors';
 import { API_ENDPOINTS } from './constants';
 
@@ -37,7 +38,7 @@ export const generateInsights = async (userId: string, signal?: AbortSignal): Pr
   try {
     const response = await api.post(`${API_ENDPOINTS.INSIGHTS.GENERATE}/${userId}`, {}, {
       timeout: 60000, // 60s for ML pipeline; insight generation can be slow
-      signal,
+      ...withSignal(signal),
     });
     return response.data.data?.insights || [];
   } catch (error: unknown) {
@@ -51,7 +52,7 @@ export const generateInsights = async (userId: string, signal?: AbortSignal): Pr
  */
 export const getPendingInsights = async (userId: string, signal?: AbortSignal): Promise<BackendInsight[]> => {
   try {
-    const response = await api.get(`${API_ENDPOINTS.INSIGHTS.PENDING}/${userId}`, { signal });
+    const response = await api.get(`${API_ENDPOINTS.INSIGHTS.PENDING}/${userId}`, withSignal(signal));
     return response.data.data?.insights || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
@@ -64,7 +65,7 @@ export const getPendingInsights = async (userId: string, signal?: AbortSignal): 
  */
 export const dismissInsight = async (insightId: string, signal?: AbortSignal): Promise<void> => {
   try {
-    await api.post(`${API_ENDPOINTS.INSIGHTS.DISMISS}/${insightId}`, {}, { signal });
+    await api.post(`${API_ENDPOINTS.INSIGHTS.DISMISS}/${insightId}`, {}, withSignal(signal));
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     throw ApiError.fromAxiosError(error);
@@ -80,7 +81,7 @@ export const markInsightActionTaken = async (
   signal?: AbortSignal,
 ): Promise<void> => {
   try {
-    await api.post(`${API_ENDPOINTS.INSIGHTS.ACTION}/${insightId}`, { action }, { signal });
+    await api.post(`${API_ENDPOINTS.INSIGHTS.ACTION}/${insightId}`, { action }, withSignal(signal));
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     throw ApiError.fromAxiosError(error);
