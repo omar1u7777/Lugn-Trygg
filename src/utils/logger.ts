@@ -19,6 +19,30 @@ import { isDevEnvironment } from '../config/env';
 // though nearly every module in the app imports this logger.
 import { captureException } from '../services/sentryClient';
 
+/**
+ * JSON.stringify that cannot throw.
+ *
+ * Log context routinely contains a circular reference — a React synthetic
+ * event, an axios error carrying its own request — and a logger that throws
+ * while reporting a failure loses the failure as well as itself.
+ */
+const safeStringify = (value: unknown): string => {
+  const seen = new WeakSet<object>();
+  try {
+    return JSON.stringify(value, (_key, val) => {
+      if (typeof val === 'object' && val !== null) {
+        if (seen.has(val as object)) return '[Circular]';
+        seen.add(val as object);
+      }
+      if (typeof val === 'bigint') return val.toString();
+      if (typeof val === 'function') return '[Function]';
+      return val;
+    }) ?? String(value);
+  } catch {
+    return '[Unserializable context]';
+  }
+};
+
 type LogLevel = 'log' | 'debug' | 'info' | 'warn' | 'error';
 
 interface LoggerConfig {
@@ -91,7 +115,21 @@ class Logger {
     parts.push(message);
     
     if (normalizedContext && Object.keys(normalizedContext).length > 0) {
-      parts.push('\n Context:', normalizedContext);
+      /*
+       * Serialised outside development.
+       *
+       * console.log(obj) renders as an expandable object in devtools, which is
+       * exactly what you want while debugging locally. But the moment the
+       * console is read as text — the only way anyone reads it in production —
+       * it collapses to the literal string "Context: Object". A log line that
+       * names its context and then withholds it is worse than one that never
+       * had any.
+       */
+      if (isDevEnvironment()) {
+        parts.push('\n Context:', normalizedContext);
+      } else {
+        parts.push('\n Context:', safeStringify(normalizedContext));
+      }
     }
     
     return parts;
