@@ -4,6 +4,7 @@ import { PaperAirplaneIcon, ClockIcon, PencilIcon, StarIcon } from '@heroicons/r
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/api';
 import { API_ENDPOINTS } from '../../api/constants';
 import FeedbackHistory from './FeedbackHistory';
@@ -21,6 +22,7 @@ interface FeedbackData {
 const FeedbackForm: React.FC = () => {
     const { user } = useAuth();
     const { t } = useTranslation();
+  const navigate = useNavigate();
     const [feedback, setFeedback] = useState<FeedbackData>({
         category: 'general',
         rating: 5,
@@ -297,24 +299,19 @@ const FeedbackForm: React.FC = () => {
             </form>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-                <Card className="p-6 text-center">
-                    <div className="text-4xl mb-3">📚</div>
-                    <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100">
-                        {t('feedbackForm.helpCenter', 'Hjälpcenter')}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                        {t('feedbackForm.helpCenterBody', 'Hitta svar på vanliga frågor')}
-                    </p>
-                    <a 
-                        href="https://github.com/omar1u7777/Lugn-Trygg/wiki" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline font-medium"
-                    >
-                        {t('feedbackForm.helpCenterLink', 'Besök hjälpcenter')} →
-                    </a>
-                </Card>
+            {/*
+                The "Hjälpcenter" card linked to github.com/omar1u7777/Lugn-Trygg/wiki
+                — a PRIVATE repository, holding developer documentation ("Home",
+                "Testing", "Utvecklardokumentation"). For anyone who is not the
+                repo owner it is a GitHub login page or a 404, and for anyone
+                who does reach it, it is not consumer help.
+
+                Removed rather than repointed: there is no help centre to point
+                at, and a card promising answers that delivers a login screen is
+                worse than no card. The translation keys are left in place for
+                whoever builds one.
+            */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
                 <Card className="p-6 text-center">
                     <div className="text-4xl mb-3">💬</div>
                     <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100">
@@ -323,9 +320,16 @@ const FeedbackForm: React.FC = () => {
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                         {t('feedbackForm.liveChatBody', 'Chatta med vårt AI support-team')}
                     </p>
+                    {/*
+                        Was window.location.href = '/chatbot'. There is no
+                        /chatbot route — the only chat is /ai-chat — so this
+                        button showed the 404 page. It also forced a full
+                        document load inside a single-page app, discarding the
+                        session's warm state to go nowhere.
+                    */}
                     <Button
                         variant="outline"
-                        onClick={() => window.location.href = '/chatbot'}
+                        onClick={() => navigate('/ai-chat')}
                     >
                         {t('feedbackForm.startChat', 'Starta chatt')} →
                     </Button>
