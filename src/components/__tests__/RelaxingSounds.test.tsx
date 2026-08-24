@@ -293,8 +293,10 @@ describe('RelaxingSounds', () => {
     // Select track first
     fireEvent.click(screen.getAllByText('Regnskog')[0]);
 
-    // Click play button
-    const playBtn = screen.getByRole('button', { name: /Spela/i });
+    // Click play button. There are two now: the large round control and the
+    // transport button. The round one used to be a <div> and so was invisible
+    // to getByRole, which is why this could once say "the" play button.
+    const playBtn = screen.getAllByRole('button', { name: /Spela/i })[0]!;
     fireEvent.click(playBtn);
     await waitFor(() => expect(playMock).toHaveBeenCalled());
   });
@@ -584,6 +586,87 @@ describe('RelaxingSounds', () => {
     Object.defineProperty(window.HTMLMediaElement.prototype, 'play', {
       configurable: true,
       value: vi.fn().mockResolvedValue(undefined),
+    });
+  });
+});
+
+/**
+ * BUG-06 — the sound library was mouse-only, and mostly invisible.
+ *
+ * The four track rows sat in a strip a few pixels tall that would not scroll,
+ * the rows were <div onClick> and so absent from the accessibility tree, and
+ * the large round play control was another <div onClick> that did nothing at
+ * all when no track was selected — togglePlay returns early without one.
+ *
+ * The strip was a flexbox mistake, not a styling choice: the embedded container
+ * sets min-h-[500px] and no height, while the card asked for h-full. A height
+ * percentage against a parent of height:auto collapses, so the card shrank to
+ * its own content and the flex-1 list below it got what was left.
+ */
+describe('BUG-06: the track list is reachable without a mouse', () => {
+  const renderLibrary = async () => {
+    getAudioLibraryMock.mockResolvedValue(mockAudioLibrary);
+    render(<RelaxingSounds onClose={vi.fn()} />);
+    await waitFor(() => screen.getByText('Regnskog'));
+  };
+
+  it('exposes each track as a control, not a bare div', async () => {
+    await renderLibrary();
+    const rows = screen.getAllByRole('button', { name: 'Regnskog' });
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows[0]).toHaveAttribute('tabindex', '0');
+  });
+
+  it.each([['Enter'], [' ']])('selects a track with %s', async (key) => {
+    await renderLibrary();
+    const row = screen.getAllByRole('button', { name: 'Havsvågor' })[0]!;
+
+    fireEvent.keyDown(row, { key });
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: 'Havsvågor' })[0])
+        .toHaveAttribute('aria-pressed', 'true');
+    });
+  });
+
+  it('reports which track is selected', async () => {
+    await renderLibrary();
+    const row = screen.getAllByRole('button', { name: 'Regnskog' })[0]!;
+    expect(row).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(row);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: 'Regnskog' })[0])
+        .toHaveAttribute('aria-pressed', 'true');
+    });
+  });
+});
+
+describe('BUG-06: play says no instead of doing nothing', () => {
+  it('disables every play control until a track is chosen', async () => {
+    getAudioLibraryMock.mockResolvedValue(mockAudioLibrary);
+    render(<RelaxingSounds onClose={vi.fn()} />);
+    await waitFor(() => screen.getByText('Regnskog'));
+
+    // Both of them. The small transport button always had this; the large
+    // round one — the obvious thing to press — did not, and a click on it was
+    // silent.
+    const playControls = screen.getAllByRole('button', { name: 'Spela' });
+    expect(playControls.length).toBeGreaterThanOrEqual(2);
+    playControls.forEach((control) => expect(control).toBeDisabled());
+  });
+
+  it('enables them once a track is chosen', async () => {
+    getAudioLibraryMock.mockResolvedValue(mockAudioLibrary);
+    render(<RelaxingSounds onClose={vi.fn()} />);
+    await waitFor(() => screen.getByText('Regnskog'));
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Regnskog' })[0]!);
+
+    await waitFor(() => {
+      screen.getAllByRole('button', { name: 'Spela' })
+        .forEach((control) => expect(control).not.toBeDisabled());
     });
   });
 });
