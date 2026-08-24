@@ -234,7 +234,8 @@
     "openBreathingExercise": "Open breathing exercise",
     "openJournal": "Open journal",
     "openMeditation": "Open meditation",
-    "seeSleepTips": "See sleep tips"
+    "seeSleepTips": "See sleep tips",
+    "seeRecommendations": "See recommendations"
   },
   "navLinks": {
     "dashboard": "Dashboard",
@@ -1028,7 +1029,13 @@
       "downwardTrendDesc": "Your mood has declined in recent days. Consider talking to someone.",
       "needSupport": "Need support?",
       "needSupportDesc": "Your mood is low. You're not alone - consider professional help."
-    }
+    },
+    "trendStep1": "1. We take your 7 most recent mood entries.",
+    "trendStep2": "2. We take the 7 entries before those.",
+    "trendStep3": "3. We average each group.",
+    "trendStep4": "4. We compare the two averages.",
+    "trendStep5": "5. A difference above 0.5 counts as up, below −0.5 as down, otherwise stable.",
+    "trendStep6": "6. The 0.5 threshold is there so ordinary day-to-day variation is not called a trend."
   },
   "worldDashboard": {
     "dashboardLoaded": "Dashboard loaded",
@@ -1151,7 +1158,8 @@
     "algorithm": "Algorithm",
     "trainingAccuracy": "Training accuracy",
     "dataPoints": "Data points",
-    "noData": "No data available for analysis"
+    "noData": "No data available for analysis",
+    "loading": "Loading your analysis…"
   },
   "dashboardStats": {
     "sectionTitle": "Statistics Overview",
@@ -1416,7 +1424,8 @@
     "profile": "Profile",
     "settings": "Settings",
     "theme": "Theme",
-    "language": "Language"
+    "language": "Language",
+    "logout": "Log out"
   },
   "password": {
     "strength": {

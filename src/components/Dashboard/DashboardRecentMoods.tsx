@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { getMoodLabel, getMoodEmoji } from '../../features/mood/utils';
 import { Card } from '../ui/tailwind/Card';
 import { getDashboardRegionProps } from '../../constants/accessibility';
+import { tagLabel } from '../../utils/tagLabel';
 
 interface MoodActivity {
   id: string;
@@ -286,7 +287,7 @@ export const DashboardRecentMoods: React.FC<DashboardRecentMoodsProps> = ({
                                     key={tag}
                                     className="px-1.5 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded text-[10px] font-medium"
                                   >
-                                    #{tag}
+                                    #{tagLabel(t, tag)}
                                   </span>
                                 ))}
                               </div>
