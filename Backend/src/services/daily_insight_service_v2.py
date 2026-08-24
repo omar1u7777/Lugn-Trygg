@@ -1020,6 +1020,30 @@ class DailyInsightGeneratorV2:
         except Exception as e:
             logger.error(f"Failed to save insight: {e}")
 
+    def mark_insight_undeliverable(self, insight_id: str, reason: str) -> bool:
+        """Retire an insight from the push queue when it can never be sent.
+
+        Sets notification_sent because that flag is the ONLY thing the queue
+        query filters on — it means "no longer awaiting delivery", not "a
+        notification went out". The difference is recorded in
+        notification_status so the data does not claim something false.
+
+        The insight itself is untouched: `status` stays 'pending', and nothing
+        outside the scheduler's own query reads notification_sent, so the user
+        still sees the insight in the app. Only the push attempt is retired.
+        """
+        try:
+            db.collection('insights').document(insight_id).update({
+                'notification_sent': True,
+                'notification_status': 'undeliverable',
+                'notification_reason': reason,
+                'notification_resolved_at': datetime.now(UTC),
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Failed to mark insight as undeliverable: {e}")
+            return False
+
     def mark_insight_sent(self, insight_id: str) -> bool:
         """Mark a pending insight as notification sent."""
         try:
