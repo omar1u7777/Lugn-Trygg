@@ -167,6 +167,26 @@ class InsightNotificationScheduler:
         except Exception as e:
             logger.error(f"Daily processing failed: {e}")
 
+    # What happened to one delivery attempt. The only distinction that
+    # matters is whether retrying could ever succeed.
+    #
+    # It has to be three values, not a bool. The queue retries anything it did
+    # not mark, and a user with no FCM token fails identically every time, so
+    # that insight was retried in every window forever. Worse, the query is
+    # .limit(batch_size) with batch_size = 100: once 100 permanently
+    # undeliverable insights accumulate they fill the whole batch and NO
+    # deliverable insight is ever reached again. Head-of-line blocking with a
+    # countable horizon.
+    #
+    # Observed on 2026-08-23: the same ~9 user ids in every window at 08:15,
+    # 10:42, 14:20 and 16:47, one of them three times per window.
+    #
+    # It also delays crisis check-ins, because trigger_immediate_insight writes
+    # its high-urgency insight into this same queue.
+    DELIVERED = 'delivered'
+    UNDELIVERABLE = 'undeliverable'   # no user, or no channel — retrying cannot help
+    DEFERRED = 'deferred'             # transient — try again next window
+
     def _send_pending_notifications(self):
         """Send pending insight notifications to users."""
         try:
@@ -180,6 +200,7 @@ class InsightNotificationScheduler:
             ).limit(self.batch_size)
 
             sent_count = 0
+            retired_count = 0
             for insight_doc in insights_query.stream():
                 insight_data = insight_doc.to_dict()
 
@@ -192,15 +213,28 @@ class InsightNotificationScheduler:
                     continue
 
                 # Send notification
-                success = self._send_notification(insight_data)
+                outcome = self._send_notification(insight_data)
 
-                if success:
+                if outcome == self.DELIVERED:
                     # Mark as sent
                     get_insight_generator().mark_insight_sent(insight_doc.id)
                     sent_count += 1
+                elif outcome == self.UNDELIVERABLE:
+                    # Retire it rather than retrying forever. Nothing outside
+                    # this queue reads notification_sent, so the insight stays
+                    # visible in the app — only the push attempt stops.
+                    get_insight_generator().mark_insight_undeliverable(
+                        insight_doc.id, 'no_delivery_channel',
+                    )
+                    retired_count += 1
+                # DEFERRED falls through: left pending, retried next window.
 
             if sent_count > 0:
                 logger.info(f"Sent {sent_count} insight notifications")
+            if retired_count > 0:
+                logger.info(
+                    f"Retired {retired_count} insight notifications with no delivery channel"
+                )
 
         except Exception as e:
             logger.error(f"Notification sending failed: {e}")
@@ -212,8 +246,8 @@ class InsightNotificationScheduler:
         hour = datetime.now().hour
         return self.optimal_hours[0] <= hour <= self.optimal_hours[1]
 
-    def _send_notification(self, insight_data: dict) -> bool:
-        """Send notification via FCM or other channel."""
+    def _send_notification(self, insight_data: dict) -> str:
+        """Attempt one delivery. Returns DELIVERED, UNDELIVERABLE or DEFERRED."""
         try:
             user_id = insight_data.get('user_id')
             title = insight_data.get('title', 'Lugn & Trygg - Insikt')
@@ -223,12 +257,13 @@ class InsightNotificationScheduler:
             # Get user's FCM token
             user_doc = db.collection('users').document(user_id).get()
             if not user_doc.exists:
-                return False
+                # The user is gone. No future window can deliver this.
+                return self.UNDELIVERABLE
 
             fcm_token = user_doc.to_dict().get('fcm_token')
             if not fcm_token:
                 logger.warning(f"No FCM token for {user_id}")
-                return False
+                return self.UNDELIVERABLE
 
             # Try Firebase Cloud Messaging
             try:
@@ -251,15 +286,18 @@ class InsightNotificationScheduler:
 
                 response = messaging.send(notification)
                 logger.info(f"📱 Insight notification sent to {user_id}: {response}")
-                return True
+                return self.DELIVERED
 
             except ImportError:
+                # A missing dependency is an environment problem, not a
+                # property of this insight — deploying the library must not
+                # require a backfill of everything retired while it was absent.
                 logger.warning("Firebase messaging not available")
-                return False
+                return self.DEFERRED
 
         except Exception as e:
             logger.error(f"Failed to send notification: {e}")
-            return False
+            return self.DEFERRED
 
     def trigger_immediate_insight(self, user_id: str, insight_type: str = 'checkin') -> str | None:
         """
