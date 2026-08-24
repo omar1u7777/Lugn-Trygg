@@ -863,10 +863,17 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                                 </div>
                               )}
                             </div>
+                            {/*
+                              44x44 is the WCAG 2.5.5 minimum. This was a
+                              14px icon in 4px of padding — 22x22 — on a
+                              control that permanently deletes a mood entry.
+                              The icon keeps its size; the hit area grows
+                              around it, so nothing moves visually.
+                            */}
                             <button
                               type="button"
                               onClick={() => handleDeleteMood(mood.id!)}
-                              className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded"
+                              className="flex-shrink-0 flex items-center justify-center min-w-[44px] min-h-[44px] text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded"
                               aria-label={t('moodLogger.delete', 'Radera')}
                               title={t('moodLogger.delete', 'Radera')}
                             >
