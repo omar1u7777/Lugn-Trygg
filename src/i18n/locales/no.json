@@ -913,7 +913,8 @@
     "connecting": "Kobler til server...",
     "networkError": "Nettverksfeil. Kunne ikke koble til serveren.",
     "tryAgain": "Prøv igjen",
-    "retrying": "Prøver igjen..."
+    "retrying": "Prøver igjen...",
+    "selectMoodFirst": "Velg hvordan du har det for å kunne logge."
   },
   "voiceRecorder": {
     "title": "🎤 Stemmeopptak",

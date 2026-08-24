@@ -760,6 +760,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
               <button
                 onClick={handleLogMood}
                 disabled={!canSubmit || isLogging}
+                aria-describedby={!canSubmit ? 'mood-submit-hint' : undefined}
                 className="w-full py-3 px-6 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg
                          transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
                          focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
@@ -778,6 +779,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
             <button
               onClick={handleLogMood}
               disabled={!canSubmit || isLogging}
+              aria-describedby={!canSubmit ? 'mood-submit-hint' : undefined}
               className="w-full py-3 px-6 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg
                        transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
                        focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
@@ -788,6 +790,18 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                 : t('moodLogger.logMood', 'Logga humör')
               }
             </button>
+          )}
+
+          {/*
+            The button carries disabled:opacity-50 and a native `disabled`,
+            which assistive tech already reports — aria-disabled would be
+            redundant on a real <button>. What was missing is WHY, for everyone:
+            canSubmit is `selectedMood !== null`, and nothing said so.
+          */}
+          {!canSubmit && !isLogging && (
+            <p id="mood-submit-hint" className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+              {t('moodLogger.selectMoodFirst', 'Välj hur du mår för att kunna logga.')}
+            </p>
           )}
         </div>
       </Card>

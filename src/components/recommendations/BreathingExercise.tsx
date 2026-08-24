@@ -238,7 +238,13 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
 
         <div className="mb-4 bg-rose-50 dark:bg-rose-900/20 p-3 rounded-lg text-left">
           <label htmlFor="breathing-stress-before" className="text-sm font-medium text-rose-700 dark:text-rose-300 block mb-1">
-            {t('breathing.stressBefore', 'Stress före start')} ({breathingStressBefore ?? 0}/100)
+            {/*
+              breathingStressBefore is null until the user moves the slider, and
+              the button below is disabled on exactly that. Rendering "0/100"
+              for null said a value HAD been chosen, so the disabled button
+              looked broken rather than waiting. An em dash says nothing is set.
+            */}
+            {t('breathing.stressBefore', 'Stress före start')} ({breathingStressBefore === null ? '—' : `${breathingStressBefore}/100`})
           </label>
           <input
             id="breathing-stress-before"
@@ -383,14 +389,21 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
                 startBreathingExercise();
               }}
               disabled={breathingStressBefore === null}
-              className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+              aria-describedby={breathingStressBefore === null ? 'breathing-start-hint' : undefined}
+              /*
+                The button was disabled with no disabled styling at all —
+                opacity stayed 1, the hover colour stayed live, and the cursor
+                did not change. It read as an unresponsive button rather than
+                an unmet precondition.
+              */
+              className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
             >
               {breathingPhase === 'completed' ? t('breathing.startNew', '🔁 Starta ny omgång') : t('breathing.startExercise', '🚀 Starta andningsövning')}
             </button>
           )}
         </div>
         {!isBreathingActive && breathingStressBefore === null && (
-          <p className="text-center text-xs text-rose-600 dark:text-rose-300 mt-2">
+          <p id="breathing-start-hint" className="text-center text-xs text-rose-600 dark:text-rose-300 mt-2">
             {t('breathing.selectStressHint', 'Välj stressnivå före start för att kunna jämföra effekten efteråt.')}
           </p>
         )}
