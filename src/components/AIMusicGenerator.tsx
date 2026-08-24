@@ -362,7 +362,15 @@ export const AIMusicGenerator: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+    <div
+      /*
+        pb-24 on mobile, matching ProtectedAppShell. This element scrolls on its
+        own, so it does not inherit the shell's bottom padding, and p-4 left
+        16px under the last control while the fixed bottom nav is taller than
+        that — "30s förhandsgranskning" and "Generera 5 min" sat under it.
+      */
+      className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 pb-24 lg:pb-6"
+    >
       {/* Hidden audio element */}
       <audio ref={audioRef} preload="auto" />
 
