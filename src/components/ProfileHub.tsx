@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter, Input, Snackbar } from './ui/tailwind';
 import { useTranslation } from 'react-i18next';
@@ -47,6 +48,16 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
   </div>
 );
 
+/**
+ * Tab order, as names. The indices are an implementation detail of the tab
+ * strip; the names are what appears in the URL and therefore what people can
+ * bookmark, so they are the stable half of this pair.
+ */
+const TAB_NAMES = ['account', 'privacy', 'notifications', 'appearance'] as const;
+const TAB_INDEX_BY_NAME: Record<string, number> = Object.fromEntries(
+  TAB_NAMES.map((name, index) => [name, index])
+);
+
 interface ProfileStats {
   totalMoods: number;
   totalConversations: number;
@@ -59,7 +70,26 @@ const ProfileHub: React.FC = () => {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const { plan, isPremium, isTrial, usage, getRemainingMoodLogs, getRemainingMessages } = useSubscription();
-  const [activeTab, setActiveTab] = useState(0);
+  /*
+   * The active tab lives in the URL.
+   *
+   * It was useState(0), and changing the theme sent the user back to
+   * "Kontoinställningar" from whichever tab they had chosen — reproduced
+   * several times in QA. I did not find the remount that causes it, and that
+   * is rather the point: local state resets for reasons that are not visible
+   * from here, while a query parameter survives any of them.
+   *
+   * It also makes the tabs linkable, which they were not.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = TAB_INDEX_BY_NAME[searchParams.get('tab') ?? ''] ?? 0;
+  const setActiveTab = useCallback((index: number) => {
+    const next = new URLSearchParams(searchParams);
+    const name = TAB_NAMES[index];
+    if (name) next.set('tab', name);
+    // replace, not push: flipping tabs should not fill the back button.
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   // Snackbar state (moved up to stabilize callbacks for useDebouncedSave)
   const [snackbar, setSnackbar] = useState({
