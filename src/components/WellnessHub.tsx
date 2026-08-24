@@ -903,6 +903,7 @@ const WellnessHub: React.FC = () => {
                 <WellnessGoalsOnboarding
                   {...(user?.user_id ? { userId: user.user_id } : {})}
                   initialGoals={userGoals}
+                  mode={userGoals.length > 0 ? 'edit' : 'onboarding'}
                   onComplete={(goals) => {
                     setUserGoals(goals);
                     setShowGoalsModal(false);

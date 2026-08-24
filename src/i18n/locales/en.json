@@ -2288,5 +2288,12 @@
   },
   "moodList": {
     "shown": "Shown"
+  },
+  "wellnessGoals": {
+    "skip": "Skip",
+    "saving": "Saving…",
+    "continue": "Continue ({{selected}}/{{max}})",
+    "save": "Save ({{selected}}/{{max}})",
+    "close": "Close"
   }
 }
