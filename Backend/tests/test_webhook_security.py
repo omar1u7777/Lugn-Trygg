@@ -7,6 +7,36 @@ import os
 from unittest.mock import MagicMock, patch
 
 
+class StripeObjectLike:
+    """Stands in for the stripe.Event that construct_event actually returns.
+
+    Since stripe 12 — requirements pins 15.4.0 — StripeObject is no longer a
+    dict subclass. It resolves unknown attributes against the payload, so
+    `.get` is read as a FIELD named "get", is not found, and raises
+    AttributeError. Verified directly against 15.4.0.
+
+    Hand-built rather than a real stripe.Event so the contract holds whichever
+    stripe version the runner happens to have installed; the local venv has
+    11.3.0, where Event still IS a dict and the bug is invisible.
+
+    The previous version of this test used a MagicMock with `.get` ATTACHED —
+    the exact opposite of the real object, and the reason a handler that could
+    never succeed in production had a green test.
+    """
+
+    def __init__(self, data: dict):
+        self._data = data
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def __getattr__(self, key):
+        try:
+            return self._data[key]
+        except KeyError as exc:
+            raise AttributeError(key) from exc
+
+
 class TestWebhookProductionGuard:
     """Tests that webhooks are rejected in production when STRIPE_WEBHOOK_SECRET is not set."""
 
@@ -63,10 +93,7 @@ class TestWebhookProductionGuard:
                 }
             }
         }
-        mock_event = MagicMock()
-        mock_event.__getitem__ = lambda self, key: event_data[key]
-        mock_event.get = lambda key, default=None: event_data.get(key, default)
-        mock_event.type = 'checkout.session.completed'
+        mock_event = StripeObjectLike(event_data)
 
         payload = json.dumps(event_data)
         with patch('src.routes.subscription_routes.STRIPE_WEBHOOK_SECRET', 'whsec_test_secret'), \
@@ -79,8 +106,10 @@ class TestWebhookProductionGuard:
                 content_type='application/json',
                 headers={'stripe-signature': 'test_sig'}
             )
-            # Should process successfully or fail gracefully
-            assert response.status_code in [200, 400, 500]
+            # Was `in [200, 400, 500]`, which accepts the very crash it was
+            # meant to catch: the handler returned 500 on every real webhook
+            # for as long as this test was green.
+            assert response.status_code == 200
 
     def test_webhook_with_invalid_signature_rejected(self, client):
         """Webhook should be rejected when signature verification fails."""
