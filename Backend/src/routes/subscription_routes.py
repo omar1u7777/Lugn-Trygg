@@ -9,6 +9,7 @@ try:
 except ImportError:
     FieldFilter = None  # type: ignore
 
+import json
 import os
 
 # [C5] FRONTEND_URL validated centrally in config/__init__.py — import from there
@@ -234,9 +235,26 @@ def stripe_webhook():
         # Verify webhook signature when secret is configured (production)
         if STRIPE_WEBHOOK_SECRET and sig_header:
             try:
-                event = stripe.Webhook.construct_event(
+                # construct_event verifies the signature against these exact
+                # bytes and raises if it does not match. Its RETURN value is
+                # deliberately discarded.
+                #
+                # It returns a stripe.Event, and since stripe 12 that is no
+                # longer a dict subclass (we pin 15.4.0). StripeObject resolves
+                # unknown attributes against the payload, so `event.get` is read
+                # as a FIELD named "get", is not found, and raises
+                # AttributeError('get') from _stripe_object.py — verified
+                # against 15.4.0 itself, and matching the production traceback.
+                #
+                # This handler makes 17 chained .get() calls, including on the
+                # nested session and metadata objects, so switching them to
+                # subscripting would not be enough: every level is a
+                # StripeObject. Re-parsing the already-verified payload yields
+                # plain dicts all the way down and leaves that code untouched.
+                stripe.Webhook.construct_event(
                     payload, sig_header, STRIPE_WEBHOOK_SECRET
                 )
+                event = json.loads(payload)
                 logger.info("✅ Stripe webhook signature verified")
             except stripe.error.SignatureVerificationError as e:
                 logger.error(f"❌ Webhook signature verification failed: {e}")
@@ -251,7 +269,6 @@ def stripe_webhook():
                 logger.error("❌ STRIPE_WEBHOOK_SECRET not configured in production — rejecting webhook")
                 return APIResponse.error("Verifiering av webhook är inte konfigurerad", "CONFIG_ERROR", 503)
             # Development fallback - log warning but allow
-            import json
             event = json.loads(payload)
             logger.warning("⚠️ STRIPE_WEBHOOK_SECRET not set - webhook signature not verified (dev mode)")
         else:
