@@ -96,7 +96,7 @@ const ProfileHub: React.FC = () => {
       onError: handleSaveError,
     }
   );
-  const { data: settings, updateData: updateSettings, isSaving: isSavingSettings, hasUnsavedChanges, cancelSave } = settingsManager;
+  const { data: settings, updateData: updateSettings, isSaving: isSavingSettings, hasUnsavedChanges, cancelSave, setBaseline: setSettingsBaseline } = settingsManager;
   // True when the saved preferences could not be fetched. The toggles then
   // show the hardcoded defaults rather than the user's real settings, so
   // writing them back would silently overwrite what they actually chose.
@@ -187,8 +187,14 @@ const ProfileHub: React.FC = () => {
             publicProfile: false,
             ...(typeof profile.preferences === 'object' ? profile.preferences : {}),
           };
-          updateSettings(loadedSettings);
-          cancelSave();
+          /*
+             Adopting server state, not editing. updateSettings moves the
+             working copy but leaves the hook's comparison point on this
+             component's hardcoded defaults, so the tab announced "Osparade
+             ändringar" the instant the fetch resolved — before the user had
+             touched a control, and with no Save button to act on it.
+          */
+          setSettingsBaseline(loadedSettings);
         }
 
         // Use aggregated stats from backend
@@ -223,7 +229,7 @@ const ProfileHub: React.FC = () => {
     };
 
     fetchProfileData();
-  }, [updateSettings, user?.createdAt, user?.user_id, cancelSave, showSnackbar, t]);
+  }, [updateSettings, user?.createdAt, user?.user_id, cancelSave, setSettingsBaseline, showSnackbar, t]);
 
   const handleSettingChange = (setting: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
     // Refuse to save when the stored preferences never loaded — the values in
@@ -411,7 +417,17 @@ const ProfileHub: React.FC = () => {
 
             {/* Info Section */}
             <div className="text-center md:text-left flex-1">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 tracking-tight">
+              {/*
+                break-words, because an e-mail address contains nothing the
+                browser is willing to break on. At text-5xl the heading ran to
+                the edge of the viewport on the tested width and would have
+                gone past it for anything longer. title carries the full value
+                for the truncating case.
+              */}
+              <h1
+                className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 tracking-tight [overflow-wrap:anywhere] break-words"
+                title={user?.email || undefined}
+              >
                 {user?.email || t('profileHub.guest', 'Gäst')}
               </h1>
               <p className="text-indigo-200 text-lg mb-6 max-w-lg mx-auto md:mx-0">
@@ -421,7 +437,20 @@ const ProfileHub: React.FC = () => {
               <div className="flex flex-wrap justify-center md:justify-start gap-3">
                 <div className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 text-sm font-medium flex items-center gap-2">
                   <UserIcon className="w-4 h-4 text-indigo-300" />
-                  {t('profileHub.memberForDays', 'Medlem i {{days}} dagar', { days: profileStats.accountAge })}
+                  {/*
+                    accountAge starts at 0, so this rendered "Medlem i 0 dagar"
+                    before the fetch resolved — a wrong fact rather than an
+                    absent one, and one that would have stuck permanently if the
+                    call failed silently.
+                  */}
+                  {loading ? (
+                    <span
+                      className="inline-block h-4 w-28 rounded bg-white/20 animate-pulse"
+                      aria-label={t('common.loading')}
+                    />
+                  ) : (
+                    t('profileHub.memberForDays', 'Medlem i {{days}} dagar', { days: profileStats.accountAge })
+                  )}
                 </div>
                 {!isPremium && (
                   <Button
