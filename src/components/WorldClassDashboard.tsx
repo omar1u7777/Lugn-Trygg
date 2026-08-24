@@ -96,42 +96,7 @@ const getNextStepForGoal = (goal: string, t: (key: string) => unknown): string =
   return goalSteps[index] || ((steps?.['fallback'] as string[])?.[0] || (t('dashboard.continueGoal') as string));
 };
 
-// Helper function för att mappa steg till direkta feature-länkar
-const getFeatureLinkForStep = (stepText: string, t: (key: string) => string): { route: string; label: string } | null => {
-  const stepLower = stepText.toLowerCase();
-
-  // Andningsövningar
-  if (stepLower.includes('andnings') || stepLower.includes('andetag') || stepLower.includes('breathe')) {
-    return { route: '/recommendations', label: t('dashboard.openBreathingExercise') };
-  }
-
-  // Journaling/Tacksamhet
-  if (stepLower.includes('skriv') || stepLower.includes('tacksam') || stepLower.includes('journal')) {
-    return { route: '/journal', label: t('dashboard.openJournal') };
-  }
-
-  // Meditation
-  if (stepLower.includes('meditation') || stepLower.includes('mindfulness')) {
-    return { route: '/recommendations', label: t('dashboard.openMeditation') };
-  }
-
-  // Sömn (om sleep tracking finns)
-  if (stepLower.includes('sömn') || stepLower.includes('lägg dig') || stepLower.includes('sleep')) {
-    return { route: '/recommendations', label: t('dashboard.seeSleepTips') };
-  }
-
-  // Humör/Mood logging
-  if (stepLower.includes('humör') || stepLower.includes('mood') || stepLower.includes('logga')) {
-    return { route: '/', label: t('dashboard.openMoodLogger') };
-  }
-
-  // Promenad/Fysisk aktivitet
-  if (stepLower.includes('promenad') || stepLower.includes('walk') || stepLower.includes('stretching') || stepLower.includes('vatten')) {
-    return { route: '/recommendations', label: t('dashboard.seeRecommendations') };
-  }
-
-  return null;
-};
+import { getFeatureLinkForStep } from '../utils/goalStepLinks';
 
 const DASHBOARD_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
