@@ -645,7 +645,9 @@
       "activation": "The reward is activated once your friend completes sign-up",
       "noCash": "Rewards cannot be exchanged for cash",
       "changes": "Lugn & Trygg reserves the right to change these terms"
-    }
+    },
+    "weeksUnit_one": "week",
+    "weeksUnit_other": "weeks"
   },
   "healthIntegrations": {
     "title": "Health integrations (OAuth)",
@@ -718,6 +720,20 @@
       "firstSyncBody": "The first sync can take 1–2 minutes. Try again in a little while.",
       "reconnectTitle": "Try reconnecting:",
       "reconnectBody": "Click “Disconnect” and then “Connect” again to refresh the authorisation."
+    },
+    "providers": {
+      "google_fit": {
+        "description": "Sync activity, heart rate and sleep data from Google Fit"
+      },
+      "fitbit": {
+        "description": "Connect your Fitbit device for comprehensive health tracking"
+      },
+      "samsung": {
+        "description": "Sync health data from the Samsung Health app"
+      },
+      "withings": {
+        "description": "Connect Withings devices for weight and health metrics"
+      }
     }
   },
   "relaxingSounds": {
@@ -2288,5 +2304,90 @@
   },
   "moodList": {
     "shown": "Shown"
+  },
+  "rewardsCatalog": {
+    "ai_insights_pro": {
+      "title": "AI Insights Pro",
+      "description": "Advanced AI analytics and predictions"
+    },
+    "badge_collector": {
+      "title": "Badge Collector",
+      "description": "Exclusive badge for dedicated users"
+    },
+    "custom_theme": {
+      "title": "Custom Theme",
+      "description": "Unlock exclusive colour themes for the app"
+    },
+    "early_adopter": {
+      "title": "Early Adopter",
+      "description": "Special badge for early users"
+    },
+    "export_data": {
+      "title": "Data Export",
+      "description": "Export all your data to PDF or CSV"
+    },
+    "first_mood": {
+      "title": "First Step",
+      "description": "Log your first mood"
+    },
+    "journal_starter": {
+      "title": "Journal Starter",
+      "description": "Write your first journal entry"
+    },
+    "meditation_guru": {
+      "title": "Meditation Guru",
+      "description": "Complete 50 meditations"
+    },
+    "merch_tshirt": {
+      "title": "Lugn & Trygg T-shirt",
+      "description": "Exclusive t-shirt (free shipping)"
+    },
+    "month_streak": {
+      "title": "Month of Mindfulness",
+      "description": "Log your mood 30 days in a row"
+    },
+    "mood_master": {
+      "title": "Mood Master",
+      "description": "Log your mood 30 days in a row"
+    },
+    "mood_warrior": {
+      "title": "Mood Warrior",
+      "description": "Log 100 mood entries"
+    },
+    "premium_1month": {
+      "title": "1 Month Premium",
+      "description": "Access to all premium features for one month"
+    },
+    "premium_1week": {
+      "title": "1 Week Premium",
+      "description": "Access to all premium features for one week"
+    },
+    "premium_3months": {
+      "title": "3 Months Premium",
+      "description": "Access to all premium features for three months"
+    },
+    "premium_month": {
+      "title": "1 Month Premium",
+      "description": "Unlock all premium features for 30 days"
+    },
+    "premium_week": {
+      "title": "1 Week Premium",
+      "description": "Unlock all premium features for 7 days"
+    },
+    "referral_hero": {
+      "title": "Referral Hero",
+      "description": "Invite 5 friends"
+    },
+    "vip_support": {
+      "title": "VIP Support",
+      "description": "Priority support for one month"
+    },
+    "week_streak": {
+      "title": "Week of Wellness",
+      "description": "Log your mood 7 days in a row"
+    }
+  },
+  "aiMusic": {
+    "goodFor": "Good for:"
   }
 }
