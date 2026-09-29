@@ -577,20 +577,48 @@ def analyze_health_mood_patterns():
         # Get request parameters (optional date range)
         data = request.get_json(silent=True) or {}
         days = data.get('days', 30)  # Default to last 30 days
+        # 'days' caps how many synced entries are read per provider, so an
+        # unvalidated value from the request body would reach Firestore's
+        # limit() directly.
+        if isinstance(days, bool) or not isinstance(days, int) or days < 1 or days > 90:
+            days = 30
 
-        # Fetch health data from Firestore
+        # Read the per-provider subcollections under health_data/{user_id} --
+        # the only place sync_health_data_oauth writes. The metrics live in a
+        # nested 'data' map and the window a sync covers is 'date_range'.
+        # This previously queried top-level health_data documents for flat
+        # 'steps'/'sleep_hours'/... fields. Nothing writes those: no backend
+        # path creates them, and firestore.rules has no health_data match, so
+        # client SDKs cannot either. health_data/{user_id} exists only as the
+        # implicit parent of the subcollections -- a document that does not
+        # exist and never appears in query results. The filter therefore
+        # matched nothing on every call, the failure surfaced only as an
+        # "insufficient_data" analysis, and the endpoint could not return
+        # health data for anyone.
         health_data = []
         try:
-            health_ref = db.collection('health_data').where(filter=FieldFilter('user_id', '==', user_id)).limit(days).stream()
-            for doc in health_ref:
-                doc_data = doc.to_dict()
-                health_data.append({
-                    'date': doc_data.get('date'),
-                    'steps': doc_data.get('steps', 0),
-                    'sleep_hours': doc_data.get('sleep_hours', 0),
-                    'heart_rate': doc_data.get('heart_rate', 0),
-                    'calories': doc_data.get('calories', 0)
-                })
+            user_health_ref = db.collection('health_data').document(user_id)
+            for provider_ref in user_health_ref.collections():
+                provider_docs = (
+                    provider_ref
+                    .order_by('synced_at', direction='DESCENDING')
+                    .limit(days)
+                    .stream()
+                )
+                for doc in provider_docs:
+                    doc_data = doc.to_dict() or {}
+                    metrics = doc_data.get('data') or {}
+                    date_range = doc_data.get('date_range') or {}
+                    health_data.append({
+                        # A synced entry covers a range, not a single day; its
+                        # end is the closest thing to the date the metrics
+                        # describe.
+                        'date': date_range.get('end') or doc_data.get('synced_at'),
+                        'steps': metrics.get('steps', 0),
+                        'sleep_hours': metrics.get('sleep_hours', 0),
+                        'heart_rate': metrics.get('heart_rate', 0),
+                        'calories': metrics.get('calories', 0)
+                    })
         except Exception as e:
             logger.warning(f"Failed to fetch health data: {e}")
 
@@ -602,7 +630,9 @@ def analyze_health_mood_patterns():
                 doc_data = doc.to_dict()
                 mood_data.append({
                     'date': doc_data.get('timestamp'),
-                    'mood_score': doc_data.get('mood_score', 5)
+                    # Logged moods store their rating as 'score'; reading only
+                    # 'mood_score' scored every entry at the neutral default.
+                    'mood_score': doc_data.get('mood_score', doc_data.get('score', 5))
                 })
         except Exception as e:
             logger.warning(f"Failed to fetch mood data: {e}")
