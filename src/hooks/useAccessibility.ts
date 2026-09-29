@@ -201,6 +201,20 @@ export const useAccessibility = (): AccessibilityState & AccessibilityActions =>
           targetRegion.textContent = message;
         }
       }, 100);
+      /*
+        And clear it again once it has been read.
+        This cleared BEFORE announcing but never after, so the last message sat
+        in the accessibility tree indefinitely. With a polite and an assertive
+        region each holding their last line, anything reading the DOM as text
+        sees them together — which is why a QA pass reported the live region
+        "accumulating" messages like "Sida laddad: … / Dashboard laddad".
+        Matches what useAnnounce in SkipLink already does.
+      */
+      setTimeout(() => {
+        if (targetRegion && targetRegion.textContent === message) {
+          targetRegion.textContent = '';
+        }
+      }, 3000);
     }
   }, []);
 
