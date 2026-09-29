@@ -426,7 +426,8 @@
     "crisisSos": "📞 SOS Alarm: 112",
     "crisisMind": "💙 Mind: 90101 (dygnet runt)",
     "crisisDisclaimer": "Lugn & Trygg ersätter inte professionell vård. Sök hjälp om du mår dåligt.",
-    "voicePremium": "Röst är en Premium-funktion"
+    "voicePremium": "Röst är en Premium-funktion",
+    "voicePremiumAction": "Röst är en Premium-funktion — uppgradera"
   },
   "subscription": {
     "title": "Uppgradera till Premium",
