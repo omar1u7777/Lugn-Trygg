@@ -331,7 +331,10 @@ describe('📝 Register Form Integration', () => {
       fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'Short1!' } }); // Too short
       fireEvent.change(confirmPasswordInput, { target: { value: 'Short1!' } });
-      fireEvent.click(submitButton);
+      // Was a submit click. The button is disabled while the form is invalid
+      // (BUG-38), so blur is where these messages appear now.
+      fireEvent.blur(passwordInput);
+      fireEvent.blur(confirmPasswordInput);
 
       await waitFor(() => {
         const passwordError = document.getElementById('password-error');
@@ -353,7 +356,10 @@ describe('📝 Register Form Integration', () => {
       fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'weakpassword' } }); // No uppercase, no number, no special char
       fireEvent.change(confirmPasswordInput, { target: { value: 'weakpassword' } });
-      fireEvent.click(submitButton);
+      // Was a submit click. The button is disabled while the form is invalid
+      // (BUG-38), so blur is where these messages appear now.
+      fireEvent.blur(passwordInput);
+      fireEvent.blur(confirmPasswordInput);
 
       await waitFor(() => {
         const passwordError = document.getElementById('password-error');
@@ -375,7 +381,10 @@ describe('📝 Register Form Integration', () => {
       fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'StrongPass123!' } });
       fireEvent.change(confirmPasswordInput, { target: { value: 'DifferentPass123!' } });
-      fireEvent.click(submitButton);
+      // Was a submit click. The button is disabled while the form is invalid
+      // (BUG-38), so blur is where these messages appear now.
+      fireEvent.blur(passwordInput);
+      fireEvent.blur(confirmPasswordInput);
 
       await waitFor(() => {
         expect(document.getElementById('confirmPassword-error')).toBeInTheDocument();

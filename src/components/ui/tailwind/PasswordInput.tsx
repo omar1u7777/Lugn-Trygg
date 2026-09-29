@@ -17,6 +17,8 @@ export interface PasswordInputProps {
   autoComplete?: string | undefined;
   value: string;
   onChange: (value: string) => void;
+  /** Fired when the field loses focus, for validating as the user moves on. */
+  onBlur?: (() => void) | undefined;
   placeholder?: string | undefined;
   required?: boolean;
   disabled?: boolean;
@@ -34,6 +36,7 @@ export const PasswordInput: React.FC<PasswordInputProps> = ({
   autoComplete,
   value,
   onChange,
+  onBlur,
   placeholder,
   required = false,
   disabled = false,
@@ -61,6 +64,7 @@ export const PasswordInput: React.FC<PasswordInputProps> = ({
         type={showPassword ? 'text' : 'password'}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         placeholder={placeholder}
         required={required}
         disabled={disabled}
