@@ -2216,7 +2216,9 @@
     "generate": "Generer innsikt",
     "recommendation": "Anbefaling",
     "retryLater": "Prøv igjen senere",
-    "error": "Kunne ikke hente innsikt akkurat nå. Prøv igjen."
+    "error": "Kunne ikke hente innsikt akkurat nå. Prøv igjen.",
+    "allHandled": "Du har håndtert alle innsiktene dine",
+    "allHandledHint": "Nye innsikter dukker opp etter hvert som du fortsetter å logge humøret ditt."
   },
   "dailyInsights": {
     "minMoodsRequired": "Minst 3 humørlogger trengs for å generere innsikt.",
