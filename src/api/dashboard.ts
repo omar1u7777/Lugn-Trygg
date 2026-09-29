@@ -1,5 +1,6 @@
 import { api } from "./client";
 import { withSignal } from "./requestOptions";
+import { dedupeInFlight } from "./inFlight";
 import { API_ENDPOINTS } from "./constants";
 import { logger } from "../utils/logger";
 import { extractErrorMessage } from "./errorMessage";
@@ -96,11 +97,27 @@ export const getCSRFToken = async (): Promise<string> => {
  * @returns Promise resolving to dashboard summary data
  * @throws Error if dashboard summary retrieval fails
  */
-export const getDashboardSummary = async (userId: string, forceRefresh = false, signal?: AbortSignal): Promise<DashboardSummary> => {
+export const getDashboardSummary = (userId: string, forceRefresh = false, signal?: AbortSignal): Promise<DashboardSummary> => {
   if (!userId) {
-    throw new Error('User ID is required for dashboard summary');
+    return Promise.reject(new Error('User ID is required for dashboard summary'));
   }
 
+  /*
+   * One load of /daily-insights produced fifteen identical calls to this
+   * endpoint in a single burst. Several components mount together and each
+   * asks independently; none knows the others exist. Callers that overlap now
+   * share one flight.
+   *
+   * Keyed on forceRefresh as well as the user: a deliberate refresh must not
+   * be answered by a request that was already going to return the cached copy.
+   */
+  return dedupeInFlight(
+    `dashboard:summary:${userId}:${forceRefresh}`,
+    () => fetchDashboardSummary(userId, forceRefresh, signal)
+  );
+};
+
+const fetchDashboardSummary = async (userId: string, forceRefresh: boolean, signal?: AbortSignal): Promise<DashboardSummary> => {
   const startTime = performance.now();
   try {
     const url = `${API_ENDPOINTS.DASHBOARD.DASHBOARD_SUMMARY}/${userId}/summary`;
