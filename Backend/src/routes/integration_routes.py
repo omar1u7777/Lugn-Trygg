@@ -105,6 +105,12 @@ def remove_user_device(user_id, device_id):
 
 SUPPORTED_PROVIDERS = ['google_fit', 'fitbit', 'samsung', 'withings']
 
+# Health/mood analysis window bounds. MAX_ANALYSIS_ENTRIES caps how many docs a
+# single analysis may read: the time window already bounds the range, but a user
+# syncing several providers can hold many entries per day.
+MAX_ANALYSIS_DAYS = 365
+MAX_ANALYSIS_ENTRIES = 1000
+
 @integration_bp.route("/oauth/<provider>/authorize", methods=["GET", "OPTIONS"])
 @rate_limit_by_endpoint
 @AuthService.jwt_required
@@ -576,12 +582,33 @@ def analyze_health_mood_patterns():
 
         # Get request parameters (optional date range)
         data = request.get_json(silent=True) or {}
-        days = data.get('days', 30)  # Default to last 30 days
+        try:
+            days = int(data.get('days', 30))  # Default to last 30 days
+        except (TypeError, ValueError):
+            return APIResponse.bad_request('days must be an integer')
+        if days < 1 or days > MAX_ANALYSIS_DAYS:
+            return APIResponse.bad_request(f'days must be between 1 and {MAX_ANALYSIS_DAYS}')
 
-        # Fetch health data from Firestore
+        # 'days' is a time window, not a document count. Both collections store
+        # their date field as an ISO-8601 string, which sorts chronologically,
+        # so the window is a range filter on that field. The order_by is not
+        # optional: without it Firestore returns documents in __name__ order,
+        # which is stable and arbitrary, so the same subset was re-read on every
+        # run — frozen as the collection grew, with new entries falling outside
+        # it. The limit is only a read cap on top of the window.
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+
+        # Fetch health data from Firestore ('health_data' dates its docs 'date')
         health_data = []
         try:
-            health_ref = db.collection('health_data').where(filter=FieldFilter('user_id', '==', user_id)).limit(days).stream()
+            health_ref = (
+                db.collection('health_data')
+                .where(filter=FieldFilter('user_id', '==', user_id))
+                .where(filter=FieldFilter('date', '>=', cutoff))
+                .order_by('date', direction='DESCENDING')
+                .limit(MAX_ANALYSIS_ENTRIES)
+                .stream()
+            )
             for doc in health_ref:
                 doc_data = doc.to_dict()
                 health_data.append({
@@ -594,10 +621,17 @@ def analyze_health_mood_patterns():
         except Exception as e:
             logger.warning(f"Failed to fetch health data: {e}")
 
-        # Fetch mood data from Firestore
+        # Fetch mood data from Firestore ('moods' dates its docs 'timestamp')
         mood_data = []
         try:
-            mood_ref = db.collection('moods').where(filter=FieldFilter('user_id', '==', user_id)).limit(days).stream()
+            mood_ref = (
+                db.collection('moods')
+                .where(filter=FieldFilter('user_id', '==', user_id))
+                .where(filter=FieldFilter('timestamp', '>=', cutoff))
+                .order_by('timestamp', direction='DESCENDING')
+                .limit(MAX_ANALYSIS_ENTRIES)
+                .stream()
+            )
             for doc in mood_ref:
                 doc_data = doc.to_dict()
                 mood_data.append({
