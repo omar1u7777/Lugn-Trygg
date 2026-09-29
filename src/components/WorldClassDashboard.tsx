@@ -35,6 +35,7 @@ import { analytics } from '../services/analytics';
 import { logger } from '../utils/logger';
 import useAuth from '../hooks/useAuth';
 import { extractDisplayName } from '../utils/nameUtils';
+import type { TFunction } from 'i18next';
 
 interface WorldClassDashboardProps {
   userId?: string;
@@ -84,8 +85,21 @@ const RecommendationsSkeleton = () => (
  * - NO MUI - Pure Tailwind CSS
  */
 // Helper function för implementation intentions (nästa steg per mål)
-const getNextStepForGoal = (goal: string, t: (key: string) => unknown): string => {
-  const steps = t('dashboard.goalSteps') as Record<string, string[]> | undefined;
+const getNextStepForGoal = (goal: string, t: TFunction): string => {
+  /*
+   * returnObjects is what makes this work at all.
+   *
+   * dashboard.goalSteps has held real per-goal step lists in all three locale
+   * files the whole time — fifteen of them. But i18next refuses to hand back an
+   * object without being asked, and returns the KEY STRING instead. Indexing a
+   * string by a goal name gives undefined, so every lookup fell through to
+   * dashboard.defaultGoalStep and all three goals showed the same task:
+   * "Logga ditt humör idag".
+   *
+   * The cast below said Record<string, string[]> and it was a string. That is
+   * why nothing failed loudly: the type was a promise nobody kept.
+   */
+  const steps = t('dashboard.goalSteps', { returnObjects: true }) as Record<string, string[]> | undefined;
   const goalSteps: string[] = (steps && steps[goal]) || (steps?.['default'] as string[]) || [t('dashboard.defaultGoalStep') as string];
   // Deterministic selection: hash goal name + current day to avoid flicker on re-render
   // while still rotating the suggestion daily
@@ -714,7 +728,17 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                         className="text-xs text-gray-500 dark:text-gray-400 cursor-pointer flex-1 leading-tight truncate whitespace-nowrap"
                         title={nextStep}
                       >
-                        {nextStep.length > 20 ? nextStep.substring(0, 20) + '...' : nextStep}
+                        {/*
+                          The label already carries `truncate whitespace-nowrap`
+                          — CSS text-overflow: ellipsis — so this substring cut
+                          the text a second time, at a fixed 20 characters, with
+                          no idea how much room there actually was. Measured at
+                          122px of text in a 323px card: "Logga ditt humör ida…"
+                          where the whole sentence fit.
+
+                          CSS knows the width; a string length does not.
+                        */}
+                        {nextStep}
                       </label>
                       <button
                         onClick={() => {
