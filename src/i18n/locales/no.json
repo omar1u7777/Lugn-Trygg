@@ -1808,9 +1808,9 @@
   "recommendationsPool": {
     "stress-1": {
       "title": "4-7-8 Pusteøvelse",
-      "description": "Dr. Andrew Weils vitenskapelig beprøvde metode for angst og søvn",
+      "description": "Dr. Andrew Weils pusteteknikk for uro og søvn",
       "category": "Stressmestring",
-      "content": "Denne teknikken aktiverer det parasympatiske nervesystemet og senker kortisolnivåer med opp til 30%."
+      "content": "Teknikken aktiverer det parasympatiske nervesystemet, den delen av kroppen som demper stressresponsen."
     },
     "stress-2": {
       "title": "KAT-øvelse: Håndtere Stressende Tanker",
@@ -2253,7 +2253,7 @@
     "rest": "Hvil",
     "completed": "Ferdig!",
     "basicMode": "Grunnmodus",
-    "hrvBiofeedback": "HRV-biofeedback",
+    "hrvBiofeedback": "Resonanspusting",
     "patternDescription": "Velg pustemønster — sirkelen animeres i sanntid basert på pusterytmen din.",
     "patterns": {
       "coherence": "❤️ Koherens 6bpm",
