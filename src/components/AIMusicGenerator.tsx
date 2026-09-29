@@ -88,7 +88,7 @@ async function fetchAudioBlob(url: string): Promise<string> {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export const AIMusicGenerator: React.FC = () => {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const sv = i18n.language === 'sv';
 
   // — Soundscape catalogue
@@ -631,12 +631,24 @@ export const AIMusicGenerator: React.FC = () => {
       {/* ── Best-for chips on selected soundscape ── */}
       {selectedSoundscape && (
         <div className="text-xs text-slate-500 dark:text-slate-400">
-          <span className="font-semibold">{sv ? 'Passar för: ' : 'Good for: '}</span>
-          {selectedSoundscape.best_for.map((tag, i) => (
-            <span key={i} className="inline-block mr-1 mb-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-              {tag}
-            </span>
-          ))}
+          {/*
+            Was `sv ? 'Passar för: ' : 'Good for: '` — a hand-rolled two-way
+            ternary, so Norwegian got English. There are three locales.
+          */}
+          <span className="font-semibold">{t('aiMusic.goodFor', 'Passar för:')} </span>
+          {/*
+            A list, not loose spans. Visually the chips were separated by
+            margin, but the text content ran them together —
+            "MeditationMindfulnessCreative flow" is what a screen reader and any
+            text extraction saw.
+          */}
+          <ul className="inline">
+            {selectedSoundscape.best_for.map((tag, i) => (
+              <li key={i} className="inline-block mr-1 mb-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                {tag}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

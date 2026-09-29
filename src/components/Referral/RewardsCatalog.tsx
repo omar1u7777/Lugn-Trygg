@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
 import { API_ENDPOINTS } from '../../api/constants';
+import { useTranslation } from 'react-i18next';
 import { logger } from '../../utils/logger';
 import { extractErrorMessage } from '../../api/errorMessage';
 
@@ -21,6 +22,7 @@ interface RewardsCatalogProps {
 }
 
 const RewardsCatalog: React.FC<RewardsCatalogProps> = ({ availableWeeks, onRedemption }) => {
+    const { t } = useTranslation();
     const { user } = useAuth();
     const [rewards, setRewards] = useState<Reward[]>([]);
     const [loading, setLoading] = useState(true);
@@ -129,8 +131,15 @@ const RewardsCatalog: React.FC<RewardsCatalogProps> = ({ availableWeeks, onRedem
                                 <div className="flex items-center gap-2">
                                     <span className="text-3xl">{reward.emoji}</span>
                                     <div>
+                                        {/*
+                                          BUG-30: names arrive from the backend
+                                          in English. Translated by the stable
+                                          id, with the server's own value as
+                                          defaultValue so a reward added
+                                          server-side still renders.
+                                        */}
                                         <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                                            {reward.name}
+                                            {t(`rewardsCatalog.${reward.id}.title`, { defaultValue: reward.name })}
                                         </h3>
                                         <p className="text-xs text-slate-600 dark:text-slate-400 capitalize">
                                             {reward.type}
@@ -142,13 +151,13 @@ const RewardsCatalog: React.FC<RewardsCatalogProps> = ({ availableWeeks, onRedem
                                         {reward.cost}
                                     </div>
                                     <div className="text-xs text-slate-600 dark:text-slate-400">
-                                        veckor
+                                        {t('referral.weeksUnit', { count: reward.cost })}
                                     </div>
                                 </div>
                             </div>
 
                             <p className="text-sm text-slate-700 dark:text-slate-300 mb-4">
-                                {reward.description}
+                                {t(`rewardsCatalog.${reward.id}.description`, { defaultValue: reward.description })}
                             </p>
 
                             <button
