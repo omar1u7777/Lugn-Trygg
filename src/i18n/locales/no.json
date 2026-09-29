@@ -362,7 +362,9 @@
         "alone": "Alene",
         "nature": "Natur",
         "creative": "Kreativt"
-      }
+      },
+      "errorEmpty": "Skriv noe før du legger til taggen",
+      "errorDuplicate": "Taggen er allerede valgt"
     }
   },
   "memories": {
