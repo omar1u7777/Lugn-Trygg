@@ -2286,5 +2286,12 @@
   },
   "moodList": {
     "shown": "Visade"
+  },
+  "wellnessGoals": {
+    "skip": "Hoppa över",
+    "saving": "Sparar…",
+    "continue": "Fortsätt ({{selected}}/{{max}})",
+    "save": "Spara ({{selected}}/{{max}})",
+    "close": "Stäng"
   }
 }

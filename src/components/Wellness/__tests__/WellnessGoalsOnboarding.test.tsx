@@ -2,7 +2,25 @@
  * WellnessGoalsOnboarding Tests
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react';
+import { I18nextProvider } from 'react-i18next';
+
+// The button labels come from the locale files now — they used to be hardcoded
+// Swedish, which is why this file could get away without i18n at all. Rendering
+// inside the provider is what makes t() resolve; importing the instance alone is
+// not enough, and a t() that silently returns '' leaves the save button with no
+// accessible name rather than failing loudly.
+import i18n from '../../../i18n';
+
+const render = (ui: React.ReactElement) =>
+  rtlRender(<I18nextProvider i18n={i18n}>{ui}</I18nextProvider>);
+
+// Pinned to Swedish. The language detector reads navigator.language, which is
+// en-US under jsdom, so these assertions were only deterministic while the
+// labels were hardcoded Swedish.
+beforeEach(async () => {
+  await i18n.changeLanguage('sv');
+});
 
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
 const { setWellnessGoalsMock, getDashboardSummaryMock } = vi.hoisted(() => ({

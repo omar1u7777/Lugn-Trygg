@@ -2288,5 +2288,12 @@
   },
   "moodList": {
     "shown": "Viste"
+  },
+  "wellnessGoals": {
+    "skip": "Hopp over",
+    "saving": "Lagrer…",
+    "continue": "Fortsett ({{selected}}/{{max}})",
+    "save": "Lagre ({{selected}}/{{max}})",
+    "close": "Lukk"
   }
 }
