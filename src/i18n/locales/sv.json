@@ -234,7 +234,8 @@
     "openBreathingExercise": "Öppna andningsövning",
     "openJournal": "Öppna journal",
     "openMeditation": "Öppna meditation",
-    "seeSleepTips": "Se sömntips"
+    "seeSleepTips": "Se sömntips",
+    "seeRecommendations": "Se rekommendationer"
   },
   "navLinks": {
     "dashboard": "Översikt",
@@ -808,7 +809,8 @@
     "algorithm": "Algoritm",
     "trainingAccuracy": "Träningsnoggrannhet",
     "dataPoints": "Datapunkter",
-    "noData": "Ingen data tillgänglig för analys"
+    "noData": "Ingen data tillgänglig för analys",
+    "loading": "Laddar din analys…"
   },
   "moodLogger": {
     "title": "Hur mår du?",
@@ -1071,7 +1073,13 @@
       "downwardTrendDesc": "Ditt humör har sjunkit de senaste dagarna. Överväg att prata med någon.",
       "needSupport": "Behöver du stöd?",
       "needSupportDesc": "Ditt humör är lågt. Du är inte ensam - överväg professionell hjälp."
-    }
+    },
+    "trendStep1": "1. Vi tar dina 7 senaste humörloggningar.",
+    "trendStep2": "2. Vi tar de 7 loggningarna dessförinnan.",
+    "trendStep3": "3. Vi räknar ut medelvärdet för varje grupp.",
+    "trendStep4": "4. Vi jämför de två medelvärdena.",
+    "trendStep5": "5. Skillnad över 0,5 räknas som uppåt, under −0,5 som nedåt, annars stabilt.",
+    "trendStep6": "6. Tröskeln 0,5 finns för att vanlig dagsvariation inte ska kallas en trend."
   },
   "worldDashboard": {
     "dashboardLoaded": "Dashboard laddad",
@@ -1270,7 +1278,9 @@
     "networkError": "Kunde inte ansluta till servern. Kontrollera internetanslutningen.",
     "popupBlocked": "Popup blockerad. Tillåt popups för denna webbplats.",
     "popupClosed": "Inloggningsfönstret stängdes. Försök igen.",
-    "popupCancelled": "Inloggningsfönstret avbröts. Försök igen."
+    "popupCancelled": "Inloggningsfönstret avbröts. Försök igen.",
+    "loginTitle": "Logga in",
+    "welcomeBack": "Välkommen tillbaka"
   },
   "forgotPassword": {
     "title": "Återställ Lösenord",
@@ -1414,7 +1424,8 @@
     "profile": "Profil",
     "settings": "Inställningar",
     "theme": "Tema",
-    "language": "Språk"
+    "language": "Språk",
+    "logout": "Logga ut"
   },
   "password": {
     "strength": {
