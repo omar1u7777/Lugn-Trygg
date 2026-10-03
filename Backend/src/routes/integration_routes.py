@@ -558,6 +558,80 @@ def sync_health_data_oauth(provider):
 # HEALTH ANALYTICS ENDPOINTS - AI ANALYSIS
 # ============================================================================
 
+# Upper bound on the /health/analyze window, matching mood_analytics_routes.
+MAX_ANALYSIS_DAYS = 365
+# Read cap per source. The window bounds the range; this bounds the cost for a
+# user who syncs several providers many times a day.
+MAX_ANALYSIS_ENTRIES = 1000
+
+
+def _read_synced_health(user_id: str, cutoff: str) -> list[dict]:
+    """Health syncs within the window, flattened for the correlation.
+
+    sync_health_data_oauth, the only writer, stores each sync at
+    health_data/{user_id}/{provider}/{auto_id} with the metrics nested under
+    'data'. This used to query top-level health_data documents for flat
+    'steps'/'sleep_hours' fields that nothing writes, so it matched nothing
+    for anyone and the analysis always reported insufficient data.
+
+    A sync covers a window, not a day; it is dated by the window's end, which
+    is the day _match_health_to_mood pairs it with.
+    """
+    entries: list[dict] = []
+    try:
+        for provider_ref in db.collection('health_data').document(user_id).collections():
+            docs = (
+                provider_ref
+                .where(filter=FieldFilter('synced_at', '>=', cutoff))
+                .order_by('synced_at', direction='DESCENDING')
+                .limit(MAX_ANALYSIS_ENTRIES)
+                .stream()
+            )
+            for doc in docs:
+                doc_data = doc.to_dict() or {}
+                metrics = doc_data.get('data') or {}
+                date_range = doc_data.get('date_range') or {}
+                entries.append({
+                    'date': date_range.get('end') or doc_data.get('synced_at'),
+                    'steps': metrics.get('steps', 0),
+                    'sleep_hours': metrics.get('sleep_hours', 0),
+                    'heart_rate': metrics.get('heart_rate', 0),
+                    'calories': metrics.get('calories', 0),
+                })
+    except Exception as e:
+        logger.warning(f"Failed to fetch health data: {e}")
+    return entries
+
+
+def _read_moods_since(user_id: str, cutoff: str) -> list[dict]:
+    """Logged moods within the window.
+
+    Moods live in users/{uid}/moods with the rating in 'score'. This used to
+    query a top-level 'moods' collection by user_id — the schema of
+    MoodRepository, which nothing uses — so it was always empty, and read
+    'mood_score', so even a match would have scored every entry 5.
+    analyze_health_mood_correlation below was fixed the same way.
+    """
+    entries: list[dict] = []
+    try:
+        docs = (
+            db.collection('users').document(user_id).collection('moods')
+            .where(filter=FieldFilter('timestamp', '>=', cutoff))
+            .order_by('timestamp', direction='DESCENDING')
+            .limit(MAX_ANALYSIS_ENTRIES)
+            .stream()
+        )
+        for doc in docs:
+            doc_data = doc.to_dict() or {}
+            entries.append({
+                'date': doc_data.get('timestamp'),
+                'mood_score': doc_data.get('score', doc_data.get('mood_score', 5)),
+            })
+    except Exception as e:
+        logger.warning(f"Failed to fetch mood data: {e}")
+    return entries
+
+
 @integration_bp.route("/health/analyze", methods=["POST", "OPTIONS"])
 @rate_limit_by_endpoint
 @AuthService.jwt_required
@@ -577,35 +651,14 @@ def analyze_health_mood_patterns():
         # Get request parameters (optional date range)
         data = request.get_json(silent=True) or {}
         days = data.get('days', 30)  # Default to last 30 days
+        # 'days' is a window, not a document count, and it arrives from the
+        # request body, so it is validated before it reaches timedelta.
+        if isinstance(days, bool) or not isinstance(days, int) or not 1 <= days <= MAX_ANALYSIS_DAYS:
+            return APIResponse.bad_request(f'days must be an integer between 1 and {MAX_ANALYSIS_DAYS}')
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
 
-        # Fetch health data from Firestore
-        health_data = []
-        try:
-            health_ref = db.collection('health_data').where(filter=FieldFilter('user_id', '==', user_id)).limit(days).stream()
-            for doc in health_ref:
-                doc_data = doc.to_dict()
-                health_data.append({
-                    'date': doc_data.get('date'),
-                    'steps': doc_data.get('steps', 0),
-                    'sleep_hours': doc_data.get('sleep_hours', 0),
-                    'heart_rate': doc_data.get('heart_rate', 0),
-                    'calories': doc_data.get('calories', 0)
-                })
-        except Exception as e:
-            logger.warning(f"Failed to fetch health data: {e}")
-
-        # Fetch mood data from Firestore
-        mood_data = []
-        try:
-            mood_ref = db.collection('moods').where(filter=FieldFilter('user_id', '==', user_id)).limit(days).stream()
-            for doc in mood_ref:
-                doc_data = doc.to_dict()
-                mood_data.append({
-                    'date': doc_data.get('timestamp'),
-                    'mood_score': doc_data.get('mood_score', 5)
-                })
-        except Exception as e:
-            logger.warning(f"Failed to fetch mood data: {e}")
+        health_data = _read_synced_health(user_id, cutoff)
+        mood_data = _read_moods_since(user_id, cutoff)
 
         # Analyze correlation using health_analytics_service
         analysis = health_analytics_service.analyze_health_mood_correlation(
