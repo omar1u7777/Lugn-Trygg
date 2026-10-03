@@ -10,6 +10,49 @@ from src.utils.telemetry import telemetry
 logger = logging.getLogger(__name__)
 
 
+# Clinical scores reach the model from two places: the profile block, read from
+# clinical_assessments on every request, and the conversation history, where
+# earlier replies quote whatever score was current when they were written. A
+# user whose latest PHQ-9 was 3 (minimal) was told by the chat that it was 7,
+# and in another reply that it showed moderately severe depression — both from
+# older turns. These rules make the profile block the only citable source and
+# forbid inventing scores or earlier sessions when there is none.
+CLINICAL_SCORES_AUTHORITY_RULE = (
+    "KLINISKA POÄNG — REGEL:\n"
+    "Värdena ovan är de enda aktuella skattningarna och läses direkt ur "
+    "användarens sparade data. Poäng eller svårighetsgrader som nämns "
+    "tidigare i samtalet eller i sammanfattningar av tidigare samtal kan vara "
+    "inaktuella. Nämn aldrig en PHQ-9- eller GAD-7-poäng eller "
+    "svårighetsgrad som inte står ovan, och ange datumet om du nämner en. "
+    "Påstå aldrig att ni har pratat om något i en tidigare session om det "
+    "inte står i sammanfattningarna av tidigare samtal."
+)
+
+CLINICAL_SCORES_ABSENT_RULE = (
+    "KLINISKA POÄNG — REGEL:\n"
+    "Användaren har inga sparade PHQ-9- eller GAD-7-skattningar. Nämn inga "
+    "sådana poäng eller svårighetsgrader, inte heller sådana som förekommer "
+    "tidigare i samtalet. Påstå aldrig att ni har pratat om något i en "
+    "tidigare session om det inte står i sammanfattningarna av tidigare samtal."
+)
+
+
+def _assessment_date(timestamp: Any) -> str:
+    """YYYY-MM-DD from a stored assessment timestamp, or '' if unreadable.
+
+    Assessments are written with datetime.isoformat(); older documents may
+    hold a native Firestore timestamp.
+    """
+    if isinstance(timestamp, datetime):
+        return timestamp.date().isoformat()
+    if isinstance(timestamp, str) and len(timestamp) >= 10:
+        try:
+            return datetime.fromisoformat(timestamp[:10]).date().isoformat()
+        except ValueError:
+            return ""
+    return ""
+
+
 def split_into_chunks(text: str, chunk_size: int = 8) -> list[str]:
     """Split text into word-based chunks for simulated streaming fallback."""
     words = text.split(" ")
@@ -617,6 +660,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
         # 2. Latest PHQ-9 and GAD-7 assessment scores from clinical_assessments
         # Avoid composite index requirement by fetching recent docs and filtering in Python
         crisis_alert = ""
+        scores_found = False
         for assessment_type, label in [("phq9", "PHQ-9 (depression)"), ("gad7", "GAD-7 (ångest)")]:
             try:
                 # Fetch latest 10 assessments ordered by timestamp (no where filter = no index needed)
@@ -636,7 +680,10 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                         if score is not None:
                             severity = a_data.get("severity") or ""
                             severity_part = f" — {severity}" if severity else ""
-                            parts.append(f"- Senaste {label}: {score} p{severity_part}")
+                            date_part = _assessment_date(a_data.get("timestamp"))
+                            date_part = f" (ifylld {date_part})" if date_part else ""
+                            parts.append(f"- Senaste {label}: {score} p{severity_part}{date_part}")
+                            scores_found = True
                             # Check for suicidal ideation (PHQ-9 Q9)
                             if assessment_type == "phq9":
                                 suicidal = a_data.get("suicidal_ideation", False)
@@ -658,9 +705,12 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             except Exception as exc:
                 logger.warning("%s score fetch failed: %s", assessment_type, exc)
 
-        if len(parts) <= 1:
-            # Only name or nothing useful
-            return "".join(parts) if parts else ""
+        if not scores_found:
+            # Without this the model fills the gap: earlier replies in the
+            # conversation history quote whatever score was current then, and
+            # it repeats them as if they were today's.
+            parts.append(CLINICAL_SCORES_ABSENT_RULE)
+            return "\n\n".join(parts) + crisis_alert
 
         # Add guidance for the AI
         parts.append(
@@ -668,6 +718,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             "Referera naturligt till användarens namn och vara medveten om "
             "deras nuvarande symtomnivå, men upprepa inte poängen mekaniskt."
         )
+        parts.append(CLINICAL_SCORES_AUTHORITY_RULE)
         return "\n\n".join(parts) + crisis_alert
 
     def fetch_cross_source_context(self, user_id: str) -> str:
