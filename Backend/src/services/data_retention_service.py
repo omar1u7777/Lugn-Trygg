@@ -4,6 +4,7 @@ Implements automated data retention and deletion policies
 """
 
 import logging
+import threading
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -26,6 +27,37 @@ class RetentionEnumerationError(RuntimeError):
     existing resume cursor rather than treating the short iteration as
     completion.
     """
+
+
+# Cooperative shutdown for the all-users sweep.
+#
+# The sweep runs in a daemon thread of a Gunicorn worker, and that worker is
+# recycled on max_requests roughly every 73 minutes. A recycle is planned and
+# graceful, but a daemon thread is not told about it: it simply stops existing
+# when the interpreter exits. The per-page checkpoint keeps the progress, yet
+# the next run still finds the in-progress flag and raises
+# data_retention_interrupted at level=fatal — so a routine recycle and a real
+# kill (OOM, SIGKILL) produced the same alarm, about one night in three.
+#
+# Gunicorn's worker_exit hook runs in the worker after the serving loop has
+# drained and before the process exits. It sets _stop_requested and waits on
+# _sweep_idle; the sweep sees the request at the next user boundary, writes
+# its position as a clean stop, and returns. The alarm is then left for the
+# deaths nothing could announce.
+_stop_requested = threading.Event()
+_sweep_idle = threading.Event()
+_sweep_idle.set()
+
+
+def request_sweep_stop(timeout: float) -> bool:
+    """Ask a running sweep to stop at the next user boundary and wait for it.
+
+    Returns True when no sweep is running by the time this returns, False if
+    it was still running after `timeout` seconds.
+    """
+    _stop_requested.set()
+    return _sweep_idle.wait(timeout)
+
 
 class DataRetentionService:
     """Service for managing data retention policies"""
@@ -77,6 +109,11 @@ class DataRetentionService:
         collections_processed = []
         users_processed = 0
 
+        if user_id is None:
+            # Single-user calls are short HTTP requests; only the all-users
+            # sweep outlives a request and needs worker_exit to wait for it.
+            _sweep_idle.clear()
+
         try:
             if user_id:
                 # Process single user
@@ -105,18 +142,25 @@ class DataRetentionService:
 
                 last_seen: str | None = resume_from
                 for current_user_id in self._iter_user_ids(start_after=resume_from):
-                    if time.monotonic() - started > self.SWEEP_BUDGET_SECONDS:
+                    if _stop_requested.is_set():
+                        stopped_by = 'shutdown'
+                    elif time.monotonic() - started > self.SWEEP_BUDGET_SECONDS:
+                        stopped_by = 'budget'
+                    else:
+                        stopped_by = None
+
+                    if stopped_by:
                         # Stop on our own terms rather than being killed mid-user.
                         self._write_cursor(last_seen, in_progress=False)
                         logger.warning(
-                            "🗑️ Retention hit its %ds budget after %d users; "
+                            "🗑️ Retention stopped (%s) after %d users; "
                             "%d records deleted. Resuming after %r next run.",
-                            self.SWEEP_BUDGET_SECONDS, users_processed,
-                            total_deleted, last_seen,
+                            stopped_by, users_processed, total_deleted, last_seen,
                         )
                         return {
                             'success': True,
                             'partial': True,
+                            'stopped_by': stopped_by,
                             'resume_after': last_seen,
                             'users_processed': users_processed,
                             'total_deleted': total_deleted,
@@ -194,6 +238,9 @@ class DataRetentionService:
                 'total_deleted': total_deleted,
                 'collections_processed': collections_processed,
             }
+        finally:
+            if user_id is None:
+                _sweep_idle.set()
 
     # Bounded so one failing page costs at most this many users, and so the
     # stream backing each page is short-lived enough not to hit a deadline.
@@ -426,13 +473,56 @@ class DataRetentionService:
                 return
             cursor = batch[-1].id
 
+    # The user's own content, which /profile → Integritet lets them choose to
+    # keep for less than the policy period. Gamification records, referrals
+    # and feedback are not "their data older than N months" in the sense the
+    # setting describes, and stay on the policy period.
+    USER_SHORTENABLE_COLLECTIONS = frozenset({
+        'moods', 'conversations', 'journal_entries', 'voice_recordings',
+        'wellness_activities', 'notifications', 'insights',
+    })
+
+    # The privacy tab's slider runs from one month to two years.
+    MIN_USER_RETENTION_DAYS = 30
+
+    def _user_retention_days(self, user_id: str) -> int | None:
+        """The shorter period the user chose, or None if they did not opt in.
+
+        The privacy tab has offered "Automatically delete data older than
+        retention period" with a 1-24 month slider, and the backend stored the
+        choice, but nothing read it: the sweep applied the seven-year policy to
+        everyone, so a user who turned it on had their data kept regardless.
+        """
+        try:
+            snap = db.collection('users').document(user_id).get(  # type: ignore
+                retry=self.QUERY_RETRY, timeout=self.QUERY_TIMEOUT_SECONDS)
+            if not snap.exists:
+                return None
+            settings = (snap.to_dict() or {}).get('privacy_settings') or {}
+        except Exception as e:
+            # Not knowing the preference means the policy period still applies,
+            # which is the longer one: nothing is deleted early on a guess.
+            logger.warning("Could not read privacy settings for %s: %s", user_id[:8], e)
+            return None
+        if settings.get('autoDeleteOldData') is not True:
+            return None
+        days = settings.get('dataRetentionDays')
+        if isinstance(days, bool) or not isinstance(days, int | float):
+            return None
+        return max(self.MIN_USER_RETENTION_DAYS, int(days))
+
     def _process_user_retention(self, user_id: str) -> dict[str, Any]:
         """Process data retention for a specific user"""
         total_deleted = 0
         collections = []
+        user_days = self._user_retention_days(user_id)
 
         # Process each collection with retention policy
-        for collection_name, retention_days in self.gdpr_retention_days.items():
+        for collection_name, policy_days in self.gdpr_retention_days.items():
+            # A user can shorten retention for their own content, never extend it.
+            retention_days = policy_days
+            if user_days is not None and collection_name in self.USER_SHORTENABLE_COLLECTIONS:
+                retention_days = min(policy_days, user_days)
             try:
                 deleted_count = self._delete_expired_data(user_id, collection_name, retention_days)
                 if deleted_count > 0:

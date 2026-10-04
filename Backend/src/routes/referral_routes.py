@@ -9,6 +9,7 @@ import string
 from datetime import UTC, datetime
 
 from flask import Blueprint, g, request
+from google.cloud.firestore import FieldFilter
 
 from ..firebase_config import db
 from ..services.audit_service import audit_log
@@ -18,6 +19,7 @@ from ..services.push_notification_service import push_notification_service
 from ..services.rate_limiting import rate_limit_by_endpoint
 from ..utils import mask_email as _mask_email
 from ..utils.input_sanitization import sanitize_text
+from ..utils.public_alias import public_alias
 from ..utils.response_utils import APIResponse
 
 # FieldFilter import with fallback
@@ -287,9 +289,17 @@ def complete_referral():
 
 
 @referral_bp.route("/leaderboard", methods=["GET"])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def get_leaderboard():
-    """Get top referrers leaderboard"""
+    """Top referrers, under pseudonyms.
+
+    This was public and returned each referrer's real name and user id. Being
+    identifiable as a user of a mental-health app is the sensitive fact, so
+    the board now needs a signed-in user and shows the same stable aliases as
+    the other leaderboards. It also listed everyone who had ever generated a
+    code, at zero referrals, and read each user's document one by one.
+    """
     try:
         try:
             limit = int(request.args.get("limit", 10))
@@ -299,24 +309,19 @@ def get_leaderboard():
             return APIResponse.bad_request("limit must be a positive integer")
         limit = min(limit, 100)  # Max 100 results
 
-        # Query top referrers by successful_referrals
-        referrals_ref = db.collection("referrals").order_by(  # type: ignore
-            "successful_referrals", direction="DESCENDING"
-        ).limit(limit)
+        referrals_docs = (
+            db.collection("referrals")  # type: ignore
+            .where(filter=FieldFilter("successful_referrals", ">", 0))
+            .order_by("successful_referrals", direction="DESCENDING")
+            .limit(limit)
+            .get()
+        )
 
-        referrals_docs = referrals_ref.get()
-
+        current_user_id = g.get("user_id")
         leaderboard = []
         for idx, doc in enumerate(referrals_docs, start=1):
             data = doc.to_dict() or {}
-            user_id = data.get("user_id")
-
-            # Get user info
-            user_doc = db.collection("users").document(user_id).get()  # type: ignore
-            user_name = "Anonymous"
-            if user_doc.exists:
-                user_info = user_doc.to_dict() or {}
-                user_name = user_info.get("name", "Anonymous")
+            user_id = data.get("user_id") or doc.id
 
             # Calculate tier
             referrals = data.get("successful_referrals", 0)
@@ -335,8 +340,8 @@ def get_leaderboard():
 
             leaderboard.append({
                 "rank": idx,
-                "userId": user_id,
-                "name": user_name,
+                "name": public_alias(user_id),
+                "isCurrentUser": user_id == current_user_id,
                 "successfulReferrals": referrals,
                 "rewardsEarned": data.get("rewards_earned", 0),
                 "tier": tier,

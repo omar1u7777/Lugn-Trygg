@@ -61,6 +61,7 @@ class InsightNotificationScheduler:
         daily_claim = FirestoreLeaseLock('insight_daily_generation')
         notify_claim = FirestoreLeaseLock('insight_notifications')
         retention_claim = FirestoreLeaseLock('data_retention_enforcement')
+        health_sync_claim = FirestoreLeaseLock('health_auto_sync')
 
         while self.is_running:
             try:
@@ -83,12 +84,31 @@ class InsightNotificationScheduler:
                 if current_hour == 3 and retention_claim.try_claim_period(20 * 3600):
                     self._run_data_retention()
 
+                # Sync connected health providers for users who turned on
+                # auto-sync — the integrations page promises it every 24 h.
+                if current_hour == 4 and health_sync_claim.try_claim_period(20 * 3600):
+                    self._run_health_auto_sync()
+
                 # Sleep for 1 hour
                 time.sleep(3600)
 
             except Exception as e:
                 logger.error(f"Scheduler error: {e}")
                 time.sleep(300)  # Retry in 5 min on error
+
+    def _run_health_auto_sync(self):
+        """Run the nightly health-provider sync under telemetry."""
+        try:
+            from src.services.health_sync_service import run_auto_sync
+
+            stats = run_auto_sync()
+            # Individual failures are a provider API having a bad night for
+            # one user, not an incident; they are logged per user, and the
+            # next night's run covers two days.
+            log = logger.warning if stats.get('failed') else logger.info
+            log("🔄 Health auto-sync finished: %s", stats)
+        except Exception as e:
+            logger.exception("Scheduled health auto-sync failed: %s", e)
 
     def _run_data_retention(self):
         """Run the data-retention policy sweep under telemetry."""

@@ -25,7 +25,7 @@ vi.mock('../errors', () => ({
 }));
 vi.mock('../../utils/logger', () => ({ logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
 
-import { chatWithAI, getChatHistory, analyzeMoodPatterns, startExercise, completeExercise, transcribeAudio, analyzeVoiceEmotion, getStories, generateStory } from '../ai';
+import { chatWithAI, getChatHistory, analyzeMoodPatterns, startExercise, completeExercise, transcribeAudio, analyzeVoiceEmotion, getStories, generateStory, deriveTitle } from '../ai';
 
 describe('ai API', () => {
   beforeEach(() => {
@@ -191,5 +191,32 @@ describe('ai API', () => {
       apiMock.post.mockRejectedValueOnce(new Error('fail'));
       await expect(generateStory('sv')).rejects.toThrow();
     });
+  });
+});
+
+describe('deriveTitle', () => {
+  it('uses a leading markdown heading as the title', () => {
+    expect(deriveTitle('### Vandraren och den stilla sjön\nDet var en gång en vandrare.'))
+      .toBe('Vandraren och den stilla sjön');
+  });
+
+  it('falls back to the first sentence', () => {
+    expect(deriveTitle('Det var en gång en fågel. Den flög.')).toBe('Det var en gång en fågel');
+  });
+
+  it('cuts a long sentence at a word boundary, never mid-word', () => {
+    const title = deriveTitle('Det var en gång en liten fågel som levde i en stor skog och bodde i en liten stuga');
+    expect(title.endsWith('…')).toBe(true);
+    expect(title.length).toBeLessThanOrEqual(61);
+    expect(title).not.toMatch(/\blit…$/);
+    expect(title.slice(0, -1).endsWith(' ')).toBe(false);
+  });
+
+  it('strips markdown emphasis', () => {
+    expect(deriveTitle('**Lugnet** efter stormen.')).toBe('Lugnet efter stormen');
+  });
+
+  it('handles empty text', () => {
+    expect(deriveTitle('')).toBe('Untitled Story');
   });
 });

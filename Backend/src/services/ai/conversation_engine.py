@@ -10,6 +10,49 @@ from src.utils.telemetry import telemetry
 logger = logging.getLogger(__name__)
 
 
+# Clinical scores reach the model from two places: the profile block, read from
+# clinical_assessments on every request, and the conversation history, where
+# earlier replies quote whatever score was current when they were written. A
+# user whose latest PHQ-9 was 3 (minimal) was told by the chat that it was 7,
+# and in another reply that it showed moderately severe depression — both from
+# older turns. These rules make the profile block the only citable source and
+# forbid inventing scores or earlier sessions when there is none.
+CLINICAL_SCORES_AUTHORITY_RULE = (
+    "KLINISKA POÄNG — REGEL:\n"
+    "Värdena ovan är de enda aktuella skattningarna och läses direkt ur "
+    "användarens sparade data. Poäng eller svårighetsgrader som nämns "
+    "tidigare i samtalet eller i sammanfattningar av tidigare samtal kan vara "
+    "inaktuella. Nämn aldrig en PHQ-9- eller GAD-7-poäng eller "
+    "svårighetsgrad som inte står ovan, och ange datumet om du nämner en. "
+    "Påstå aldrig att ni har pratat om något i en tidigare session om det "
+    "inte står i sammanfattningarna av tidigare samtal."
+)
+
+CLINICAL_SCORES_ABSENT_RULE = (
+    "KLINISKA POÄNG — REGEL:\n"
+    "Användaren har inga sparade PHQ-9- eller GAD-7-skattningar. Nämn inga "
+    "sådana poäng eller svårighetsgrader, inte heller sådana som förekommer "
+    "tidigare i samtalet. Påstå aldrig att ni har pratat om något i en "
+    "tidigare session om det inte står i sammanfattningarna av tidigare samtal."
+)
+
+
+def _assessment_date(timestamp: Any) -> str:
+    """YYYY-MM-DD from a stored assessment timestamp, or '' if unreadable.
+
+    Assessments are written with datetime.isoformat(); older documents may
+    hold a native Firestore timestamp.
+    """
+    if isinstance(timestamp, datetime):
+        return timestamp.date().isoformat()
+    if isinstance(timestamp, str) and len(timestamp) >= 10:
+        try:
+            return datetime.fromisoformat(timestamp[:10]).date().isoformat()
+        except ValueError:
+            return ""
+    return ""
+
+
 def split_into_chunks(text: str, chunk_size: int = 8) -> list[str]:
     """Split text into word-based chunks for simulated streaming fallback."""
     words = text.split(" ")
@@ -20,6 +63,62 @@ def split_into_chunks(text: str, chunk_size: int = 8) -> list[str]:
             part += " "
         chunks.append(part)
     return chunks
+
+
+# The sentence the low-mood safety check asks the model to append.
+PROFESSIONAL_SUPPORT_OFFER = (
+    "Jag ser att du har loggat flera låga värden den senaste tiden. Om du vill "
+    "prata med någon professionell kan jag hjälpa dig att hitta rätt stöd — det "
+    "är helt upp till dig."
+)
+_OFFER_MARKER = "prata med någon professionell"
+
+# Room for the raw-data list, the 'Mönster:' section and a reflection
+# question the prompt asks for. At 400 the longer answers stopped mid-sentence.
+CHAT_MAX_TOKENS = 700
+
+
+def support_offer_already_made(conversation_history: list[dict] | None) -> bool:
+    """True when an earlier assistant turn in this conversation made the offer.
+
+    The low-mood safety check told the model to end EVERY reply with the
+    offer for as long as the low logs stayed in the window, so it was pasted
+    onto answers to "Är du smart" and "Rita diagram" (UI audit B-13). The model
+    could not tell it had already said it: history is sent cut to 300
+    characters, and the offer is the last sentence. Checked here on the full
+    text instead.
+    """
+    for msg in conversation_history or []:
+        if msg.get("role") == "assistant" and _OFFER_MARKER in str(msg.get("content", "")):
+            return True
+    return False
+
+
+def _safety_check_block(low_mood_count: int) -> str:
+    return (
+        "\n\nSÄKERHETSCHECK (aktiv — MÅSTE följas):\n"
+        f"Användaren har {low_mood_count} låga humörloggningar (≤3/10) med anteckningar.\n"
+        "Lägg till detta i slutet av ditt svar (efter reflektionsfrågan), en gång i det här samtalet:\n\n"
+        f"\"{PROFESSIONAL_SUPPORT_OFFER}\"\n\n"
+        "Regler:\n"
+        "- Erbjud som ett val, inte ett krav\n"
+        "- Var inte alarmistisk\n"
+        "- Placera EFTER reflektionsfrågan, inte före"
+    )
+
+
+def trim_to_last_sentence(text: str) -> str:
+    """Cut a reply that hit the token limit back to its last complete sentence.
+
+    A reply ending "### Reflektionsfråga:\nHur" (UI audit B-12) is worse than a
+    shorter one. Returns the text unchanged if no sentence end is found.
+    """
+    end = max(text.rfind(". "), text.rfind("? "), text.rfind("! "), text.rfind(".\n"),
+              text.rfind("?\n"), text.rfind("!\n"))
+    for terminal in (".", "?", "!"):
+        if text.rstrip().endswith(terminal):
+            return text.rstrip()
+    return text[:end + 1].rstrip() if end > 0 else text
 
 
 class ConversationEngine:
@@ -172,17 +271,9 @@ VIKTIGA INSTRUKTIONER FÖR SVARET:
                         logger.info(f"📊 Mood context added: avg={avg_mood:.1f}, trend={trend}, confidence={confidence}, entries={len(mood_scores)}")
 
                         # Safety check: low moods (<=3) combined with negative notes
-                        if low_mood_count >= 2 and negative_notes:
-                            safety_check_context = f"""\n\nSÄKERHETSCHECK (aktiv — MÅSTE följas):
-Användaren har {low_mood_count} låga humörloggningar (≤3/10) med anteckningar.
-Du MÅSTE lägga till detta i slutet av ditt svar (efter reflektionsfrågan):
-
-"Jag ser att du har loggat flera låga värden den senaste tiden. Om du vill prata med någon professionell kan jag hjälpa dig att hitta rätt stöd — det är helt upp till dig."
-
-Regler:
-- Erbjud som ett val, inte ett krav
-- Var inte alarmistisk
-- Placera EFTER reflektionsfrågan, inte före"""
+                        if (low_mood_count >= 2 and negative_notes
+                                and not support_offer_already_made(conversation_history)):
+                            safety_check_context = _safety_check_block(low_mood_count)
                             logger.info(f"🛡️ Safety check triggered: {low_mood_count} low moods with notes")
                 except Exception as mood_err:
                     logger.warning(f"⚠️ Failed to fetch mood history: {mood_err}")
@@ -261,7 +352,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             response = svc.client.chat.completions.create(
                 model=svc._get_model_name(),
                 messages=messages,  # type: ignore[arg-type]
-                max_tokens=400,
+                max_tokens=CHAT_MAX_TOKENS,
                 temperature=0.7,
                 presence_penalty=0.1,
                 frequency_penalty=0.1,
@@ -272,6 +363,9 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             if content is None:
                 return svc._generate_fallback_therapeutic_response(user_message)
             ai_response = content.strip()
+            if getattr(response.choices[0], "finish_reason", None) == "length":
+                logger.warning("Chat reply hit max_tokens=%d; trimmed to last sentence", CHAT_MAX_TOKENS)
+                ai_response = trim_to_last_sentence(ai_response)
 
             # 9. Generate suggested actions based on sentiment and technique
             suggested_actions = svc._generate_suggested_actions(
@@ -408,7 +502,8 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
 
         return actions[:5]  # Return top 5
 
-    def build_enhanced_system_prompt(self, user_message: str, user_id: str | None = None) -> str:
+    def build_enhanced_system_prompt(self, user_message: str, user_id: str | None = None,
+                                     conversation_history: list[dict] | None = None) -> str:
         """
         Build the enhanced therapeutic system prompt used by BOTH streaming and
         non-streaming endpoints, ensuring consistent therapeutic quality.
@@ -516,17 +611,9 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                         f"6. Om trenden bygger på färre än 5 loggningar, skriv uttryckligen: \"Notera: datan är begränsad till {len(mood_scores)} loggningar, trenden är indicativ.\""
                     )
 
-                    if low_mood_count >= 2 and negative_notes:
-                        safety_check_context = (
-                            f"\n\nSÄKERHETSCHECK (aktiv — MÅSTE följas):\n"
-                            f"Användaren har {low_mood_count} låga humörloggningar (≤3/10) med anteckningar.\n"
-                            "Du MÅSTE lägga till detta i slutet av ditt svar (efter reflektionsfrågan):\n\n"
-                            "\"Jag ser att du har loggat flera låga värden den senaste tiden. Om du vill prata med någon professionell kan jag hjälpa dig att hitta rätt stöd — det är helt upp till dig.\"\n\n"
-                            "Regler:\n"
-                            "- Erbjud som ett val, inte ett krav\n"
-                            "- Var inte alarmistisk\n"
-                            "- Placera EFTER reflektionsfrågan, inte före"
-                        )
+                    if (low_mood_count >= 2 and negative_notes
+                            and not support_offer_already_made(conversation_history)):
+                        safety_check_context = _safety_check_block(low_mood_count)
                         logger.info("🛡️ Safety check triggered (stream): %s low moods with notes", low_mood_count)
             except Exception as mood_err:
                 logger.warning("⚠️ Failed to fetch mood history for system prompt: %s", mood_err)
@@ -617,6 +704,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
         # 2. Latest PHQ-9 and GAD-7 assessment scores from clinical_assessments
         # Avoid composite index requirement by fetching recent docs and filtering in Python
         crisis_alert = ""
+        scores_found = False
         for assessment_type, label in [("phq9", "PHQ-9 (depression)"), ("gad7", "GAD-7 (ångest)")]:
             try:
                 # Fetch latest 10 assessments ordered by timestamp (no where filter = no index needed)
@@ -636,7 +724,10 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                         if score is not None:
                             severity = a_data.get("severity") or ""
                             severity_part = f" — {severity}" if severity else ""
-                            parts.append(f"- Senaste {label}: {score} p{severity_part}")
+                            date_part = _assessment_date(a_data.get("timestamp"))
+                            date_part = f" (ifylld {date_part})" if date_part else ""
+                            parts.append(f"- Senaste {label}: {score} p{severity_part}{date_part}")
+                            scores_found = True
                             # Check for suicidal ideation (PHQ-9 Q9)
                             if assessment_type == "phq9":
                                 suicidal = a_data.get("suicidal_ideation", False)
@@ -658,9 +749,12 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             except Exception as exc:
                 logger.warning("%s score fetch failed: %s", assessment_type, exc)
 
-        if len(parts) <= 1:
-            # Only name or nothing useful
-            return "".join(parts) if parts else ""
+        if not scores_found:
+            # Without this the model fills the gap: earlier replies in the
+            # conversation history quote whatever score was current then, and
+            # it repeats them as if they were today's.
+            parts.append(CLINICAL_SCORES_ABSENT_RULE)
+            return "\n\n".join(parts) + crisis_alert
 
         # Add guidance for the AI
         parts.append(
@@ -668,6 +762,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             "Referera naturligt till användarens namn och vara medveten om "
             "deras nuvarande symtomnivå, men upprepa inte poängen mekaniskt."
         )
+        parts.append(CLINICAL_SCORES_AUTHORITY_RULE)
         return "\n\n".join(parts) + crisis_alert
 
     def fetch_cross_source_context(self, user_id: str) -> str:
@@ -795,7 +890,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             logger.warning("Crisis check failed during stream: %s", e)
 
         # Build the same rich system prompt used by the non-streaming endpoint
-        system_prompt = svc._build_enhanced_system_prompt(user_message, user_id)
+        system_prompt = svc._build_enhanced_system_prompt(user_message, user_id, conversation_history)
 
         # Apply RAG personalization: previous effective strategies, goals, continuity
         if user_id:
@@ -823,7 +918,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             stream = svc.client.chat.completions.create(
                 model=svc._get_model_name(),
                 messages=messages,  # type: ignore[arg-type]
-                max_tokens=400,
+                max_tokens=CHAT_MAX_TOKENS,
                 temperature=0.7,
                 presence_penalty=0.1,
                 frequency_penalty=0.1,
@@ -832,9 +927,15 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             )
 
             for chunk in stream:
-                delta = chunk.choices[0].delta if chunk.choices else None
+                choice = chunk.choices[0] if chunk.choices else None
+                delta = choice.delta if choice else None
                 if delta and delta.content:
                     yield f"data: {json.dumps({'content': delta.content})}\n\n"
+                if choice is not None and getattr(choice, "finish_reason", None) == "length":
+                    # Already sent and cannot be taken back; say so, so the
+                    # client can mark the reply as cut short.
+                    logger.warning("Streamed chat reply hit max_tokens=%d", CHAT_MAX_TOKENS)
+                    yield f"data: {json.dumps({'truncated': True})}\n\n"
 
             yield "data: [DONE]\n\n"
             logger.info("✅ Streaming therapeutic response completed")

@@ -8,6 +8,9 @@ from src.utils.telemetry import telemetry
 
 logger = logging.getLogger(__name__)
 
+# Story-card moods (AIStories.tsx colours by these) for a dominant sentiment.
+_SENTIMENT_TO_STORY_MOOD = {"POSITIVE": "happy", "NEGATIVE": "sad", "NEUTRAL": "neutral"}
+
 
 class StoryGenerator:
     """Single responsibility: generate therapeutic stories from mood data."""
@@ -149,6 +152,7 @@ Historien skal være på norsk, empatisk og støttende."""
         if not mood_data:
             return {
                 "avg_sentiment": "NEUTRAL",
+                "dominant_mood": "neutral",
                 "dominant_emotions": ["neutral"],
                 "pattern_description": "Ingen data tillgänglig"
             }
@@ -156,7 +160,7 @@ Historien skal være på norsk, empatisk og støttende."""
         sentiments = []
         emotions = []
 
-        for entry in mood_data[-14:]:  # Last 2 weeks
+        for entry in mood_data[-14:]:  # The 14 most recent; callers pass oldest-first
             sentiment = entry.get("sentiment", "NEUTRAL")
             entry_emotions = entry.get("emotions_detected", [])
 
@@ -185,6 +189,9 @@ Historien skal være på norsk, empatisk og støttende."""
 
         return {
             "avg_sentiment": dominant_sentiment,
+            # The story card colours and labels by this; it read a key that
+            # did not exist, so every story was filed as "neutral".
+            "dominant_mood": _SENTIMENT_TO_STORY_MOOD.get(dominant_sentiment, "neutral"),
             "dominant_emotions": dominant_emotions if dominant_emotions else ["neutral"],
             "pattern_description": pattern,
             "data_points": len(mood_data)

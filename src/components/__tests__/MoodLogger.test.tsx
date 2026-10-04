@@ -120,16 +120,11 @@ vi.mock('axios', () => {
   };
 });
 
-const routerFutureFlags = {
-  v7_startTransition: true,
-  v7_relativeSplatPath: true,
-};
-
 function renderMoodLogger(props: Partial<React.ComponentProps<typeof MoodLogger>> = {}) {
   let result: ReturnType<typeof render>;
   act(() => {
     result = render(
-      <BrowserRouter future={routerFutureFlags}>
+      <BrowserRouter>
         <MoodLogger {...props} />
       </BrowserRouter>,
     );

@@ -322,7 +322,7 @@ class RAGService:
                 'timestamp': datetime.now().isoformat()
             }
 
-            doc_id = f"strategy_{user_id}_{hashlib.md5(strategy.encode()).hexdigest()[:8]}"
+            doc_id = f"strategy_{user_id}_{hashlib.md5(strategy.encode(), usedforsecurity=False).hexdigest()[:8]}"
             self.vector_store.upsert(doc_id, embedding, metadata)
 
             logger.info(f"Indexed coping strategy for user {user_id[:8]}...")
@@ -349,7 +349,7 @@ class RAGService:
                 'timestamp': datetime.now().isoformat()
             }
 
-            doc_id = f"goal_{user_id}_{hashlib.md5(goal.encode()).hexdigest()[:8]}"
+            doc_id = f"goal_{user_id}_{hashlib.md5(goal.encode(), usedforsecurity=False).hexdigest()[:8]}"
             self.vector_store.upsert(doc_id, embedding, metadata)
 
         except Exception as e:

@@ -7,7 +7,6 @@ import logging
 import os
 import re
 import sys
-import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -21,7 +20,13 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Initialize Sentry for production error tracking (must be before Flask app creation)
 from src.monitoring.sentry_config import init_sentry
+from src.utils.health_probe import HealthProbe
 from src.utils.hf_cache import configure_hf_cache
+
+# Deadline for each /health dependency check (Firestore, Redis). Shorter than
+# Render's health-check timeout, so a slow dependency reports 'timeout'
+# instead of the health request itself timing out.
+HEALTH_PROBE_TIMEOUT_SECONDS = 3.0
 
 # Add Backend directory to sys.path to enable imports from src
 backend_dir = os.path.dirname(os.path.abspath(__file__))
@@ -874,6 +879,27 @@ try:
             except Exception as e:
                 logger.error(f"Request sanitization failed: {e}")
 
+    def _probe_firebase() -> str:
+        from src.firebase_config import db as health_db
+        if not health_db:
+            return 'unavailable'
+        # Own deadline as well as the probe's, so a hung call releases its
+        # probe thread instead of holding it until the process exits.
+        health_db.collection('users').limit(1).get(timeout=HEALTH_PROBE_TIMEOUT_SECONDS)
+        return 'connected'
+
+    def _probe_redis() -> str:
+        from src.redis_config import redis_client
+        if not redis_client:
+            return 'unavailable'
+        redis_client.ping()
+        return 'connected'
+
+    _health_probe = HealthProbe(
+        {'firebase': _probe_firebase, 'redis': _probe_redis},
+        ttl_seconds=30.0, timeout_seconds=HEALTH_PROBE_TIMEOUT_SECONDS,
+    )
+
     # Health check endpoint (2026 compliant)
     @app.route('/health')
     @limiter.exempt
@@ -890,37 +916,13 @@ try:
           returns 200: restarting the instance cannot fix an external Redis
           outage, so it must not trigger a restart loop.
         """
-        now_ts = time.time()
-        cache = app.extensions.setdefault('_health_probe_cache', {})
-        if cache.get('expires', 0) <= now_ts:
-            probe: dict[str, str] = {}
-            # Check Firebase connectivity
-            try:
-                from src.firebase_config import db as health_db
-                if health_db:
-                    # Quick collection list to verify connectivity
-                    health_db.collection('users').limit(1).get()
-                    probe['firebase'] = 'connected'
-                else:
-                    probe['firebase'] = 'unavailable'
-            except Exception:
-                probe['firebase'] = 'error'
+        probe = _health_probe.result()
+        if probe is None:
+            # First probe still running on another thread. Answer instead of
+            # waiting: the worker is up, and blocking here is how health
+            # checks used to pile up and take every thread with them.
+            return jsonify({'status': 'starting'}), 200
 
-            # Check Redis connectivity
-            try:
-                from src.redis_config import redis_client
-                if redis_client:
-                    redis_client.ping()
-                    probe['redis'] = 'connected'
-                else:
-                    probe['redis'] = 'unavailable'
-            except Exception:
-                probe['redis'] = 'unavailable'
-
-            cache['probe'] = probe
-            cache['expires'] = now_ts + 30
-
-        probe = cache['probe']
         firebase_down = probe.get('firebase') != 'connected'
         redis_down = probe.get('redis') != 'connected'
 

@@ -20,7 +20,7 @@ export default defineConfig({
       "**/tests/e2e/**",
       "**/*.e2e.spec.ts",
       "**/*.e2e.spec.tsx",
-      // Transient git worktrees created by isolated agents contain full test
+      // Hidden directories can hold transient git worktrees with full test
       // copies; without this they get collected twice and pollute results.
       ".*/**"
     ],

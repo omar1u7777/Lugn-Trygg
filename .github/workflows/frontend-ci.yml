@@ -15,6 +15,15 @@ on:
   pull_request:
     branches: [master]
 
+# A newer push to the same pull request supersedes the run in progress. Without
+# this, the stale run kept going and gitleaks-action, which lists the PR's
+# commits through the API, asked for a range ending at a commit that run had
+# not checked out ("Invalid revision range") and failed the security job.
+# Pushes to master are never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 

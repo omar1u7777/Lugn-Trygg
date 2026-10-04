@@ -9,6 +9,7 @@ import { FeatureErrorBoundary } from "./features/shared/FeatureErrorBoundary";
 import { PremiumGate } from "./components/PremiumGate";
 import { ROUTES, type RouteDefinition } from "./config/appRoutes";
 import AuthEntryLayout from "./components/Layout/AuthEntryLayout";
+import NotFoundPage from "./pages/NotFoundPage";
 import { lazyWithRetry } from "./utils/performance";
 
 const ProtectedAppShell = lazyWithRetry(() => import("./components/Layout/ProtectedAppShell"));
@@ -133,29 +134,7 @@ function App() {
                     {/* Redirect old /voice-chat to unified /ai-chat */}
                     <Route path="/voice-chat" element={<Navigate to="/ai-chat" replace />} />
 
-                    <Route
-                        path="*"
-                        element={
-                            <div className="min-h-[60vh] flex items-center justify-center">
-                                <div className="text-center">
-                                    <div className="text-8xl mb-6">🔍</div>
-                                    <h2 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-4">
-                                        {t('common.pageNotFound')}
-                                    </h2>
-                                    <p className="text-slate-600 dark:text-slate-400 text-lg mb-8">
-                                        {t('common.pageNotFoundDescription', 'Sidan du letar efter finns inte.')}
-                                    </p>
-                                    <button
-                                        onClick={() => window.history.back()}
-                                        className="btn btn-primary px-6 py-3"
-                                    >
-                                        <span className="mr-2">⬅️</span>
-                                        {t('common.goBack', 'Gå tillbaka')}
-                                    </button>
-                                </div>
-                            </div>
-                        }
-                    />
+                    <Route path="*" element={<NotFoundPage />} />
                 </Routes>
             </Suspense>
         </ErrorBoundary>

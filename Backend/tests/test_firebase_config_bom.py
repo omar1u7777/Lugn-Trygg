@@ -61,3 +61,40 @@ def test_initialize_firebase_accepts_utf8_bom_credentials_file(monkeypatch, tmp_
     cert_arg = captured.get("certificate_arg")
     assert isinstance(cert_arg, dict)
     assert cert_arg.get("project_id") == "bom-test-project"
+
+
+def test_initialize_firebase_accepts_only_the_path_variable(monkeypatch, tmp_path):
+    """Startup validation accepts FIREBASE_CREDENTIALS_PATH alone; so must the
+    initialiser, which used to require FIREBASE_CREDENTIALS regardless."""
+    _ensure_backend_on_path()
+
+    cred_file = tmp_path / "creds.json"
+    cred_file.write_text(json.dumps({
+        "type": "service_account", "project_id": "path-only", "private_key_id": "k",
+        "private_key": "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n",  # gitleaks:allow
+        "client_email": "x@path-only.iam.gserviceaccount.com", "client_id": "1",
+        "token_uri": "https://oauth2.googleapis.com/token",
+    }), encoding="utf-8")
+
+    monkeypatch.delenv("FIREBASE_CREDENTIALS", raising=False)
+    monkeypatch.setenv("FIREBASE_CREDENTIALS_PATH", str(cred_file))
+
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(firebase_admin, "_apps", {}, raising=False)
+    monkeypatch.setattr("firebase_admin.credentials.Certificate",
+                        lambda value: captured.setdefault("cert", value))
+
+    def fake_initialize_app(_cred, _options=None):
+        firebase_admin._apps = {"default": object()}  # type: ignore[attr-defined]
+        return object()
+
+    monkeypatch.setattr("firebase_admin.initialize_app", fake_initialize_app)
+    monkeypatch.setattr("firebase_admin.delete_app", lambda _app: None)
+    monkeypatch.setattr("firebase_admin.get_app", lambda: object())
+    monkeypatch.setattr("firebase_admin.firestore.client", lambda: object())
+
+    sys.modules.pop("src.firebase_config", None)
+    firebase_config = importlib.import_module("src.firebase_config")
+
+    assert firebase_config.initialize_firebase(force_reinitialize=True) is True
+    assert captured["cert"]["project_id"] == "path-only"

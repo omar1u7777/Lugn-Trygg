@@ -307,6 +307,41 @@ class ClinicalRiskStratification:
         'social_withdrawal_days': 7
     }
 
+    @staticmethod
+    def _mood_valence(mood: dict) -> float | None:
+        """A mood's valence on [-1, 1], or None when it carries no rating.
+
+        Logged moods store 'score' (1-10, always present) and, from the
+        advanced logger, 'valence' (1-10). Values below 1 are taken to be
+        already on [-1, 1].
+        """
+        for key in ('score', 'valence'):
+            raw = mood.get(key)
+            if isinstance(raw, bool) or raw is None:
+                continue
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if value < 1:
+                return max(-1.0, min(1.0, value))
+            if value <= 10:
+                return (value - 5.5) / 4.5
+        return None
+
+    @classmethod
+    def _chronological_valences(cls, moods: list[dict]) -> list[float]:
+        """Valences of the rated moods, oldest first.
+
+        Sorted here rather than trusted: the one production caller fetches
+        newest-first. Entries without a timestamp keep their given order.
+        """
+        indexed = list(enumerate(moods))
+        if all(m.get('timestamp') for _, m in indexed):
+            indexed.sort(key=lambda pair: str(pair[1].get('timestamp')))
+        valences = (cls._mood_valence(m) for _, m in indexed)
+        return [v for v in valences if v is not None]
+
     @classmethod
     def assess_comprehensive_risk(
         cls,
@@ -335,7 +370,12 @@ class ClinicalRiskStratification:
 
             if phq9_result.total_score >= 10:
                 risk_factors.append(f"PHQ-9 score: {phq9_result.total_score} ({phq9_result.severity})")
-            else:
+            elif not phq9_result.suicidal_ideation_flag:
+                # A low total is not protective when the self-harm item is
+                # what makes it up: Q9 alone can contribute all 3 points of a
+                # "minimal" 3. Listing it here put "Low PHQ-9: 3" next to
+                # "Suicidal ideation: PHQ-9 Q9=3" — the same answer read as
+                # both a risk and a protection.
                 protective_factors.append(f"Low PHQ-9: {phq9_result.total_score}")
 
         # GAD-7 risk assessment
@@ -348,10 +388,15 @@ class ClinicalRiskStratification:
             else:
                 protective_factors.append(f"Low GAD-7: {gad7_result.total_score}")
 
-        # Mood trajectory analysis
-        if recent_moods and len(recent_moods) >= 7:
+        # Mood trajectory analysis, over entries that carry a rating, oldest
+        # first. Both used to be assumed: the route passes moods newest-first,
+        # so [-7:] took the OLDEST seven and the trend's sign was inverted; and
+        # an entry without 'valence' read as 0, so one rated entry among
+        # unrated ones looked like a collapse — (0 - 9) / 7 = -1.29/entry.
+        rated = cls._chronological_valences(recent_moods or [])
+        if len(rated) >= 7:
             # Check for rapid decline
-            recent_valences = [float(m.get('valence') or 0) for m in recent_moods[-7:]]
+            recent_valences = rated[-7:]
             if len(recent_valences) >= 3:
                 trend = (recent_valences[-1] - recent_valences[0]) / len(recent_valences)
                 if trend < -0.1:  # Declining more than 0.1 per entry
@@ -359,8 +404,8 @@ class ClinicalRiskStratification:
 
             # Check consecutive negative days
             negative_streak = 0
-            for mood in reversed(recent_moods):
-                if float(mood.get('valence') or 0) < -0.3:
+            for valence in reversed(rated):
+                if valence < -0.3:
                     negative_streak += 1
                 else:
                     break

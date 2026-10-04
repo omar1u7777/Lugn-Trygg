@@ -51,6 +51,14 @@ export interface CheckAchievementsResult {
   totalXpEarned: number;
   allAchievements: string[];
   badges: string[];
+  /** The server's own counts — what the achievements were judged on. */
+  progress?: {
+    mood_count: number;
+    streak: number;
+    journal_count: number;
+    referral_count: number;
+    meditation_count: number;
+  };
 }
 
 /**
@@ -124,42 +132,23 @@ export const claimReward = async (rewardId: string): Promise<ClaimRewardResult> 
 };
 
 /**
- * Add XP to user
- * @param amount - XP amount to add
- * @param reason - Reason for XP addition
- * @returns Promise resolving to XP result
- */
-export const addXp = async (amount: number, reason: string = 'general') => {
-  try {
-    const response = await api.post(API_ENDPOINTS.REWARDS.ADD_XP, {
-      amount,
-      reason
-    });
-    return response.data.data || response.data;
-  } catch (error: unknown) {
-    if (error instanceof ApiError) {
-      throw error;
-    }
-    throw ApiError.fromAxiosError(error);
-  }
-};
-
-/**
- * Check and award user achievements
- * @param stats - User stats to check against
- * @returns Promise resolving to achievements result
+ * Ask the server to award any achievements the user's stored activity has
+ * earned.
+ *
+ * The server counts moods, journal entries, meditations, referrals and the
+ * current streak itself; counts in the request body are ignored. Only the
+ * UTC offset is sent, so the streak's days match the user's own calendar.
+ * `progress` in the response is the server's count, the one to display.
  */
 export const checkAchievements = async (
-  stats: {
-    mood_count?: number;
-    streak?: number;
-    journal_count?: number;
-    referral_count?: number;
-    meditation_count?: number;
-  } = {}
+  // Accepted for call-site compatibility; the server ignores these.
+  _stats: Record<string, number> = {}
 ): Promise<CheckAchievementsResult> => {
   try {
-    const response = await api.post(API_ENDPOINTS.REWARDS.CHECK_ACHIEVEMENTS, stats);
+    const response = await api.post(API_ENDPOINTS.REWARDS.CHECK_ACHIEVEMENTS, {
+      // getTimezoneOffset is minutes WEST of UTC; the API takes minutes east.
+      tz_offset_minutes: -new Date().getTimezoneOffset(),
+    });
     return response.data.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {

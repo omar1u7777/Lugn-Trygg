@@ -195,7 +195,10 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
         const totalXp = totalMoods * 10 + streakDays * 5 + totalChats * 5;
         currentLevel = Math.floor(Math.sqrt(Math.max(0, totalXp) / 100)) + 1;
         const xpForCurrentLevel = ((currentLevel - 1) ** 2) * 100;
-        xpForNextLevel = (currentLevel ** 2) * 100;
+        // The span of the current level, as the backend's neededXp is — not
+        // the total at which the next level starts, which overstated the
+        // denominator (890 XP read as 490/900 instead of 490/500).
+        xpForNextLevel = (currentLevel ** 2) * 100 - xpForCurrentLevel;
         xpInLevel = totalXp - xpForCurrentLevel;
       }
 

@@ -25,19 +25,10 @@ if (typeof window !== 'undefined' && typeof process !== 'undefined' && process.e
   }
 }
 
-/**
- * React Router v6 future flags — opt in early to suppress deprecation warnings
- * and prepare for React Router v7 migration.
- */
-const routerFutureFlags = {
-  v7_startTransition: true,
-  v7_relativeSplatPath: true,
-};
-
 const TestProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <I18nextProvider i18n={i18n}>
-      <BrowserRouter future={routerFutureFlags}>
+      <BrowserRouter>
         <ThemeProvider>
           <AuthProvider>
             {children}

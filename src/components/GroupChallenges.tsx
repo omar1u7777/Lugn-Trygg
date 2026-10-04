@@ -179,7 +179,7 @@ export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
             <div className="flex items-center gap-3">
               <UserGroupIcon className="w-6 h-6 sm:w-7 sm:h-7 text-primary-600" aria-hidden="true" />
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-                {t('challenges.groupTitle', 'Gruppurmaningar')}
+                {t('challenges.groupTitle', 'Grupputmaningar')}
               </h2>
             </div>
             <Button
@@ -208,7 +208,7 @@ export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
       {/* Info Alert */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
         <p className="text-sm text-blue-900 dark:text-blue-100">
-          {t('challenges.info', 'Gå med i en gruppurtianing för att tjäna bonus XP och exklusiva badges. Jobba tillsammans för att nå målet!')}
+          {t('challenges.info', 'Gå med i en grupputmaning för att tjäna bonus XP och exklusiva badges. Jobba tillsammans för att nå målet!')}
         </p>
       </div>
 
@@ -221,7 +221,7 @@ export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
               {t('challenges.empty', 'Inga aktiva utmaningar')}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              {t('challenges.emptyDesc', 'Det finns inga aktiva gruppurmaningar just nu. Kom tillbaka snart!')}
+              {t('challenges.emptyDesc', 'Det finns inga aktiva grupputmaningar just nu. Kom tillbaka snart!')}
             </p>
           </div>
         </Card>

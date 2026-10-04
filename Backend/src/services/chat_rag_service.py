@@ -122,7 +122,7 @@ class ChatRAGService:
             return None
 
         # Check cache
-        cache_key = hashlib.md5(text.encode()).hexdigest()[:16]
+        cache_key = hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()[:16]
         if cache_key in self._embedding_cache:
             self._cache_hits += 1
             return self._embedding_cache[cache_key]
@@ -170,7 +170,7 @@ class ChatRAGService:
         for text in texts:
             if not text or not text.strip():
                 continue
-            cache_key = hashlib.md5(text.encode()).hexdigest()[:16]
+            cache_key = hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()[:16]
             if cache_key in self._embedding_cache or cache_key in seen:
                 continue
             seen.add(cache_key)
@@ -193,7 +193,7 @@ class ChatRAGService:
                     idx = getattr(item, 'index', None)
                     if idx is None or idx >= len(chunk):
                         continue
-                    key = hashlib.md5(chunk[idx].encode()).hexdigest()[:16]
+                    key = hashlib.md5(chunk[idx].encode(), usedforsecurity=False).hexdigest()[:16]
                     self._embedding_cache[key] = np.array(item.embedding, dtype=np.float32)
                     self._cache_misses += 1
             except Exception as e:

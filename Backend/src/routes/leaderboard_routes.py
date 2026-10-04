@@ -16,6 +16,7 @@ from src.services.auth_service import AuthService
 # Absolute imports (project standard)
 from src.services.rate_limiting import rate_limit_by_endpoint
 from src.utils.input_sanitization import input_sanitizer
+from src.utils.public_alias import public_alias
 from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
@@ -41,23 +42,6 @@ def _validate_limit(limit_param: str, default: int = 20, max_val: int = 100) -> 
         return min(limit, max_val)
     except (ValueError, TypeError):
         return default
-
-
-def _anonymize_username(email_or_name: str) -> str:
-    """Create anonymous display name from email or name"""
-    if not email_or_name:
-        return "Anonymous"
-
-    # If it's an email, use the part before @
-    if "@" in email_or_name:
-        name = email_or_name.split("@")[0]
-    else:
-        name = email_or_name
-
-    # Anonymize: show first 2 chars + *** + last char
-    if len(name) > 3:
-        return f"{name[:2]}***{name[-1]}"
-    return f"{name[0]}***"
 
 
 # ============================================================================
@@ -99,16 +83,8 @@ def get_xp_leaderboard():
             if xp <= 0:
                 continue
 
-            # Get display name from users collection
             user_id = doc.id
-            display_name = 'Anonymous'
-            try:
-                user_doc = db.collection('users').document(user_id).get()
-                if user_doc.exists:
-                    u = user_doc.to_dict() or {}
-                    display_name = _anonymize_username(u.get('display_name') or u.get('email', ''))
-            except Exception:
-                pass
+            display_name = public_alias(user_id)
 
             leaderboard.append({
                 'rank': rank,
@@ -163,7 +139,7 @@ def get_streak_leaderboard():
             leaderboard.append({
                 'rank': rank,
                 'userId': doc.id,
-                'displayName': _anonymize_username(user_data.get('display_name') or user_data.get('email', '')),
+                'displayName': public_alias(doc.id),
                 'currentStreak': streak,
                 'longestStreak': user_data.get('longest_streak', streak),
                 'avatar': user_data.get('avatar_emoji', '🔥')
@@ -211,7 +187,7 @@ def get_mood_leaderboard():
             leaderboard.append({
                 'rank': rank,
                 'userId': doc.id,
-                'displayName': _anonymize_username(user_data.get('display_name') or user_data.get('email', '')),
+                'displayName': public_alias(doc.id),
                 'moodCount': mood_count,
                 'averageMood': round(user_data.get('average_mood', 5), 1),
                 'avatar': user_data.get('avatar_emoji', '📊')
@@ -345,15 +321,7 @@ def get_weekly_winners():
             user_data = doc.to_dict()
             winner_xp = user_data.get('xp', user_data.get('total_xp', 0))
             if winner_xp > 0:
-                # Get display name from users collection
-                display_name = 'Anonymous'
-                try:
-                    user_doc = db.collection('users').document(doc.id).get()
-                    if user_doc.exists:
-                        u = user_doc.to_dict() or {}
-                        display_name = _anonymize_username(u.get('display_name') or u.get('email', ''))
-                except Exception:
-                    pass
+                display_name = public_alias(doc.id)
                 xp_winners.append({
                     'displayName': display_name,
                     'xp': winner_xp,

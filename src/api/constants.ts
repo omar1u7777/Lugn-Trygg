@@ -209,7 +209,6 @@ export const API_ENDPOINTS = {
     /** POST claim a reward */
     CLAIM: '/api/v1/rewards/claim',
     /** POST add XP */
-    ADD_XP: '/api/v1/rewards/add-xp',
     /** POST check achievements */
     CHECK_ACHIEVEMENTS: '/api/v1/rewards/check-achievements',
     /** GET user badges */

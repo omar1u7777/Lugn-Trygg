@@ -3,9 +3,9 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  // '.*/**' holds local tooling scratch copies of src/. Without it every
-  // lint run scanned the repo two or more times and reported the same warning
-  // once per copy, at proportional cost.
+  // Hidden directories ('.*/**') can hold local scratch copies of src/ (git
+  // worktrees, editor tooling). Without this every lint run scanned the repo
+  // two or more times and reported the same warning once per copy.
   { ignores: ['dist', 'tests/**', '**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx', '.conda/**', 'node_modules/**', 'Backend/**', '.*/**'] },
   // Disable all rules for files with phantom errors
   {

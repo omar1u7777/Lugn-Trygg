@@ -16,9 +16,15 @@ import {
 interface UseCBTExercisesParams {
   userId?: string;
   announce: (message: string, politeness?: 'polite' | 'assertive') => void;
+  /**
+   * Whether to fetch CBT data at all. The compact recommendations panel on
+   * the dashboard renders no CBT content, yet loaded modules, a session,
+   * insights and exercises — four requests on every dashboard load.
+   */
+  enabled?: boolean;
 }
 
-export function useCBTExercises({ userId, announce }: UseCBTExercisesParams) {
+export function useCBTExercises({ userId, announce, enabled = true }: UseCBTExercisesParams) {
   const { t } = useTranslation();
   const [cbtModules, setCbtModules] = useState<CBTModule[]>([]);
   const [cbtSession, setCbtSession] = useState<PersonalizedSession | null>(null);
@@ -70,7 +76,7 @@ export function useCBTExercises({ userId, announce }: UseCBTExercisesParams) {
   }, [announce, t]);
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !enabled) {
       setCbtModules([]);
       setCbtSession(null);
       setCbtInsights(null);
@@ -120,7 +126,7 @@ export function useCBTExercises({ userId, announce }: UseCBTExercisesParams) {
     return () => {
       active = false;
     };
-  }, [userId, cbtCurrentMood, t]);
+  }, [userId, enabled, cbtCurrentMood, t]);
 
   return {
     cbtModules,
