@@ -159,6 +159,23 @@ export const getMoods = async (_userId: string, signal?: AbortSignal) => {
   }
 };
 
+/**
+ * How many mood entries the user has, from the server's count.
+ *
+ * Counters read `getMoods(...).length`, which is the first page — 50 — so
+ * /journal and /social said "50 Humörloggar" to someone with 122, while
+ * /profile, reading an aggregate, said 122 (UI audit D-1). One entry is
+ * requested; only the envelope's `total` is used.
+ *
+ * Returns null when the server could not count (it omits `total` rather than
+ * guess); callers show that as unavailable rather than as a number.
+ */
+export const getMoodTotal = async (signal?: AbortSignal): Promise<number | null> => {
+  const response = await api.get(`${API_ENDPOINTS.MOOD.GET_MOODS}?limit=1`, signal ? { signal } : undefined);
+  const data = response.data?.data || response.data;
+  return typeof data?.total === 'number' ? data.total : null;
+};
+
 /** The backend caps `limit` at 100; asking for more silently gets 100. */
 const MOOD_PAGE_SIZE = 100;
 

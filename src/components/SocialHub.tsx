@@ -5,7 +5,7 @@ import PeerSupportChat from './PeerSupportChat';
 import GroupChallenges from './GroupChallenges';
 import Leaderboard from './Leaderboard';
 import useAuth from '../hooks/useAuth';
-import { getXPLeaderboard, getReferralStats, getMoods } from '../api/api';
+import { getXPLeaderboard, getReferralStats, getMoodTotal } from '../api/api';
 import {
   ChatBubbleLeftRightIcon,
   ShareIcon,
@@ -83,7 +83,8 @@ const SocialHub: React.FC = () => {
         const [leaderboardResult, referralResult, moodsResult] = await Promise.allSettled([
           getXPLeaderboard(),
           getReferralStats(),
-          getMoods(user.user_id),
+          // The server's count: getMoods().length was the first page, 50.
+          getMoodTotal(),
         ]);
 
         const leaderboardData = leaderboardResult.status === 'fulfilled' ? leaderboardResult.value : null;
@@ -94,7 +95,7 @@ const SocialHub: React.FC = () => {
 
         setSocialStats({
           communityMembers: leaderboardData?.length ?? 0,
-          moodLogs: moodsResult.status === 'fulfilled' ? moodsResult.value.length : 0,
+          moodLogs: moodsResult.status === 'fulfilled' ? (moodsResult.value ?? 0) : 0,
           referrals: referralResult.status === 'fulfilled' ? (referralResult.value.successfulReferrals || 0) : 0,
           leaderboardRank: userRankEntry?.rank || 0,
         });
@@ -113,6 +114,8 @@ const SocialHub: React.FC = () => {
         }
         if (moodsResult.status === 'rejected') {
           logger.error('Failed to fetch moods:', moodsResult.reason);
+          failed.add('moodLogs');
+        } else if (moodsResult.value === null) {
           failed.add('moodLogs');
         }
         setFailedStats(failed);

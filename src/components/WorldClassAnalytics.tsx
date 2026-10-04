@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { analytics } from '../services/analytics';
-import { getMoods, getWeeklyAnalysis } from '../api/api';
+import { getAllMoods, getWeeklyAnalysis } from '../api/api';
 import useAuth from '../hooks/useAuth';
 import { Button, Alert, Card } from './ui/tailwind';
 import { colors } from '../theme/tokens';
@@ -178,7 +178,7 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
       let moodsData: MoodData[];
       const [_weeklyAnalysisData, fetchedMoods] = await Promise.all([
         getWeeklyAnalysis(user.user_id).catch((error) => { logger.error('Failed to fetch weekly analysis', error); return {}; }),
-        getMoods(user.user_id).catch((error) => { logger.error('Failed to fetch moods', error); return []; }),
+        getAllMoods(user.user_id).catch((error) => { logger.error('Failed to fetch moods', error); return []; }),
       ]);
       moodsData = fetchedMoods as MoodData[];
       

@@ -4,7 +4,7 @@ import { Card, CardContent, Typography, Button, Chip, Alert } from './ui/tailwin
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
-import { getMoods, getWeeklyAnalysis, getChatHistory } from '../api/api';
+import { getAllMoods, getWeeklyAnalysis, getChatHistory } from '../api/api';
 import useAuth from '../hooks/useAuth';
 import { logger } from '../utils/logger';
 import {
@@ -69,7 +69,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
 
       // Load real data from backend APIs
       const [moodsDataRaw, _weeklyAnalysisData, chatHistoryDataRaw] = await Promise.all([
-        getMoods(user.user_id).catch((error) => { logger.error('Failed to fetch moods', error); return []; }),
+        getAllMoods(user.user_id).catch((error) => { logger.error('Failed to fetch moods', error); return []; }),
         getWeeklyAnalysis(user.user_id).catch((error) => { logger.error('Failed to fetch weekly analysis', error); return {}; }),
         getChatHistory(user.user_id).catch((error) => { logger.error('Failed to fetch chat history', error); return { conversation: [] }; }),
       ]);

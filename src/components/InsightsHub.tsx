@@ -4,7 +4,7 @@ import DailyInsights from './DailyInsights';
 import WeeklyAnalysis from './WeeklyAnalysis';
 import PredictiveAnalytics from './AI/PredictiveAnalytics';
 import useAuth from '../hooks/useAuth';
-import { getMoods, getWeeklyAnalysis } from '../api/mood';
+import { getAllMoods, getWeeklyAnalysis } from '../api/mood';
 import {
   ArrowTrendingUpIcon,
   LightBulbIcon,
@@ -95,8 +95,10 @@ const InsightsHub: React.FC = () => {
 
       try {
         logger.debug('Fetching moods and analysis...');
-        // Fetch mood data
-        const moodsRaw = await getMoods(user.user_id);
+        // The whole history: getMoods is the first page of 50, so the
+        // "Datapunkter" count stopped at 50 and the average described only
+        // the latest 50 entries (UI audit D-1, D-4).
+        const moodsRaw = await getAllMoods(user.user_id);
         const moods = Array.isArray(moodsRaw) ? (moodsRaw as MoodEntry[]) : [];
         setMoodData(moods);
         const totalDataPoints = moods.length;

@@ -3,7 +3,7 @@ import OptimizedImage from './ui/OptimizedImage';
 import { useTranslation } from 'react-i18next';
 import useAuth from '../hooks/useAuth';
 import { useMountedRef } from '../hooks/useMountedRef';
-import { getMoods, getMemories, saveJournalEntry, getJournalEntries } from '../api/api';
+import { getMoods, getMoodTotal, getMemories, saveJournalEntry, getJournalEntries } from '../api/api';
 import {
   HeartIcon,
   BookOpenIcon,
@@ -94,10 +94,11 @@ const JournalHub: React.FC = () => {
     setStatsError(false);
 
     try {
-      const [moodsResult, memoriesResult, journalsResult] = await Promise.allSettled([
+      const [moodsResult, memoriesResult, journalsResult, moodTotalResult] = await Promise.allSettled([
         getMoods(user.user_id),
         getMemories(user.user_id),
         getJournalEntries(user.user_id),
+        getMoodTotal(),
       ]);
 
       const moods = moodsResult.status === 'fulfilled' ? moodsResult.value : [];
@@ -114,8 +115,13 @@ const JournalHub: React.FC = () => {
         setStatsError(true);
       }
 
+      // The first page of moods is enough for the streak; the count comes
+      // from the server, or it would stop at the page size (UI audit D-1).
+      const moodTotal = moodTotalResult.status === 'fulfilled' ? moodTotalResult.value : null;
+      if (moodTotal === null) setStatsError(true);
+
       setStats({
-        moodCount: moods.length,
+        moodCount: moodTotal ?? moods.length,
         memoryCount: memories.length,
         journalCount: journals.length,
         weekStreak: calculateStreak(moods),
