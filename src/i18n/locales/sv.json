@@ -1829,7 +1829,7 @@
     "rest": "Vila",
     "completed": "Klart!",
     "basicMode": "Grundläge",
-    "hrvBiofeedback": "HRV Biofeedback",
+    "hrvBiofeedback": "Resonansandning",
     "patternDescription": "Välj andningsmönster — cirkeln animeras i realtid baserat på din andningsrytm.",
     "patterns": {
       "coherence": "❤️ Koherens 6bpm",
@@ -1943,9 +1943,9 @@
   "recommendationsPool": {
     "stress-1": {
       "title": "4-7-8 Andningsövning",
-      "description": "Dr. Andrew Weils vetenskapligt beprövade metod för ångest och sömn",
+      "description": "Dr. Andrew Weils andningsteknik för oro och sömn",
       "category": "Stresshantering",
-      "content": "Tekniken aktiverar det parasympatiska nervsystemet och sänker kortisolnivåer med upp till 30%."
+      "content": "Tekniken aktiverar det parasympatiska nervsystemet, den del av kroppen som bromsar stresspåslag."
     },
     "stress-2": {
       "title": "KBT-övning: Hantera Stressiga Tankar",

@@ -1831,7 +1831,7 @@
     "rest": "Rest",
     "completed": "Done!",
     "basicMode": "Basic",
-    "hrvBiofeedback": "HRV Biofeedback",
+    "hrvBiofeedback": "Resonance breathing",
     "patternDescription": "Choose breathing pattern — the circle animates in real-time based on your breathing rhythm.",
     "patterns": {
       "coherence": "❤️ Coherence 6bpm",
@@ -1945,9 +1945,9 @@
   "recommendationsPool": {
     "stress-1": {
       "title": "4-7-8 Breathing Exercise",
-      "description": "Dr. Andrew Weil's scientifically proven method for anxiety and sleep",
+      "description": "Dr Andrew Weil's breathing technique for worry and sleep",
       "category": "Stress management",
-      "content": "This technique activates the parasympathetic nervous system and lowers cortisol levels by up to 30%."
+      "content": "The technique activates the parasympathetic nervous system, the part of the body that dampens the stress response."
     },
     "stress-2": {
       "title": "CBT Exercise: Managing Stressful Thoughts",

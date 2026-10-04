@@ -221,8 +221,20 @@ export const BiofeedbackBreathingCircle: React.FC<BiofeedbackBreathingCircleProp
         </div>
       </div>
 
-      {/* Biofeedback metrics */}
-      {showBiofeedback && isActive && (
+      {/*
+        Gated on a heart rate actually arriving, the same condition the BPM
+        readout above already used.
+
+        The backend HRV pipeline is real — RR intervals, SDNN, RMSSD, FFT-based
+        LF/HF power, resonance in the 0.08-0.12 Hz band. Nothing feeds it. The
+        frontend has no function that posts to /biofeedback/data and the app
+        integrates no heart-rate sensor, so coherence and resonance rendered a
+        confident "0" and "0" in the styling of measurements.
+
+        Showing a measured-looking zero for something never measured is worse
+        than showing nothing. The panel returns as soon as a source exists.
+      */}
+      {showBiofeedback && isActive && biofeedback.heartRate > 0 && (
         <div className="mt-6 grid grid-cols-2 gap-4 text-center">
           <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
             <div className="text-2xl font-bold text-green-600 dark:text-green-400">
