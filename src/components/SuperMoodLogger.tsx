@@ -9,6 +9,7 @@
  */
 
 import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react';
+import { queryClient } from '../contexts/queryClient';
 import { useTranslation } from 'react-i18next';
 import {
   ClockIcon,
@@ -240,18 +241,23 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     };
   }, []);
 
-  const loadRecentMoods = useCallback(async () => {
+  const loadRecentMoods = useCallback(async (fresh = false) => {
     if (!user?.user_id) return;
-
-    // Abort any previous in-flight request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
     setIsLoadingRecentMoods(true);
 
     try {
-      const moodsResponse = await getMoods(user.user_id, abortControllerRef.current.signal);
+      // Through the shared ['moods', userId] query, so the dashboard's other
+      // reader of this list (the recommendations panel) gets the same
+      // response instead of a second GET /mood on every load (UI audit
+      // Dup-21). After this component writes, it asks for a fresh copy.
+      if (fresh) await queryClient.invalidateQueries({ queryKey: ['moods', user.user_id] });
+      const moodsResponse = await queryClient.fetchQuery({
+        queryKey: ['moods', user.user_id],
+        queryFn: ({ signal }) => getMoods(user.user_id, signal),
+        staleTime: 30 * 1000,
+        // getMoods already degrades to [] on failure; a retry only delays it.
+        retry: false,
+      });
       
       // Only update state if component is still mounted
       if (!isMountedRef.current) return;
@@ -296,9 +302,6 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     } finally {
       if (isMountedRef.current) {
         setIsLoadingRecentMoods(false);
-      }
-      if (abortControllerRef.current?.signal.aborted) {
-        abortControllerRef.current = null;
       }
     }
   }, [user?.user_id, maxRecentMoods]);
@@ -348,6 +351,8 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     try {
       await deleteMood(moodId);
       setRecentMoods(prev => prev.filter(m => m.id !== moodId));
+      // Other readers of the shared list must not keep showing it.
+      void queryClient.invalidateQueries({ queryKey: ['moods'] });
       announceToScreenReader(t('moodLogger.moodDeleted', 'Humörinlägg raderat'), 'polite');
     } catch (err) {
       logger.error('Failed to delete mood:', err);
@@ -450,7 +455,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
 
       // Refresh recent moods
       if (showRecentMoods) {
-        await loadRecentMoods();
+        await loadRecentMoods(true);
       }
 
       if (!isMountedRef.current) return;

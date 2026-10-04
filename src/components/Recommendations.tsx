@@ -6,9 +6,9 @@ import { useAccessibility } from '../hooks/useAccessibility';
 import useAuth from '../hooks/useAuth';
 import { getWellnessGoals } from '../api/dashboard';
 import { saveMeditationSession, getMeditationSessions } from '../api/meditation';
-import { getMoods } from '../api/mood';
+import { useMoods } from '../hooks/queries/useMoods';
 import { logger } from '../utils/logger';
-import { personalizeRecommendations, analyzeMoodTrend, type PersonalizationContext, type MoodTrendData } from '../utils/recommendationPersonalization';
+import { personalizeRecommendations, analyzeMoodTrend, recentScoresForTrend, type PersonalizationContext, type MoodTrendData } from '../utils/recommendationPersonalization';
 import {
   LightBulbIcon,
   StarIcon
@@ -153,6 +153,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const {
     showNotificationSettings, setShowNotificationSettings,
     notificationSettings,
+    setReminderTime,
     isEnablingNotifications,
     enableDailyReminders, disableDailyReminders, updateReminderTime,
   } = useNotificationSettings({ userId: user?.user_id, announce: announceToScreenReader });
@@ -398,40 +399,23 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     fetchWellnessGoalsData();
   }, [compact, resolvedWellnessGoals, user?.user_id, wellnessGoalsSignature, setError, setLoading]);
 
-  // Fetch mood data for personalization trend analysis
+  // Mood trend for personalisation. Read through the shared ['moods'] query:
+  // on the dashboard the mood logger reads the same list, and fetching it
+  // here as well sent GET /mood twice per load (UI audit Dup-21).
+  const { data: moodsForTrend } = useMoods(user?.user_id);
+
   useEffect(() => {
-    if (!user?.user_id) return;
+    if (!Array.isArray(moodsForTrend)) return;
+    const scores = recentScoresForTrend(moodsForTrend);
 
-    let cancelled = false;
-
-    const fetchMoodTrend = async () => {
-      try {
-        const moods = await getMoods(user!.user_id!);
-        if (cancelled || !Array.isArray(moods)) return;
-
-        const scores = moods
-          .map((m: Record<string, unknown>) => (m.score || m.sentiment_score) as number | undefined)
-          .filter((s): s is number => typeof s === 'number' && s > 0)
-          .slice(-10); // Last 10 mood entries
-
-        if (scores.length >= 3) {
-          const trend = analyzeMoodTrend(scores);
-          if (!cancelled && trend) {
-            setMoodTrendData(trend);
-            logger.debug('Mood trend for personalization:', trend);
-          }
-        }
-      } catch (err) {
-        if (!cancelled) {
-          logger.debug('Could not fetch mood trend for personalization:', err);
-        }
+    if (scores.length >= 3) {
+      const trend = analyzeMoodTrend(scores);
+      if (trend) {
+        setMoodTrendData(trend);
+        logger.debug('Mood trend for personalization:', trend);
       }
-    };
-
-    void fetchMoodTrend();
-
-    return () => { cancelled = true; };
-  }, [user?.user_id, user]);
+    }
+  }, [moodsForTrend]);
 
   const hasTrackedPageViewRef = useRef(false);
 
@@ -1848,7 +1832,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           onEnable={enableDailyReminders}
           onDisable={disableDailyReminders}
           onUpdateReminderTime={updateReminderTime}
-          onTimeChange={(time) => setNotificationSettings(prev => ({ ...prev, reminderTime: time }))}
+          onTimeChange={setReminderTime}
           onClose={() => setShowNotificationSettings(false)}
         />
       )}

@@ -229,3 +229,22 @@ export const personalizeRecommendations = (
 
   return scored;
 };
+
+/**
+ * The scores analyzeMoodTrend should see: the latest `limit` rated entries,
+ * oldest first.
+ *
+ * The API lists moods newest-first and analyzeMoodTrend reads its input
+ * oldest-first (its last three are "recent"). Recommendations took
+ * slice(-10) of the newest-first page, i.e. the OLDEST ten, and fed them in
+ * reverse, so the "recent" trend described entries weeks old.
+ */
+export const recentScoresForTrend = (
+  moodsNewestFirst: ReadonlyArray<Record<string, unknown>>,
+  limit = 10,
+): number[] =>
+  moodsNewestFirst
+    .map((m) => (m.score || m.sentiment_score) as number | undefined)
+    .filter((s): s is number => typeof s === 'number' && s > 0)
+    .slice(0, limit)
+    .reverse();

@@ -132,10 +132,16 @@ export function useNotificationSettings({ userId, announce }: UseNotificationSet
     }
   }, [userId, notificationSettings.dailyRemindersEnabled, announce, t]);
 
+  /** Changes the time shown in the picker; updateReminderTime saves it. */
+  const setReminderTime = useCallback((time: string) => {
+    setNotificationSettings(prev => ({ ...prev, reminderTime: time }));
+  }, []);
+
   return {
     showNotificationSettings,
     setShowNotificationSettings,
     notificationSettings,
+    setReminderTime,
     isEnablingNotifications,
     enableDailyReminders,
     disableDailyReminders,
