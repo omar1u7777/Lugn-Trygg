@@ -319,6 +319,39 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
     setAudioError(null);
   };
 
+  // Point the player at the chosen track.
+  //
+  // Nothing did this. `<audio ref={audioRef} preload="metadata" />` carried no
+  // src binding, and selectTrack only set React state — so picking a track left
+  // the element with src="", readyState 0 and not a single network request. The
+  // sole assignment to .src in this file was the generated-audio fallback,
+  // which is why that one path worked while the entire six-category library
+  // did not.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !selectedTrack?.url) return;
+
+    audio.src = selectedTrack.url;
+    audio.load();
+    // A real track supersedes generated audio; the fallback's blob URL has just
+    // been replaced.
+    setUsingFallbackAudio(false);
+
+    // Keep playing across a track change — otherwise next/previous silently
+    // stops the music, which reads as another bug.
+    if (isPlaying) {
+      audio.play().catch((err) => {
+        logger.error('Playback error after track change:', err);
+        setAudioError(t('audio.playbackError', 'Kunde inte spela upp ljudet.'));
+        setIsPlaying(false);
+      });
+    }
+    // isPlaying is deliberately not a dependency: this effect reacts to the
+    // TRACK changing, and including it would re-issue load() on every
+    // play/pause.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTrack, t]);
+
 
   const togglePlay = async () => {
     if (!audioRef.current || !selectedTrack) return;

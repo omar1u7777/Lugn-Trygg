@@ -20,6 +20,79 @@ const RETRY_DELAY_MS = 1000;
 // State-changing HTTP methods
 const STATE_CHANGING_METHODS = ["POST", "PUT", "DELETE", "PATCH"];
 
+/**
+ * Endpoints that establish or end a session rather than consuming one.
+ *
+ * A 401 from any of these means "those credentials are wrong", not "your token
+ * expired" — there is no session to refresh. The 401 handler only excluded
+ * /auth/refresh, so a failed login fired a refresh that also 401'd and then
+ * cleared local auth state: two wasted requests, two Sentry events, and a real
+ * risk of a refresh loop. The CSRF bypass below needs exactly the same list, so
+ * it lives in one place rather than being spelled out twice and drifting.
+ */
+const SESSION_ENDPOINTS = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/google-login',
+  '/auth/logout',
+  '/auth/refresh',
+  '/auth/reset-password',
+  '/auth/confirm-password-reset',
+];
+
+const isSessionEndpoint = (url?: string): boolean =>
+  !!url && SESSION_ENDPOINTS.some(path => url.includes(path));
+
+/**
+ * Endpoints that re-verify a credential the user just typed, inside a session
+ * that is already valid.
+ *
+ * The comment above states the rule and this list is the other half of it: a
+ * 401 here means "that password is wrong", not "your token expired". Refreshing
+ * and replaying cannot help, because the replay sends the same wrong password.
+ *
+ * It is not merely useless. Both endpoints carry @rate_limit_by_endpoint on the
+ * backend, so the replay spends a SECOND attempt on the same typo — two strikes
+ * per mistake, which halves the real allowance before a user locks themselves
+ * out.
+ *
+ * Being on this list is necessary but NOT sufficient: the 401 must also carry
+ * the API's UNAUTHORIZED code. See isCredentialRejection below for why the URL
+ * on its own would break the expired-token case.
+ *
+ * Deliberately NOT added to SESSION_ENDPOINTS, tempting as that looks. That
+ * list also drives the CSRF bypass further down, and these two run inside a
+ * live session: stripping their CSRF token would remove protection from the
+ * two endpoints that change credentials.
+ */
+const CREDENTIAL_CHECK_ENDPOINTS = [
+  '/auth/change-password',
+  '/auth/change-email',
+];
+
+const isCredentialCheckEndpoint = (url?: string): boolean =>
+  !!url && CREDENTIAL_CHECK_ENDPOINTS.some(path => url.includes(path));
+
+/**
+ * Whether a 401 came from a handler rejecting a credential, rather than from
+ * the token layer rejecting the session.
+ *
+ * The URL alone is not enough to tell those apart, and getting that wrong is
+ * worse than the bug being fixed. Both endpoints sit behind @jwt_required, so
+ * a 401 from either can equally mean "your access token expired" — and those
+ * expire after 15 minutes, which is easily spent reading a settings page and
+ * typing a password carefully. Suppressing the refresh for that case would
+ * tell a user with the RIGHT password that it was wrong.
+ *
+ * The two are distinguishable by body. jwt_required answers with a bare
+ * {error: "<message>"} — "Missing or invalid Authorization header", "Invalid
+ * token", "Token expired". Only APIResponse.unauthorized emits the envelope
+ * {success: false, error: "UNAUTHORIZED", message: ...}, and only handlers
+ * call it, so the machine-readable code cannot collide with a token message.
+ */
+const isCredentialRejection = (error: AxiosError): boolean =>
+  (error.response?.data as { error?: unknown } | undefined)?.error === 'UNAUTHORIZED';
+
 // Error messages (keeping Swedish as per original)
 const RATE_LIMIT_MESSAGE = (retryAfter: number) => `För många förfrågningar. Försök igen om ${retryAfter} sekunder.`;
 const OFFLINE_MESSAGE = "Nätverksfel. Förfrågan sparad för senare synkronisering.";
@@ -480,7 +553,10 @@ const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | n
     };
     logger.error("API Error Response:", errorData);
 
-    if (error.response.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('auth/refresh')) {
+    if (error.response.status === 401
+        && !originalRequest._retry
+        && !isSessionEndpoint(originalRequest.url)
+        && !(isCredentialCheckEndpoint(originalRequest.url) && isCredentialRejection(error))) {
       return await handle401Error(error, originalRequest);
     }
 
@@ -605,8 +681,7 @@ api.interceptors.request.use(
     // Skip CSRF for initial auth endpoints to prevent bootstrap deadlocks
     // when the CSRF fetch itself needs a valid token.
     const method = config.method?.toUpperCase();
-    const isAuthEndpoint = config.url?.includes('/auth/login') || config.url?.includes('/auth/register') || config.url?.includes('/auth/google-login') || config.url?.includes('/auth/logout') || config.url?.includes('/auth/refresh');
-    if (method && STATE_CHANGING_METHODS.includes(method) && !isAuthEndpoint) {
+    if (method && STATE_CHANGING_METHODS.includes(method) && !isSessionEndpoint(config.url)) {
       const csrf = await getSharedCsrfToken();
       if (!csrf) {
         // [S4] Block the request — sending state-changing requests without CSRF

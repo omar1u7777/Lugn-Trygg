@@ -185,13 +185,16 @@ def initialize_firebase(force_reinitialize: bool = False) -> bool:
             return True
         firebase_admin.delete_app(firebase_admin.get_app())
 
-    cred_path_raw = str(
-        get_env_variable("FIREBASE_CREDENTIALS", required=True)
-    ).strip()
-
-    path_override = os.getenv("FIREBASE_CREDENTIALS_PATH")
+    # Startup validation accepts either variable. Requiring FIREBASE_CREDENTIALS
+    # here regardless made a deployment configured with only the path pass
+    # validation and then come up with no database.
+    path_override = (os.getenv("FIREBASE_CREDENTIALS_PATH") or "").strip()
     if path_override:
-        cred_path_raw = path_override.strip()
+        cred_path_raw = path_override
+    else:
+        cred_path_raw = str(
+            get_env_variable("FIREBASE_CREDENTIALS", required=True)
+        ).strip()
 
     if cred_path_raw.startswith("{"):
         try:

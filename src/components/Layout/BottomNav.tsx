@@ -187,8 +187,15 @@ const BottomNav: React.FC = memo(() => {
                 className={`
                   flex flex-col items-center justify-center min-w-[60px] min-h-[44px] py-2 px-3 rounded-xl transition-all duration-200
                   ${active
+                    /* Resting colours were #a89f97 (2.60:1 on white) and
+                       gray-500 (3.69:1 on slate-900) at 11px — both below the
+                       4.5:1 WCAG 2.1 AA floor for normal text, on the app's
+                       PRIMARY navigation. #6d645d was already the hover colour
+                       here and measures 5.78:1; gray-400 measures 7.03:1. The
+                       palette already contained accessible values, they were
+                       just being saved for hover. */
                     ? 'text-[#2c8374]'
-                    : 'text-[#a89f97] hover:text-[#6d645d] dark:text-gray-500 dark:hover:text-gray-300'
+                    : 'text-[#6d645d] hover:text-[#2f2a24] dark:text-gray-400 dark:hover:text-gray-200'
                   }
                 `}
                 aria-current={active && !isExplore ? 'page' : undefined}

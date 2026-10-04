@@ -41,6 +41,7 @@ import {
   type RecommendationFeedback,
   formatPomodoroTime,
 } from '../constants/recommendationsConstants';
+import { CRISIS_NUMBERS, CRISIS_TEL } from '../config/crisisResources';
 
 // interfaces are now imported from ../types/recommendation
 
@@ -132,7 +133,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     wtScheduledTime, setWtScheduledTime,
     wtPostponeCommitted, setWtPostponeCommitted,
     wtReflection, setWtReflection,
-  } = useCBTExercises({ userId: user?.user_id, announce: announceToScreenReader });
+  } = useCBTExercises({ userId: user?.user_id, announce: announceToScreenReader, enabled: !compact });
 
   const [debugMode, setDebugMode] = useState(false);
   const showDebugTools = import.meta.env.DEV;
@@ -1864,8 +1865,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               {t('recommendations.disclaimer.body', 'Detta är ett stödverktyg, inte en ersättning för professionell vård. Om du upplever allvarliga mentala hälsoproblem, kontakta en kvalificerad vårdgivare.')}
             </p>
             <div className="text-xs text-yellow-600 dark:text-yellow-400">
-              <p className="mb-1">{t('recommendations.disclaimer.crisisNumber', '🔹 Krisnummer Sverige: 112 (akut) eller 1177 (vårdguiden)')}</p>
-              <p>{t('recommendations.disclaimer.suicideLine', '🔹 Självmordslinjen: 0900-011 200 (alla dagar 24/7)')}</p>
+              <p className="mb-1">{t('recommendations.disclaimer.crisisNumber', { emergency: CRISIS_NUMBERS.emergency, healthcare: CRISIS_NUMBERS.healthcare })}</p>
+              <p>{t('recommendations.disclaimer.suicideLine', { suicideLine: CRISIS_NUMBERS.suicideLine })}</p>
             </div>
           </div>
         </div>
@@ -1996,10 +1997,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
             </ul>
             <div className="mt-4 text-center">
               <a
-                href="tel:0900011200"
+                href={CRISIS_TEL.suicideLine}
                 className="inline-block px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
               >
-                {t('recommendations.footer.suicideLine', 'Självmordslinjen')}
+                {t('recommendations.footer.suicideLine', 'Självmordslinjen')} {CRISIS_NUMBERS.suicideLine}
               </a>
             </div>
           </div>

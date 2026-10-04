@@ -164,5 +164,3 @@ backups/
 # ML models (too large for git)
 *.pkl
 
-# ChatGPT / AI generated images
-ChatGPT*.png

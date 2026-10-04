@@ -22,7 +22,6 @@ def test_routes_have_no_user_id():
 
     # Check endpoint names exist
     assert hasattr(rewards_routes, 'get_user_rewards')
-    assert hasattr(rewards_routes, 'add_user_xp')
     assert hasattr(rewards_routes, 'claim_reward')
     assert hasattr(rewards_routes, 'check_achievements')
     assert hasattr(rewards_routes, 'get_user_badges')

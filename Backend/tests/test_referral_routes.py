@@ -540,11 +540,11 @@ class TestLeaderboard:
             "rewards_earned": 40,
         }
 
-        # Chain: order_by() -> limit() -> get()
+        # Chain: where() -> order_by() -> limit() -> get()
         referrals_col = mock_db.collection("referrals")
         mock_query = MagicMock()
         mock_query.limit.return_value.get.return_value = [doc1, doc2]
-        referrals_col.order_by.return_value = mock_query
+        referrals_col.where.return_value.order_by.return_value = mock_query
 
         # User lookups
         users_col = mock_db.collection("users")
@@ -573,9 +573,10 @@ class TestLeaderboard:
         lb = body["data"]["leaderboard"]
         assert len(lb) == 2
         assert lb[0]["tier"] == "Platinum"  # 50 referrals
-        assert lb[0]["name"] == "Top Referrer"
+        # Pseudonyms, never the stored name: see test_public_alias_leaderboards.
+        assert lb[0]["name"] != "Top Referrer"
         assert lb[1]["tier"] == "Gold"  # 20 referrals
-        assert lb[1]["name"] == "Good Referrer"
+        assert lb[1]["name"] != "Good Referrer"
         assert body["data"]["totalCount"] == 2
 
     def test_get_leaderboard_with_limit(self, mock_db, client):
