@@ -22,6 +22,7 @@ import {
   type ComprehensiveRiskResult,
 } from '../api/clinical';
 import { logger } from '../utils/logger';
+import CompositeRiskCard from './clinical/CompositeRiskCard';
 import { useMountedRef } from '../hooks/useMountedRef';
 
 // ---------------------------------------------------------------------------
@@ -454,65 +455,11 @@ export const ClinicalAssessment: React.FC = () => {
                 </div>
               )}
               {compositeRisk && !compositeLoading && !compositeError && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-3">
-                    {t('clinicalAssessment.compositeRisk.title')}
-                  </h3>
-                  <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium mb-4 ${getSeverityColor(compositeRisk.composite_risk === 'none' ? 'minimal' : compositeRisk.composite_risk === 'crisis' ? 'severe' : compositeRisk.composite_risk)}`}>
-                    {t(`clinicalAssessment.compositeRisk.${compositeRisk.composite_risk}`)}
-                  </div>
-                  {compositeRisk.risk_factors.length > 0 && (
-                    <div className="mb-3">
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t('clinicalAssessment.compositeRisk.riskFactors')}</p>
-                      <ul className="space-y-1">
-                        {compositeRisk.risk_factors.map((factor, i) => (
-                          <li key={i} className="text-xs text-orange-700 dark:text-orange-400 flex items-start gap-1.5">
-                            <ExclamationTriangleIcon className="w-3 h-3 mt-0.5 shrink-0" /> {factor}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {compositeRisk.protective_factors.length > 0 && (
-                    <div className="mb-3">
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t('clinicalAssessment.compositeRisk.protectiveFactors')}</p>
-                      <ul className="space-y-1">
-                        {compositeRisk.protective_factors.map((factor, i) => (
-                          <li key={i} className="text-xs text-green-700 dark:text-green-400 flex items-start gap-1.5">
-                            <CheckCircleIcon className="w-3 h-3 mt-0.5 shrink-0" /> {factor}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {compositeRisk.suggested_interventions.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t('clinicalAssessment.compositeRisk.interventions')}</p>
-                      <ul className="space-y-1">
-                        {compositeRisk.suggested_interventions.map((intervention, i) => (
-                          <li key={i} className="text-xs text-indigo-700 dark:text-indigo-400 flex items-start gap-1.5">
-                            {/*
-                              The backend returns constants (CREATE_SAFETY_PLAN,
-                              IMMEDIATE_CRISIS_INTERVENTION…). Stripping the
-                              underscores rendered them as raw English — "create
-                              safety plan" — in a PHQ-9 crisis result, which is
-                              the last place to show a user untranslated
-                              machine output.
-
-                              The old transformation stays as the defaultValue:
-                              if the backend adds a constant before the key
-                              exists, this degrades to the previous readable
-                              form rather than printing a translation key.
-                            */}
-                            <InformationCircleIcon className="w-3 h-3 mt-0.5 shrink-0" /> {t(`clinicalAssessment.interventions.${intervention}`, {
-                              defaultValue: intervention.replace(/_/g, ' ').toLowerCase(),
-                            })}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
+                <CompositeRiskCard
+                  risk={compositeRisk}
+                  severityColor={getSeverityColor}
+                  onRetake={resetAssessment}
+                />
               )}
             </div>
           )}

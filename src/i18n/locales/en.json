@@ -2371,7 +2371,17 @@
       "protectiveFactors": "Protective factors",
       "interventions": "Recommended interventions",
       "loading": "Calculating combined risk…",
-      "error": "Could not calculate combined risk"
+      "error": "Could not calculate combined risk",
+      "crisisTitle": "You don't have to carry this alone",
+      "crisisText": "Your latest answer shows thoughts of harming yourself. Talk to someone now – help is available around the clock.",
+      "callEmergency": "Call {{number}}",
+      "callSuicideLine": "Suicide line {{number}}",
+      "openCrisisPage": "More ways to get help",
+      "careTitle": "Talk to healthcare",
+      "careText": "Your result suggests you may need support. Call {{number}} (healthcare advice) or contact your health centre.",
+      "callHealthcare": "Call {{number}}",
+      "stale": "Your latest {{type}} is from {{date}}. Results older than {{days}} days are not included in the assessment.",
+      "retake": "Take a new {{type}}"
     },
     "interventions": {
       "BEHAVIORAL_ACTIVATION": "Behavioural activation – schedule meaningful activities",
@@ -2391,7 +2401,21 @@
       "SOCIAL_RECONNECTION": "Reconnect socially",
       "URGENT_REFERRAL_PSYCHIATRY": "Urgent referral to psychiatry",
       "URGENT_THERAPY_REFERRAL": "Urgent referral to therapy",
-      "WEEKLY_MONITORING": "Weekly monitoring"
+      "WEEKLY_MONITORING": "Weekly monitoring",
+      "CONTACT_CRISIS_SUPPORT": "Contact crisis support – the numbers are above",
+      "CONTACT_HEALTHCARE": "Contact 1177 or your health centre"
+    },
+    "factors": {
+      "SUICIDAL_IDEATION": "Thoughts of harming yourself (PHQ-9 question 9: {{q9}})",
+      "PHQ9_SCORE": "PHQ-9: {{score}} points ({{severity}})",
+      "GAD7_SCORE": "GAD-7: {{score}} points ({{severity}})",
+      "MOOD_DECLINING": "Mood declining over the past week",
+      "NEGATIVE_STREAK_one": "{{count}} day of low mood",
+      "NEGATIVE_STREAK_other": "{{count}} days in a row of low mood",
+      "SLEEP_DEPRIVATION": "Less than 5 hours of sleep",
+      "SOCIAL_ISOLATION": "No social contact for more than 3 days",
+      "LOW_PHQ9": "Low PHQ-9: {{score}} points",
+      "LOW_GAD7": "Low GAD-7: {{score}} points"
     }
   },
   "insights": {

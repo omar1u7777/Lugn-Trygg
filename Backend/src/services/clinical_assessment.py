@@ -4,7 +4,7 @@ PHQ-9 (Depression), GAD-7 (Anxiety), and risk stratification
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
@@ -59,6 +59,15 @@ class ClinicalRiskAssessment:
     suggested_interventions: list[str]
     follow_up_recommended: bool
     follow_up_timeframe: str
+    # The same factors as codes with parameters, for clients that translate
+    # them. risk_factors/protective_factors stay as English text for existing
+    # consumers; they were shown to Swedish users verbatim.
+    risk_factor_details: list[dict] = field(default_factory=list)
+    protective_factor_details: list[dict] = field(default_factory=list)
+    # suggested_interventions mixes actions for the user with orders for a
+    # clinician (URGENT_REFERRAL_PSYCHIATRY, MEDICATION_EVALUATION,
+    # REMOVE_MEANS_SELF_HARM). This is the subset a patient can act on.
+    patient_interventions: list[str] = field(default_factory=list)
 
 
 class PHQ9Assessment:
@@ -358,18 +367,24 @@ class ClinicalRiskStratification:
         risk_factors = []
         protective_factors = []
         immediate_concerns = []
+        risk_details: list[dict] = []
+        protective_details: list[dict] = []
 
         # PHQ-9 risk assessment
         if phq9_result:
             if phq9_result.suicidal_ideation_flag:
                 immediate_concerns.append('suicidal_ideation')
-                risk_factors.append(f"Suicidal ideation: PHQ-9 Q9={phq9_result.item_scores.get('self_harm', 0)}")
+                q9 = phq9_result.item_scores.get('self_harm', 0)
+                risk_factors.append(f"Suicidal ideation: PHQ-9 Q9={q9}")
+                risk_details.append({'code': 'SUICIDAL_IDEATION', 'params': {'q9': q9}})
 
             if phq9_result.total_score >= cls.RISK_THRESHOLDS['phq9_crisis']:
                 immediate_concerns.append('severe_depression')
 
             if phq9_result.total_score >= 10:
                 risk_factors.append(f"PHQ-9 score: {phq9_result.total_score} ({phq9_result.severity})")
+                risk_details.append({'code': 'PHQ9_SCORE', 'params': {
+                    'score': phq9_result.total_score, 'severity': phq9_result.severity}})
             elif not phq9_result.suicidal_ideation_flag:
                 # A low total is not protective when the self-harm item is
                 # what makes it up: Q9 alone can contribute all 3 points of a
@@ -377,6 +392,7 @@ class ClinicalRiskStratification:
                 # "Suicidal ideation: PHQ-9 Q9=3" — the same answer read as
                 # both a risk and a protection.
                 protective_factors.append(f"Low PHQ-9: {phq9_result.total_score}")
+                protective_details.append({'code': 'LOW_PHQ9', 'params': {'score': phq9_result.total_score}})
 
         # GAD-7 risk assessment
         if gad7_result:
@@ -385,8 +401,11 @@ class ClinicalRiskStratification:
 
             if gad7_result.total_score >= 10:
                 risk_factors.append(f"GAD-7 score: {gad7_result.total_score} ({gad7_result.severity})")
+                risk_details.append({'code': 'GAD7_SCORE', 'params': {
+                    'score': gad7_result.total_score, 'severity': gad7_result.severity}})
             else:
                 protective_factors.append(f"Low GAD-7: {gad7_result.total_score}")
+                protective_details.append({'code': 'LOW_GAD7', 'params': {'score': gad7_result.total_score}})
 
         # Mood trajectory analysis, over entries that carry a rating, oldest
         # first. Both used to be assumed: the route passes moods newest-first,
@@ -401,6 +420,7 @@ class ClinicalRiskStratification:
                 trend = (recent_valences[-1] - recent_valences[0]) / len(recent_valences)
                 if trend < -0.1:  # Declining more than 0.1 per entry
                     risk_factors.append(f"Mood declining trend: {trend:.2f}/entry")
+                    risk_details.append({'code': 'MOOD_DECLINING', 'params': {'trend': round(trend, 2)}})
 
             # Check consecutive negative days
             negative_streak = 0
@@ -412,14 +432,17 @@ class ClinicalRiskStratification:
             if negative_streak >= cls.RISK_THRESHOLDS['consecutive_negative_days']:
                 immediate_concerns.append(f'{negative_streak}_consecutive_negative_days')
                 risk_factors.append(f"{negative_streak} consecutive negative days")
+                risk_details.append({'code': 'NEGATIVE_STREAK', 'params': {'days': negative_streak}})
 
         # Contextual factors
         if contextual_factors:
             if contextual_factors.get('sleep_hours', 7) < 5:
                 risk_factors.append("Sleep deprivation (<5 hours)")
+                risk_details.append({'code': 'SLEEP_DEPRIVATION', 'params': {}})
 
             if contextual_factors.get('days_since_social_contact', 0) > 3:
                 risk_factors.append("Social isolation >3 days")
+                risk_details.append({'code': 'SOCIAL_ISOLATION', 'params': {}})
 
             if contextual_factors.get('recent_crisis', False):
                 immediate_concerns.append('recent_life_crisis')
@@ -457,8 +480,31 @@ class ClinicalRiskStratification:
             immediate_concerns=immediate_concerns,
             suggested_interventions=interventions,
             follow_up_recommended=follow_up_recommended,
-            follow_up_timeframe=follow_up_timeframe
+            follow_up_timeframe=follow_up_timeframe,
+            risk_factor_details=risk_details,
+            protective_factor_details=protective_details,
+            patient_interventions=cls.patient_interventions(composite_risk, immediate_concerns),
         )
+
+    # What the person can do themselves, per level. Referrals, medication and
+    # means restriction are decisions for a clinician; in the patient's own
+    # view they read as orders addressed to nobody. CONTACT_CRISIS_SUPPORT and
+    # CONTACT_HEALTHCARE stand in for them, and the client renders the numbers.
+    PATIENT_INTERVENTIONS = {
+        RiskLevel.CRISIS: ['CONTACT_CRISIS_SUPPORT', 'CREATE_SAFETY_PLAN', 'INVOLVE_FAMILY_SUPPORT'],
+        RiskLevel.SEVERE: ['CONTACT_HEALTHCARE', 'DAILY_MOOD_TRACKING', 'SLEEP_HYGIENE_PROTOCOL',
+                           'BEHAVIORAL_ACTIVATION'],
+        RiskLevel.MODERATE: ['CONTACT_HEALTHCARE', 'DAILY_MOOD_TRACKING', 'BEHAVIORAL_ACTIVATION',
+                             'SLEEP_HYGIENE_PROTOCOL', 'SOCIAL_RECONNECTION'],
+        RiskLevel.MILD: ['SELF_HELP_CBT_MODULES', 'LIFESTYLE_INTERVENTIONS'],
+        RiskLevel.NONE: ['PREVENTIVE_MAINTENANCE'],
+    }
+
+    @classmethod
+    def patient_interventions(cls, risk: RiskLevel, immediate: list[str]) -> list[str]:
+        if 'suicidal_ideation' in immediate:
+            risk = RiskLevel.CRISIS
+        return list(cls.PATIENT_INTERVENTIONS.get(risk, cls.PATIENT_INTERVENTIONS[RiskLevel.NONE]))
 
     @classmethod
     def _calculate_composite_risk(

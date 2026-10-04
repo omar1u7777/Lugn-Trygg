@@ -2317,7 +2317,17 @@
       "protectiveFactors": "Beskyttelsesfaktorer",
       "interventions": "Anbefalte tiltak",
       "loading": "Beregner kombinert risiko…",
-      "error": "Kunne ikke beregne kombinert risiko"
+      "error": "Kunne ikke beregne kombinert risiko",
+      "crisisTitle": "Du trenger ikke være alene med dette",
+      "crisisText": "Ditt siste svar viser tanker om å skade deg selv. Snakk med noen nå – det finnes hjelp døgnet rundt.",
+      "callEmergency": "Ring {{number}}",
+      "callSuicideLine": "Selvmordslinjen {{number}}",
+      "openCrisisPage": "Flere måter å få hjelp på",
+      "careTitle": "Snakk med helsevesenet",
+      "careText": "Resultatet ditt tyder på at du kan trenge støtte. Ring {{number}} (Vårdguiden) eller kontakt legekontoret ditt.",
+      "callHealthcare": "Ring {{number}}",
+      "stale": "Din siste {{type}} er fra {{date}}. Resultater eldre enn {{days}} dager regnes ikke med i vurderingen.",
+      "retake": "Ta en ny {{type}}"
     },
     "interventions": {
       "BEHAVIORAL_ACTIVATION": "Atferdsaktivering – planlegg meningsfulle aktiviteter",
@@ -2337,7 +2347,21 @@
       "SOCIAL_RECONNECTION": "Gjenopprett sosial kontakt",
       "URGENT_REFERRAL_PSYCHIATRY": "Akutt henvisning til psykiatrien",
       "URGENT_THERAPY_REFERRAL": "Akutt henvisning til terapi",
-      "WEEKLY_MONITORING": "Ukentlig oppfølging"
+      "WEEKLY_MONITORING": "Ukentlig oppfølging",
+      "CONTACT_CRISIS_SUPPORT": "Kontakt krisestøtte – numrene står over",
+      "CONTACT_HEALTHCARE": "Kontakt 1177 eller legekontoret ditt"
+    },
+    "factors": {
+      "SUICIDAL_IDEATION": "Tanker om å skade deg selv (PHQ-9 spørsmål 9: {{q9}})",
+      "PHQ9_SCORE": "PHQ-9: {{score}} poeng ({{severity}})",
+      "GAD7_SCORE": "GAD-7: {{score}} poeng ({{severity}})",
+      "MOOD_DECLINING": "Synkende humør den siste uken",
+      "NEGATIVE_STREAK_one": "{{count}} dag med lavt humør",
+      "NEGATIVE_STREAK_other": "{{count}} dager på rad med lavt humør",
+      "SLEEP_DEPRIVATION": "Mindre enn 5 timers søvn",
+      "SOCIAL_ISOLATION": "Ingen sosial kontakt på mer enn 3 dager",
+      "LOW_PHQ9": "Lav PHQ-9: {{score}} poeng",
+      "LOW_GAD7": "Lav GAD-7: {{score}} poeng"
     }
   },
   "insights": {

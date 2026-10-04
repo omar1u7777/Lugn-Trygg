@@ -55,17 +55,32 @@ export interface AssessmentHistoryResponse {
   total: number;
 }
 
+/** A risk or protective factor as a code, for translation. */
+export interface RiskFactorDetail {
+  code: string;
+  params: Record<string, string | number>;
+}
+
 export interface ComprehensiveRiskResult {
   timestamp: string;
   composite_risk: string;
+  /** English text; prefer risk_factor_details for display. */
   risk_factors: string[];
   protective_factors: string[];
   immediate_concerns: string[];
+  /** Includes clinician-directed actions; show patient_interventions instead. */
   suggested_interventions: string[];
   follow_up_recommended: boolean;
   follow_up_timeframe: string;
   latest_phq9: AssessmentHistoryEntry | null;
   latest_gad7: AssessmentHistoryEntry | null;
+  // Optional: older backends do not send these.
+  risk_factor_details?: RiskFactorDetail[];
+  protective_factor_details?: RiskFactorDetail[];
+  patient_interventions?: string[];
+  /** Latest assessments too old to count toward the composite risk. */
+  stale_assessments?: { type: 'phq9' | 'gad7'; timestamp?: string }[];
+  assessment_window_days?: number;
 }
 
 // ---------------------------------------------------------------------------
