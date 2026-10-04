@@ -654,7 +654,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
                 </Button>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                {t('chat.reminder', 'Be respectful and supportive. Crisis? Call your local helpline.')}
+                {t('chat.reminder', 'Var respektfull och stödjande. Akut kris? Ring 112 eller öppna Hjälp och stöd i menyn.')}
               </p>
             </div>
           </Card>
