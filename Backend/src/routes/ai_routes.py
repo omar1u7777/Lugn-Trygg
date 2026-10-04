@@ -128,6 +128,11 @@ def generate_therapeutic_story():
                 "emotions_detected": mood_data.get("emotions_detected", [])
             })
 
+        # Fetched newest-first; the story analysis reads the last 14 entries as
+        # the most recent, so it needs them oldest-first. Without this it
+        # wrote stories about the oldest 14 of the 50.
+        mood_history.reverse()
+
         logger.info("Retrieved %d mood entries for story generation", len(mood_history))
 
         # Generate personalized story
@@ -146,8 +151,31 @@ def generate_therapeutic_story():
         if not isinstance(story_result, dict) or not isinstance(story_result.get("story"), str):
             return APIResponse.error("Failed to generate therapeutic story", "STORY_GENERATION_ERROR", 500)
 
-        # Save story generation to database for tracking
         timestamp = datetime.now(UTC).isoformat()
+        mood_summary = story_result.get("mood_summary") or {}
+        dominant_mood = mood_summary.get("dominant_mood", "neutral")
+
+        # A fallback story is a fixed template, and when the AI service was
+        # down it opened with "⚠️ AI-berättelsetjänsten är tillfälligt
+        # otillgänglig". Saving it filed the outage notice in the user's
+        # library as a story, and every failed attempt added another copy of
+        # the same template. It is shown once and not kept.
+        if not story_result.get("ai_generated"):
+            return APIResponse.success({
+                "id": None,
+                "saved": False,
+                "story": story_result["story"],
+                "locale": locale,
+                "moodSummary": mood_summary,
+                "dominantMood": dominant_mood,
+                "aiGenerated": False,
+                "modelUsed": story_result.get("model_used", "fallback"),
+                "confidence": story_result.get("confidence", 0.0),
+                "wordCount": story_result.get("word_count", 0),
+                "generatedAt": timestamp
+            }, "AI story unavailable; returned a general story")
+
+        # Save story generation to database for tracking
         story_ref = db_handle.collection("users").document(user_id).collection("stories")
 
         story_id = f"story_{timestamp}"
@@ -163,6 +191,7 @@ def generate_therapeutic_story():
             "ai_generated": story_result.get("ai_generated", False),
             "model_used": story_result.get("model_used", "unknown"),
             "confidence": story_result.get("confidence", 0.0),
+            "dominant_mood": dominant_mood,
             "generated_at": timestamp
         })
 
@@ -182,9 +211,11 @@ def generate_therapeutic_story():
             # state (e.g. favourites) to the same id the history endpoint will
             # later return, instead of inventing a throwaway one.
             "id": story_id,
+            "saved": True,
             "story": story_result["story"],
             "locale": locale,
-            "moodSummary": story_result.get("mood_summary", {}),
+            "moodSummary": mood_summary,
+            "dominantMood": dominant_mood,
             "aiGenerated": story_result.get("ai_generated", False),
             "modelUsed": story_result.get("model_used", "unknown"),
             "confidence": story_result.get("confidence", 0.0),
@@ -362,9 +393,14 @@ def get_story_history():
 
         stories = []
         for doc in story_docs:
-            story_data = doc.to_dict()
+            story_data = doc.to_dict() or {}
+            # Fallback templates were saved before generation stopped keeping
+            # them; they are outage notices and duplicates, not stories.
+            if story_data.get("model_used") == "fallback":
+                continue
             stories.append({
                 "id": doc.id,
+                "dominantMood": story_data.get("dominant_mood", "neutral"),
                 "storyPreview": story_data.get("story_content", ""),
                 "locale": story_data.get("locale", "sv"),
                 "moodDataPoints": story_data.get("mood_data_points", 0),
