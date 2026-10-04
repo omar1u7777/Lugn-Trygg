@@ -669,7 +669,6 @@
     "topTier": "Høyeste nivå nådd! 🎉",
     "totalInvited": "Totalt invitert",
     "activeUsers": "Aktive brukere",
-    "weeks": "{{count}} uker",
     "premiumReward": "Premium-belønning",
     "referralLink": "Vervelenke",
     "copy": "Kopier",
@@ -696,7 +695,9 @@
       "changes": "Lugn & Trygg forbeholder seg retten til å endre vilkårene"
     },
     "weeksUnit_one": "uke",
-    "weeksUnit_other": "uker"
+    "weeksUnit_other": "uker",
+    "weeks_one": "{{count}} uke",
+    "weeks_other": "{{count}} uker"
   },
   "healthIntegrations": {
     "title": "Helseintegrasjoner (OAuth)",
@@ -1552,7 +1553,6 @@
     "engagementMessage": "Med {{moods}} loggede stemninger og {{chats}} samtaler er du på god vei.",
     "engagementUrgency": "Begrenset tilbud for engasjerte brukere",
     "engagementCta": "Fortsett reisen din",
-    "streakTitle": "{{days}} dager med kontinuitet!",
     "streakSubtitle": "Ikke bryt kjeden",
     "streakMessage": "Du har bygget en vane. Sørg for at du kan fortsette.",
     "streakUrgency": "{{streakUsers}} brukere har beskyttet sin streak",
@@ -1572,7 +1572,9 @@
     "benefitReminders": "Smartere påminnelser",
     "benefitGoals": "Personlige mål og utfordringer",
     "remaining": "{{remaining}} igjen",
-    "trust": "Ingen forpliktelser. Avslutt når som helst."
+    "trust": "Ingen forpliktelser. Avslutt når som helst.",
+    "streakTitle_one": "{{count}} dag med Lugn & Trygg!",
+    "streakTitle_other": "{{count}} dager med Lugn & Trygg!"
   },
   "recommendations": {
     "preferences": {
@@ -1674,6 +1676,12 @@
     },
     "crisis": {
       "suicideHotline": "📞 Selvmordslinjen: {{suicideLine}}"
+    },
+    "streakDays_one": "{{count}} dag på rad",
+    "streakDays_other": "{{count}} dager på rad",
+    "compact": {
+      "streakDays_one": "🔥 {{count}} dag",
+      "streakDays_other": "🔥 {{count}} dager"
     }
   },
   "wellnessHub": {
@@ -1726,7 +1734,6 @@
     "guest": "Gjest",
     "manageJourney": "Administrer din personlige reise, innstillinger og sikkerhet.",
     "loginToSave": "Logg inn for å lagre dataene dine.",
-    "memberForDays": "Medlem i {{days}} dager",
     "upgradeNow": "Oppgrader nå",
     "moodLogs": "Humørlogger",
     "aiChats": "AI-samtaler",
@@ -1793,7 +1800,9 @@
     "deleteItem5": "Velværemål og fremgang",
     "deleteNote": "Dataene dine vil bli permanent slettet innen 30 dager. Du kan avbryte ved å kontakte support i løpet av den tiden.",
     "deleting": "Sletter...",
-    "settingsLoadFailed": "Kunne ikke hente dine lagrede innstillinger. Last inn siden på nytt før du endrer noe."
+    "settingsLoadFailed": "Kunne ikke hente dine lagrede innstillinger. Last inn siden på nytt før du endrer noe.",
+    "memberForDays_one": "Medlem i {{count}} dag",
+    "memberForDays_other": "Medlem i {{count}} dager"
   },
   "wellnessGoalLabels": {
     "Hantera stress": {

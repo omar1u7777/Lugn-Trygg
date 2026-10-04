@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSubscription, type SubscriptionFeatures, type SubscriptionTier } from '@/contexts/SubscriptionContext';
 import { LockClosedIcon, SparklesIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { MONTHLY_PRICE_SEK, CURRENCY_SUFFIX } from '../config/pricing';
+import { svCount } from '../utils/plural';
 
 // Typ för feature-namn
 export type FeatureName = keyof SubscriptionFeatures;
@@ -102,7 +103,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
           <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
             <p className="text-sm font-medium">
               {remainingDays > 0
-                ? `Gratisperiod aktiv: ${remainingDays} dagar kvar.`
+                ? `Gratisperiod aktiv: ${svCount(remainingDays, 'dag', 'dagar')} kvar.`
                 : 'Gratisperiod aktiv.'}
             </p>
           </div>

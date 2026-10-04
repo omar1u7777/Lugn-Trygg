@@ -126,7 +126,10 @@ const PremiumUpsell: React.FC<PremiumUpsellProps> = ({
 
       case 'streak':
         return {
-          title: t('premiumUpsell.streakTitle', '{{days}} dagar av kontinuitet!'),
+          // Based on account age, not a streak: the title used to claim
+          // "{{days}} dagar av kontinuitet" and was rendered without the
+          // number, showing the placeholder itself.
+          title: t('premiumUpsell.streakTitle', { count: stats.accountAge }),
           subtitle: t('premiumUpsell.streakSubtitle', 'Bryt inte kedjan'),
           message: t('premiumUpsell.streakMessage', 'Du har byggt en vana. Se till att du kan fortsätta.'),
           benefits: [

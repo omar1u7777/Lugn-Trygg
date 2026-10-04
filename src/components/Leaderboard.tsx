@@ -19,6 +19,7 @@ import {
 import useAuth from '../hooks/useAuth';
 import { ArrowTrendingUpIcon, FireIcon, TrophyIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
+import { svCount } from '../utils/plural';
 
 type LeaderboardEntry = XPLeaderboardUser | StreakLeaderboardUser | MoodLeaderboardUser;
 
@@ -361,7 +362,7 @@ export const Leaderboard: React.FC = () => {
                     <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                       {entry.rank <= 3 ? getRankIcon(entry.rank) : `#${entry.rank}`}
                       {activeTab === 0 && (((entry as XPLeaderboardUser).badgeCount || (entry as XPLeaderboardUser).badge_count || 0) > 0)
-                        ? ` • ${((entry as XPLeaderboardUser).badgeCount || (entry as XPLeaderboardUser).badge_count)} badges`
+                        ? ` • ${svCount(((entry as XPLeaderboardUser).badgeCount || (entry as XPLeaderboardUser).badge_count || 0), 'märke', 'märken')}`
                         : ''}
                     </p>
                   </div>

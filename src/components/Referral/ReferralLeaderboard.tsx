@@ -3,6 +3,7 @@ import api from '../../api/api';
 import { API_ENDPOINTS } from '../../api/constants';
 import { Paper, Spinner, Alert, Chip, Divider, Button, Grid } from '../ui/tailwind';
 import { logger } from '../../utils/logger';
+import { svCount } from '../../utils/plural';
 
 
 interface LeaderboardEntry {
@@ -123,7 +124,7 @@ const ReferralLeaderboard: React.FC = () => {
                                         />
                                     </div>
                                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        {entry.successfulReferrals} referenser • {entry.rewardsEarned} veckor premium
+                                        {svCount(entry.successfulReferrals, 'referens', 'referenser')} • {svCount(entry.rewardsEarned, 'vecka', 'veckor')} premium
                                     </p>
                                 </div>
                             </div>

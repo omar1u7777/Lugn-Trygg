@@ -669,7 +669,6 @@
     "topTier": "Högsta nivån uppnådd! 🎉",
     "totalInvited": "Totalt bjudna",
     "activeUsers": "Aktiva användare",
-    "weeks": "{{count}} veckor",
     "premiumReward": "Premium-belöning",
     "referralLink": "Referenslänk",
     "copy": "Kopiera",
@@ -696,7 +695,9 @@
       "changes": "Lugn & Trygg förbehåller sig rätten att ändra villkoren"
     },
     "weeksUnit_one": "vecka",
-    "weeksUnit_other": "veckor"
+    "weeksUnit_other": "veckor",
+    "weeks_one": "{{count}} vecka",
+    "weeks_other": "{{count}} veckor"
   },
   "healthIntegrations": {
     "title": "Hälsointegreringar (OAuth)",
@@ -1552,7 +1553,6 @@
     "engagementMessage": "Med {{moods}} loggade stämningar och {{chats}} samtal är du på god väg.",
     "engagementUrgency": "Begränsat erbjudande för engagerade användare",
     "engagementCta": "Fortsätt din resa",
-    "streakTitle": "{{days}} dagar av kontinuitet!",
     "streakSubtitle": "Bryt inte kedjan",
     "streakMessage": "Du har byggt en vana. Se till att du kan fortsätta.",
     "streakUrgency": "{{streakUsers}} användare har skyddat sin streak",
@@ -1572,7 +1572,9 @@
     "benefitReminders": "Smartare påminnelser",
     "benefitGoals": "Personliga mål och utmaningar",
     "remaining": "{{remaining}} kvar",
-    "trust": "Ingen bindningstid. Avbryt när som helst."
+    "trust": "Ingen bindningstid. Avbryt när som helst.",
+    "streakTitle_one": "{{count}} dag med Lugn & Trygg!",
+    "streakTitle_other": "{{count}} dagar med Lugn & Trygg!"
   },
   "recommendations": {
     "preferences": {
@@ -1674,6 +1676,12 @@
     },
     "crisis": {
       "suicideHotline": "📞 Självmordslinjen: {{suicideLine}}"
+    },
+    "streakDays_one": "{{count}} dag i rad",
+    "streakDays_other": "{{count}} dagar i rad",
+    "compact": {
+      "streakDays_one": "🔥 {{count}} dag",
+      "streakDays_other": "🔥 {{count}} dagar"
     }
   },
   "wellnessHub": {
@@ -1726,7 +1734,6 @@
     "guest": "Gäst",
     "manageJourney": "Hantera din personliga resa, inställningar och säkerhet.",
     "loginToSave": "Logga in för att spara din data.",
-    "memberForDays": "Medlem i {{days}} dagar",
     "upgradeNow": "Uppgradera nu",
     "moodLogs": "Humörloggar",
     "aiChats": "AI-samtal",
@@ -1793,7 +1800,9 @@
     "deleteItem5": "Wellness-mål och framsteg",
     "deleteNote": "Din data kommer att raderas permanent inom 30 dagar. Du kan avbryta genom att kontakta support inom den tiden.",
     "deleting": "Raderar...",
-    "settingsLoadFailed": "Kunde inte hämta dina sparade inställningar. Ladda om sidan innan du ändrar något."
+    "settingsLoadFailed": "Kunde inte hämta dina sparade inställningar. Ladda om sidan innan du ändrar något.",
+    "memberForDays_one": "Medlem i {{count}} dag",
+    "memberForDays_other": "Medlem i {{count}} dagar"
   },
   "wellnessGoalLabels": {
     "Hantera stress": {

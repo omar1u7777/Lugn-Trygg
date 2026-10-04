@@ -25,6 +25,7 @@ import { exportMoodData } from '../api/mood';
 
 import MoodCalendar from './MoodCalendar';
 import { useMoodData } from '../features/mood/hooks/useMoodData';
+import { svCount } from '../utils/plural';
 // jsPDF is ~590 kB (174 kB gzipped) and is only needed when the user actually
 // exports a PDF. Imported statically it rode along with this page's chunk, so
 // everyone opening Humöranalys paid for it whether or not they exported
@@ -977,10 +978,10 @@ const MoodAnalytics: React.FC = () => {
                   <p className="text-sm text-gray-600 dark:text-gray-400">Nuvarande Streak</p>
                 </div>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {statistics.currentStreak} dagar
+                  {svCount(statistics.currentStreak, 'dag', 'dagar')}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Längsta: {statistics.longestStreak} dagar
+                  Längsta: {svCount(statistics.longestStreak, 'dag', 'dagar')}
                 </p>
               </div>
             </Card>

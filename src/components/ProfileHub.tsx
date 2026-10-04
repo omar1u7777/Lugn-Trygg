@@ -479,7 +479,7 @@ const ProfileHub: React.FC = () => {
                       aria-label={t('common.loading')}
                     />
                   ) : (
-                    t('profileHub.memberForDays', 'Medlem i {{days}} dagar', { days: profileStats.accountAge })
+                    t('profileHub.memberForDays', { count: profileStats.accountAge })
                   )}
                 </div>
                 {!isPremium && (

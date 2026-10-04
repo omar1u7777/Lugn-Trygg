@@ -5,6 +5,7 @@ import { API_ENDPOINTS } from '../../api/constants';
 import { useTranslation } from 'react-i18next';
 import { logger } from '../../utils/logger';
 import { extractErrorMessage } from '../../api/errorMessage';
+import { svCount } from '../../utils/plural';
 
 
 interface Reward {
@@ -102,7 +103,7 @@ const RewardsCatalog: React.FC<RewardsCatalogProps> = ({ availableWeeks, onRedem
                     🎁 Belöningskatalog
                 </h2>
                 <p className="text-slate-600 dark:text-slate-400">
-                    Du har <span className="font-bold text-purple-600 dark:text-purple-400">{availableWeeks} veckor</span> att spendera
+                    Du har <span className="font-bold text-purple-600 dark:text-purple-400">{svCount(availableWeeks, 'vecka', 'veckor')}</span> att spendera
                 </p>
             </div>
 
@@ -177,7 +178,7 @@ const RewardsCatalog: React.FC<RewardsCatalogProps> = ({ availableWeeks, onRedem
                                 ) : canAfford ? (
                                     `Lös in nu →`
                                 ) : (
-                                    `Behöver ${reward.cost - availableWeeks} veckor till`
+                                    `Behöver ${svCount(reward.cost - availableWeeks, 'vecka', 'veckor')} till`
                                 )}
                             </button>
                         </div>

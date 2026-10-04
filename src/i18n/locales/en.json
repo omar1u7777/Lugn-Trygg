@@ -625,7 +625,6 @@
     "topTier": "Highest tier reached! 🎉",
     "totalInvited": "Total invited",
     "activeUsers": "Active users",
-    "weeks": "{{count}} weeks",
     "premiumReward": "Premium reward",
     "referralLink": "Referral link",
     "copy": "Copy",
@@ -652,7 +651,9 @@
       "changes": "Lugn & Trygg reserves the right to change these terms"
     },
     "weeksUnit_one": "week",
-    "weeksUnit_other": "weeks"
+    "weeksUnit_other": "weeks",
+    "weeks_one": "{{count}} week",
+    "weeks_other": "{{count}} weeks"
   },
   "healthIntegrations": {
     "title": "Health integrations (OAuth)",
@@ -1552,7 +1553,6 @@
     "engagementMessage": "With {{moods}} logged moods and {{chats}} conversations, you're on a roll.",
     "engagementUrgency": "Limited offer for engaged users",
     "engagementCta": "Continue your journey",
-    "streakTitle": "{{days}} days of consistency!",
     "streakSubtitle": "Don't break the chain",
     "streakMessage": "You've built a habit. Make sure you can keep going.",
     "streakUrgency": "{{streakUsers}} users have protected their streak",
@@ -1572,7 +1572,9 @@
     "benefitReminders": "Smarter reminders",
     "benefitGoals": "Personal goals and challenges",
     "remaining": "{{remaining}} left",
-    "trust": "No commitment. Cancel anytime."
+    "trust": "No commitment. Cancel anytime.",
+    "streakTitle_one": "{{count}} day with Lugn & Trygg!",
+    "streakTitle_other": "{{count}} days with Lugn & Trygg!"
   },
   "recommendations": {
     "preferences": {
@@ -1674,6 +1676,12 @@
     },
     "crisis": {
       "suicideHotline": "📞 Suicide Line: {{suicideLine}}"
+    },
+    "streakDays_one": "{{count}} day in a row",
+    "streakDays_other": "{{count}} days in a row",
+    "compact": {
+      "streakDays_one": "🔥 {{count}} day",
+      "streakDays_other": "🔥 {{count}} days"
     }
   },
   "wellnessHub": {
@@ -1726,7 +1734,6 @@
     "guest": "Guest",
     "manageJourney": "Manage your personal journey, settings and security.",
     "loginToSave": "Log in to save your data.",
-    "memberForDays": "Member for {{days}} days",
     "upgradeNow": "Upgrade now",
     "moodLogs": "Mood Logs",
     "aiChats": "AI Chats",
@@ -1793,7 +1800,9 @@
     "deleteItem5": "Wellness goals and progress",
     "deleteNote": "Your data will be permanently deleted within 30 days. You can cancel by contacting support within that time.",
     "deleting": "Deleting...",
-    "settingsLoadFailed": "Could not load your saved settings. Reload the page before changing anything."
+    "settingsLoadFailed": "Could not load your saved settings. Reload the page before changing anything.",
+    "memberForDays_one": "Member for {{count}} day",
+    "memberForDays_other": "Member for {{count}} days"
   },
   "wellnessGoalLabels": {
     "Hantera stress": {
