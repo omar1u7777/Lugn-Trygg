@@ -16,7 +16,7 @@ export const useDebouncedSave = <T extends Record<string, unknown>>(
   const [data, setData] = useState<T>(initialData);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<T>(initialData);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const pendingSaveRef = useRef<T | null>(null);
   // CRITICAL FIX: Initialize with defensive value to prevent TDZ errors
   const dataRef = useRef<T>(initialData);

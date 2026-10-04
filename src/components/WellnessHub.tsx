@@ -230,7 +230,7 @@ const BentoCard: React.FC<{
         <div className="mb-auto w-full flex justify-between items-start">
           {icon && (
             <div className={`w-10 h-10 rounded-2xl ${imageHtml ? 'bg-white/20 backdrop-blur-md' : accentColor + ' bg-opacity-10 text-primary-600'} flex items-center justify-center mb-4 transition-transform duration-300 group-hover:rotate-6`}>
-              {React.cloneElement(icon as React.ReactElement, { className: `w-5 h-5 ${imageHtml ? 'text-white' : ''}` })}
+              {React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: `w-5 h-5 ${imageHtml ? 'text-white' : ''}` })}
             </div>
           )}
         </div>
@@ -286,7 +286,7 @@ const WellnessHub: React.FC = () => {
   const [meditationAudioFailed, setMeditationAudioFailed] = useState(false);
   const pausedDurationMsRef = useRef<number>(0);
   const pauseStartTimeRef = useRef<Date | null>(null);
-  const completeMeditationRef = useRef<() => Promise<void>>();
+  const completeMeditationRef = useRef<(() => Promise<void>) | undefined>(undefined);
   const isSavingMeditationRef = useRef(false);
   const selectedMeditationRef = useRef<MeditationOption | null>(null);
   const sleepSectionRef = useRef<HTMLElement | null>(null);
@@ -858,7 +858,7 @@ const WellnessHub: React.FC = () => {
               <div className="flex flex-col items-center mb-8">
                 <div className="w-40 h-40 rounded-full bg-gradient-to-tr from-primary-200 to-primary-100 dark:from-primary-900/40 dark:to-primary-800/30 flex items-center justify-center mb-6 relative">
                   <div className={`absolute inset-0 rounded-full border-4 border-primary-100 ${!isPaused ? 'animate-ping' : ''} opacity-20`} />
-                  {selectedMeditation.icon ? React.cloneElement(selectedMeditation.icon as React.ReactElement, { className: 'w-16 h-16 text-primary-600' }) : <SparklesIcon className="w-16 h-16 text-primary-600" />}
+                  {selectedMeditation.icon ? React.cloneElement(selectedMeditation.icon as React.ReactElement<{ className?: string }>, { className: 'w-16 h-16 text-primary-600' }) : <SparklesIcon className="w-16 h-16 text-primary-600" />}
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">{selectedMeditation.title}</h2>
                 <p className="text-gray-500 dark:text-gray-400 text-center">{selectedMeditation.description}</p>
@@ -1090,7 +1090,7 @@ const WellnessHub: React.FC = () => {
             <div className="flex flex-col items-center mb-8">
               <div className="w-40 h-40 rounded-full bg-gradient-to-tr from-indigo-200 to-indigo-100 dark:from-indigo-900/40 dark:to-indigo-800/30 flex items-center justify-center mb-6 relative">
                 <div className="absolute inset-0 rounded-full border-4 border-indigo-100 dark:border-indigo-900/40 animate-ping opacity-20" />
-                {selectedSleepStory.icon ? React.cloneElement(selectedSleepStory.icon as React.ReactElement, { className: 'w-16 h-16 text-indigo-600' }) : <MoonIcon className="w-16 h-16 text-indigo-600" />}
+                {selectedSleepStory.icon ? React.cloneElement(selectedSleepStory.icon as React.ReactElement<{ className?: string }>, { className: 'w-16 h-16 text-indigo-600' }) : <MoonIcon className="w-16 h-16 text-indigo-600" />}
               </div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">{selectedSleepStory.title}</h2>
               <p className="text-gray-500 dark:text-gray-400 text-center">{selectedSleepStory.description}</p>

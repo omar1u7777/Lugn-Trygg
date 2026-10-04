@@ -39,7 +39,7 @@ Container.displayName = 'Container';
 
 // Box - replaces MUI Box (just a flexible div wrapper)
 interface BoxProps extends React.HTMLAttributes<HTMLDivElement> {
-  as?: keyof JSX.IntrinsicElements;
+  as?: keyof React.JSX.IntrinsicElements;
   // MUI compatibility props (ignored - just accepted for backward compatibility)
   display?: string;
   alignItems?: string;

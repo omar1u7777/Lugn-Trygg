@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type JSX } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, Typography, Button, Chip, Alert } from './ui/tailwind';
 import { useTranslation } from 'react-i18next';

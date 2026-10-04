@@ -87,7 +87,7 @@ const BentoCard: React.FC<{
         <div className="mb-auto flex justify-between items-start w-full">
           {icon && (
             <div className={`w-12 h-12 rounded-2xl ${accentColor} bg-opacity-10 text-primary-600 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:rotate-6 sm:w-14 sm:h-14`}>
-              {React.cloneElement(icon as React.ReactElement, { className: `w-6 h-6 sm:w-7 sm:h-7` })}
+              {React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: `w-6 h-6 sm:w-7 sm:h-7` })}
             </div>
           )}
         </div>
@@ -356,7 +356,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
           ].map((stat, i) => (
             <div key={i} className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700/50 shadow-sm flex flex-col items-center text-center hover:scale-[1.02] transition-transform">
               <div className={`mb-3 p-3 rounded-2xl ${stat.bg} dark:bg-opacity-10`}>
-                {React.cloneElement(stat.icon as React.ReactElement, { className: "w-6 h-6 " + stat.icon.props.className })}
+                {React.cloneElement(stat.icon as React.ReactElement<{ className?: string }>, { className: "w-6 h-6 " + stat.icon.props.className })}
               </div>
               <span className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{stat.value}</span>
               <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">{stat.label}</span>
@@ -379,7 +379,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
                   <div className="relative z-10">
                     <div className="flex justify-between items-start mb-4">
                       <div className="w-14 h-14 rounded-2xl bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 flex items-center justify-center shadow-inner">
-                        {React.cloneElement(ach.icon as React.ReactElement, { className: 'w-7 h-7' })}
+                        {React.cloneElement(ach.icon as React.ReactElement<{ className?: string }>, { className: 'w-7 h-7' })}
                       </div>
                       <RarityBadge rarity={ach.rarity} />
                     </div>

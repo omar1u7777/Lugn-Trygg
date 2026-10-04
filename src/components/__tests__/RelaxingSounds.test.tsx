@@ -477,7 +477,7 @@ describe('RelaxingSounds', () => {
       blob: () => Promise.resolve(audioBlob),
     });
     vi.stubGlobal('fetch', mockFetch);
-    vi.stubGlobal('URL', { createObjectURL: vi.fn().mockReturnValue('blob:test-url') });
+    vi.stubGlobal('URL', { createObjectURL: vi.fn().mockReturnValue('blob:test-url'), revokeObjectURL: vi.fn() });
 
     getAudioLibraryMock.mockResolvedValue(mockAudioLibrary);
     render(<RelaxingSounds onClose={vi.fn()} />);
@@ -528,7 +528,7 @@ describe('RelaxingSounds', () => {
       ok: true,
       blob: () => Promise.resolve(audioBlob),
     }));
-    vi.stubGlobal('URL', { createObjectURL: vi.fn().mockReturnValue('blob:url') });
+    vi.stubGlobal('URL', { createObjectURL: vi.fn().mockReturnValue('blob:url'), revokeObjectURL: vi.fn() });
 
     getAudioLibraryMock.mockResolvedValue(mockAudioLibrary);
     render(<RelaxingSounds onClose={vi.fn()} />);
@@ -541,6 +541,9 @@ describe('RelaxingSounds', () => {
       // First error → triggers loadFallbackAudio
       fireEvent.error(audioEl);
       await waitFor(() => expect(fetch).toHaveBeenCalled());
+      // A second error can only come from the fallback source, so wait until
+      // it is in place before raising one.
+      await waitFor(() => expect(screen.getByText(/Använder genererad/i)).toBeInTheDocument());
       // Second error (usingFallbackAudio=true) → shows playback error
       fireEvent.error(audioEl);
     }
