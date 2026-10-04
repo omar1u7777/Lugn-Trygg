@@ -359,7 +359,7 @@ const MemoryJournal: React.FC = () => {
             onClick={() => setActiveView(view)}
             className={`flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all ${
               activeView === view
-                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
             }`}
           >
@@ -376,7 +376,7 @@ const MemoryJournal: React.FC = () => {
           {lastResult && (
             <div className={`rounded-2xl p-5 border ${getEmotionMeta(lastResult.primary_emotion).bg} border-current/10 animate-fade-in`}>
               <div className="flex items-center gap-3 mb-3">
-                <CheckCircleIcon className="w-6 h-6 text-emerald-500 flex-shrink-0" />
+                <CheckCircleIcon className="w-6 h-6 text-emerald-500 shrink-0" />
                 <h3 className="font-bold text-slate-900 dark:text-white">Minne sparat!</h3>
               </div>
               <div className={`flex items-center gap-2 mb-2 ${getEmotionMeta(lastResult.primary_emotion).text}`}>
@@ -416,12 +416,12 @@ const MemoryJournal: React.FC = () => {
               <textarea
                 rows={6}
                 maxLength={MAX_CONTENT}
-                className="w-full p-4 text-base leading-relaxed rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 resize-none transition-all shadow-inner"
+                className="w-full p-4 text-base leading-relaxed rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 resize-none transition-all shadow-inner"
                 placeholder="Beskriv stunden, känslan, platsen... Allt är välkommet."
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
               />
-              <div className="absolute bottom-3 right-3 text-xs text-slate-400 font-medium bg-white/60 dark:bg-slate-900/60 px-2 py-0.5 rounded-md backdrop-blur-sm">
+              <div className="absolute bottom-3 right-3 text-xs text-slate-400 font-medium bg-white/60 dark:bg-slate-900/60 px-2 py-0.5 rounded-md backdrop-blur-xs">
                 {content.length}/{MAX_CONTENT}
               </div>
             </div>
@@ -444,7 +444,7 @@ const MemoryJournal: React.FC = () => {
                 <button
                   type="button"
                   onClick={isRecording ? stopRecording : startRecording}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm ${
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-xs ${
                     isRecording
                       ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse'
                       : 'bg-indigo-600 hover:bg-indigo-700 text-white'
@@ -551,7 +551,7 @@ const MemoryJournal: React.FC = () => {
                   onClick={() => toggleTag(tag)}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all min-h-[44px] min-w-[44px] flex items-center justify-center ${
                     selectedTags.includes(tag)
-                      ? 'bg-indigo-600 text-white shadow-sm'
+                      ? 'bg-indigo-600 text-white shadow-xs'
                       : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                   }`}
                 >
@@ -568,7 +568,7 @@ const MemoryJournal: React.FC = () => {
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomTag(); } }}
                 placeholder="Egen tagg..."
                 maxLength={50}
-                className="flex-1 px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                className="flex-1 px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/50"
               />
               <button
                 type="button"
@@ -650,7 +650,7 @@ const MemoryJournal: React.FC = () => {
               onChange={(e) => setLocation(e.target.value)}
               placeholder="T.ex. Hemma, Stockholm, Skogen..."
               maxLength={200}
-              className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+              className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-sky-500/50"
             />
           )}
 
@@ -665,7 +665,7 @@ const MemoryJournal: React.FC = () => {
           <button
             type="submit"
             disabled={isSubmitting || (!content.trim() && !audioBlob && photos.length === 0)}
-            className="w-full py-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold rounded-2xl shadow-xl shadow-indigo-500/20 transition-all hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 text-base"
+            className="w-full py-4 bg-linear-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold rounded-2xl shadow-xl shadow-indigo-500/20 transition-all hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 text-base"
           >
             {isSubmitting ? (
               <span className="animate-spin text-xl">⏳</span>
@@ -728,7 +728,7 @@ const MemoryJournal: React.FC = () => {
                 >
                   <div className="flex items-start gap-3">
                     {/* Emotion badge */}
-                    <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${emotion.bg}`}>
+                    <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${emotion.bg}`}>
                       <span className="text-xl">{emotion.emoji}</span>
                     </div>
 

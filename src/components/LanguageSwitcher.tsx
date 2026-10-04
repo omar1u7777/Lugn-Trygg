@@ -73,8 +73,8 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ compact = false }) 
         value={currentLanguage}
         onChange={(e) => changeLanguage(e.target.value as LanguageCode)}
         className={compact 
-          ? "px-2 py-1 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none cursor-pointer appearance-none pr-6 text-sm"
-          : "px-2 sm:px-3 py-2 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 border border-[#e8dcd0] dark:border-slate-700 rounded-xl text-[#2f2a24] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#2c8374] cursor-pointer appearance-none pr-8 sm:pr-10 min-w-[80px] sm:min-w-[140px] text-sm transition-all duration-200"
+          ? "px-2 py-1 bg-transparent border-none text-gray-900 dark:text-white focus:outline-hidden cursor-pointer appearance-none pr-6 text-sm"
+          : "px-2 sm:px-3 py-2 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 border border-[#e8dcd0] dark:border-slate-700 rounded-xl text-[#2f2a24] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500 cursor-pointer appearance-none pr-8 sm:pr-10 min-w-[80px] sm:min-w-[140px] text-sm transition-all duration-200"
         }
         aria-label={t('language.selectLanguage', 'Välj språk')}
       >

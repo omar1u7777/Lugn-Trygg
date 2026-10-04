@@ -49,13 +49,13 @@ export const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
         {icon ? (
           icon
         ) : (
-          <IconComponent className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <IconComponent className="w-5 h-5 shrink-0 mt-0.5" />
         )}
         <div className="flex-1">{children}</div>
         {onClose && (
           <button
             onClick={onClose}
-            className="flex-shrink-0 ml-auto -mt-0.5 -mr-1 p-2 rounded hover:bg-black/5 dark:hover:bg-white/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="shrink-0 ml-auto -mt-0.5 -mr-1 p-2 rounded-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             <XMarkIcon className="w-4 h-4" />
           </button>
@@ -148,12 +148,12 @@ export const Chip = React.forwardRef<HTMLDivElement, ChipProps>(
         )}
         {...props}
       >
-        {icon && <span className="flex-shrink-0">{icon}</span>}
+        {icon && <span className="shrink-0">{icon}</span>}
         <span>{content}</span>
         {onDelete && (
           <button
             onClick={onDelete}
-            className="flex-shrink-0 ml-1 p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+            className="shrink-0 ml-1 p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
           >
             <XMarkIcon className={size === 'sm' ? 'w-3 h-3' : size === 'md' ? 'w-4 h-4' : 'w-5 h-5'} />
           </button>

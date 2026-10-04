@@ -46,9 +46,13 @@ const { getChatHistoryMock } = vi.hoisted(() => ({ getChatHistoryMock: vi.fn() }
 vi.mock('../../api/api', () => ({ getChatHistory: getChatHistoryMock }));
 vi.mock('../../hooks/useDashboardData', () => ({ clearDashboardCache: vi.fn() }));
 
-const { useAuthMock, useSubscriptionMock, useStreamingChatMock, useVoiceInputMock } = vi.hoisted(() => ({
+const { useAuthMock, useSubscriptionMock, useStreamingChatMock, useVoiceInputMock, navigateMock } = vi.hoisted(() => ({
   useAuthMock: vi.fn(), useSubscriptionMock: vi.fn(), useStreamingChatMock: vi.fn(), useVoiceInputMock: vi.fn(),
+  navigateMock: vi.fn(),
 }));
+// The chat is rendered inside the router in the app but bare in these tests,
+// so useNavigate needs standing in for.
+vi.mock('react-router-dom', () => ({ useNavigate: () => navigateMock }));
 vi.mock('../../hooks/useAuth', () => ({ default: useAuthMock }));
 vi.mock('../../contexts/SubscriptionContext', () => ({ useSubscription: useSubscriptionMock }));
 vi.mock('../../hooks/useStreamingChat', () => ({ default: useStreamingChatMock }));
@@ -377,5 +381,53 @@ describe('WorldClassAIChat', () => {
         expect(screen.getByText('Punkt 2')).toBeInTheDocument();
       });
     });
+  });
+});
+
+
+/**
+ * BUG-07 — the microphone on a free plan.
+ *
+ * It was a <div> with a title attribute and no handler: it looked disabled, was
+ * not in the tab order, and did nothing at all when pressed. The title is the
+ * only explanation it offered, and titles do not appear on touch, which is
+ * where most of these users are.
+ *
+ * It gates a paid feature, so doing nothing is the one behaviour that helps
+ * nobody — not the user, who gets no reason, and not the product.
+ */
+describe('BUG-07: the PRO microphone explains itself', () => {
+  beforeEach(() => {
+    navigateMock.mockClear();
+    // The control only renders where speech recognition exists; the default
+    // mock reports it unsupported, which is why nothing was here to test.
+    setupMocks({ voice: { isSupported: true }, subscription: { isPremium: false } });
+  });
+
+  it('is a real control, reachable by keyboard', async () => {
+    renderChat();
+    const mic = await screen.findByRole('button', { name: /Premium/i });
+    expect(mic.tagName).toBe('BUTTON');
+  });
+
+  it('sends a free user to the upgrade page instead of doing nothing', async () => {
+    renderChat();
+    const mic = await screen.findByRole('button', { name: /Premium/i });
+
+    fireEvent.click(mic);
+
+    expect(navigateMock).toHaveBeenCalledWith('/upgrade');
+  });
+
+  it('leaves the working microphone alone for a premium user', async () => {
+    // The premium branch is a separate button that starts listening. Pinned so
+    // the upsell cannot be wired over the real feature.
+    setupMocks({ voice: { isSupported: true }, subscription: { isPremium: true } });
+    renderChat();
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /Premium/i })).not.toBeInTheDocument();
+    });
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 });

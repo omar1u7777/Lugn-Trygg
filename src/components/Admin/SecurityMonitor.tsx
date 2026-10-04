@@ -150,10 +150,10 @@ const SecurityMonitor: React.FC = () => {
     return (
       <div className="p-8">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-8 bg-gray-200 rounded-sm w-1/4"></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+              <div key={i} className="h-32 bg-gray-200 rounded-sm"></div>
             ))}
           </div>
         </div>
@@ -326,7 +326,7 @@ const SecurityMonitor: React.FC = () => {
                       {new Date(alert.timestamp).toLocaleString()}
                     </p>
                   </div>
-                  <span className="px-2 py-1 text-xs font-semibold rounded uppercase">
+                  <span className="px-2 py-1 text-xs font-semibold rounded-sm uppercase">
                     {alert.severity}
                   </span>
                 </div>
@@ -383,7 +383,7 @@ const SecurityMonitor: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 text-xs font-semibold rounded ${getSeverityColor(event.severity)}`}>
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-sm ${getSeverityColor(event.severity)}`}>
                           {event.severity}
                         </span>
                         <span className="font-medium">{event.type}</span>

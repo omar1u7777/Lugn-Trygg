@@ -19,6 +19,7 @@ import {
 import useAuth from '../hooks/useAuth';
 import { ArrowTrendingUpIcon, FireIcon, TrophyIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
+import { svCount } from '../utils/plural';
 
 type LeaderboardEntry = XPLeaderboardUser | StreakLeaderboardUser | MoodLeaderboardUser;
 
@@ -187,7 +188,7 @@ export const Leaderboard: React.FC = () => {
             onClick={() => setActiveTab(tab.index)}
             role="tab"
             aria-selected={activeTab === tab.index}
-            className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${activeTab === tab.index
+            className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors min-h-[44px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${activeTab === tab.index
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
@@ -296,12 +297,12 @@ export const Leaderboard: React.FC = () => {
             // Loading skeleton
             Array.from({ length: 5 }).map((_, index) => (
               <div key={index} className="flex items-center gap-3 sm:gap-4 p-4 animate-pulse">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-300 dark:bg-gray-600 shrink-0" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/3" />
-                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/4" />
+                  <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded-sm w-1/3" />
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-sm w-1/4" />
                 </div>
-                <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded w-16" />
+                <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded-sm w-16" />
               </div>
             ))
           ) : leaderboard.length === 0 ? (
@@ -329,14 +330,14 @@ export const Leaderboard: React.FC = () => {
                 <div className="flex items-center gap-3 sm:gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                   {/* Rank Badge */}
                   <div
-                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white text-base sm:text-lg font-bold flex-shrink-0"
+                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white text-base sm:text-lg font-bold shrink-0"
                     style={{ backgroundColor: getRankColor(entry.rank) }}
                   >
                     {entry.rank <= 3 ? getRankIcon(entry.rank) : entry.rank}
                   </div>
 
                   {/* Avatar */}
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-secondary-400 flex items-center justify-center text-lg">
+                  <div className="w-8 h-8 rounded-full bg-linear-to-br from-primary-400 to-secondary-400 flex items-center justify-center text-lg">
                     {entry.avatar || '🌟'}
                   </div>
 
@@ -361,7 +362,7 @@ export const Leaderboard: React.FC = () => {
                     <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                       {entry.rank <= 3 ? getRankIcon(entry.rank) : `#${entry.rank}`}
                       {activeTab === 0 && (((entry as XPLeaderboardUser).badgeCount || (entry as XPLeaderboardUser).badge_count || 0) > 0)
-                        ? ` • ${((entry as XPLeaderboardUser).badgeCount || (entry as XPLeaderboardUser).badge_count)} badges`
+                        ? ` • ${svCount(((entry as XPLeaderboardUser).badgeCount || (entry as XPLeaderboardUser).badge_count || 0), 'märke', 'märken')}`
                         : ''}
                     </p>
                   </div>

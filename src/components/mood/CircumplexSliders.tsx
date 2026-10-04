@@ -83,7 +83,7 @@ export const CircumplexSliders: React.FC<CircumplexSlidersProps> = ({
           value={valence}
           onChange={(e) => handleValenceChange(parseInt(e.target.value))}
           disabled={disabled}
-          className="w-full h-2 bg-gradient-to-r from-red-400 via-yellow-300 to-green-400 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full h-2 bg-linear-to-r from-red-400 via-yellow-300 to-green-400 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           style={{
             background: `linear-gradient(to right, 
               #f87171 0%, 
@@ -119,7 +119,7 @@ export const CircumplexSliders: React.FC<CircumplexSlidersProps> = ({
           value={arousal}
           onChange={(e) => handleArousalChange(parseInt(e.target.value))}
           disabled={disabled}
-          className="w-full h-2 bg-gradient-to-r from-blue-400 via-purple-400 to-orange-400 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full h-2 bg-linear-to-r from-blue-400 via-purple-400 to-orange-400 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           style={{
             background: `linear-gradient(to right, 
               #60a5fa 0%, 

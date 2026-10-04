@@ -605,7 +605,7 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
   }, [phase, thoughts, kbtBeliefBefore, kbtBeliefAfter, kbtStressBefore, kbtStressAfter, kbtActionPlan, kbtExperimentHypothesis, kbtExperimentMeasure, kbtSocraticReflection, kbtIfThenPlan, kbtCopingCard, kbtExecutionConfidenceAfter, kbtObstaclePlan, kbtFollowUpWindow, kbtRehearsalContext, distortionInsights, updateThoughts, t]);
 
   return (
-    <div className="bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-purple-200 dark:border-purple-800">
+    <div className="bg-linear-to-br from-purple-50 to-indigo-100 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-purple-200 dark:border-purple-800">
       <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center">
         Steg-för-steg guide för att hantera stressiga tankar genom kognitiv beteendeterapi
       </p>

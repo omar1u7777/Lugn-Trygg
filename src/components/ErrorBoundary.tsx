@@ -6,6 +6,7 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
+import { SUPPORT_EMAIL } from '../config/contact';
 
 
 interface Props {
@@ -179,7 +180,7 @@ class ErrorBoundary extends Component<Props, State> {
                 Vi är ledsna, men något oväntat hände. Vårt team har fått information om felet.
               </p>
                 {this.state.error && (
-                  <div className="text-xs text-left p-3 mt-2 mb-4 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded overflow-auto font-mono w-full break-words max-h-32 shadow-inner">
+                  <div className="text-xs text-left p-3 mt-2 mb-4 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-sm overflow-auto font-mono w-full wrap-break-word max-h-32 shadow-inner">
                     <strong>{this.state.error.name}:</strong> {this.state.error.message}
                   </div>
                 )}
@@ -187,7 +188,7 @@ class ErrorBoundary extends Component<Props, State> {
                 {canRetry ? (
                   <button
                     onClick={this.handleRetry}
-                    className="w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px]"
+                    className="w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px]"
                     aria-label={`Försök igen (${retryCount + 1}/${this.maxRetries + 1})`}
                   >
                     🔄 Försök igen {retryCount > 0 && `(${retryCount}/${this.maxRetries})`}
@@ -195,7 +196,7 @@ class ErrorBoundary extends Component<Props, State> {
                 ) : (
                   <button
                     onClick={this.handleReload}
-                    className="w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px]"
+                    className="w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px]"
                     aria-label="Ladda om sidan"
                   >
                     🔄 Ladda om sidan
@@ -204,7 +205,7 @@ class ErrorBoundary extends Component<Props, State> {
 
                 <button
                   onClick={() => window.history.back()}
-                  className="w-full px-6 py-3 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px]"
+                  className="w-full px-6 py-3 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px]"
                   aria-label="Gå tillbaka"
                 >
                   ← Gå tillbaka
@@ -220,7 +221,7 @@ class ErrorBoundary extends Component<Props, State> {
                     <p className="block font-semibold text-error-600 dark:text-error-400 text-sm mb-2">
                       Fel:
                     </p>
-                    <p className="block text-sm text-gray-900 dark:text-gray-100 mb-4 break-words">
+                    <p className="block text-sm text-gray-900 dark:text-gray-100 mb-4 wrap-break-word">
                       {error.toString()}
                     </p>
                     {errorInfo?.componentStack && (
@@ -228,7 +229,7 @@ class ErrorBoundary extends Component<Props, State> {
                         <p className="block font-semibold text-error-600 dark:text-error-400 text-sm mb-2">
                           Komponent stack:
                         </p>
-                        <pre className="m-0 text-xs overflow-x-auto text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words">
+                        <pre className="m-0 text-xs overflow-x-auto text-gray-800 dark:text-gray-200 whitespace-pre-wrap wrap-break-word">
                           {errorInfo.componentStack}
                         </pre>
                       </>
@@ -242,11 +243,11 @@ class ErrorBoundary extends Component<Props, State> {
                   Om problemet kvarstår, kontakta vår support:
                 </p>
                 <a
-                  href="mailto:support@lugntrygg.se"
+                  href={`mailto:${SUPPORT_EMAIL}`}
                   className="text-primary-600 dark:text-primary-400 hover:underline font-medium"
                   aria-label="Skicka e-post till support"
                 >
-                  📧 support@lugntrygg.se
+                  📧 {SUPPORT_EMAIL}
                 </a>
               </div>
             </div>

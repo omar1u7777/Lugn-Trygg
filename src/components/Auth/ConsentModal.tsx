@@ -217,7 +217,7 @@ const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose }) => {
                     type="checkbox"
                     checked={consents[item.key]}
                     onChange={() => handleConsentChange(item.key)}
-                    className="mt-1 rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500"
+                    className="mt-1 rounded-sm border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500"
                     aria-describedby={`${item.key}-desc`}
                   />
                   <div>

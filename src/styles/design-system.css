@@ -5,57 +5,57 @@
 
 :root {
   /* Color Palette - Mint & Lavendel wellness theme */
-  --color-primary: #14b8a6; /* Teal-500 */
-  --color-primary-dark: #0d9488; /* Teal-600 */
-  --color-secondary: #8b5cf6; /* Violet-500 */
-  --color-secondary-dark: #7c3aed; /* Violet-600 */
-  --color-accent: #f59e0b;
-  --color-accent-dark: #d97706;
+  --ds-color-primary: #14b8a6; /* Teal-500 */
+  --ds-color-primary-dark: #0d9488; /* Teal-600 */
+  --ds-color-secondary: #8b5cf6; /* Violet-500 */
+  --ds-color-secondary-dark: #7c3aed; /* Violet-600 */
+  --ds-color-accent: #f59e0b;
+  --ds-color-accent-dark: #d97706;
 
   /* Neutral Colors */
-  --color-white: #ffffff;
-  --color-gray-50: #f8f9fa;
-  --color-gray-100: #e9ecef;
-  --color-gray-200: #dee2e6;
-  --color-gray-300: #ced4da;
-  --color-gray-400: #adb5bd;
-  --color-gray-500: #6c757d;
-  --color-gray-600: #495057;
-  --color-gray-700: #343a40;
-  --color-gray-800: #212529;
-  --color-gray-900: #000000;
+  --ds-color-white: #ffffff;
+  --ds-color-gray-50: #f8f9fa;
+  --ds-color-gray-100: #e9ecef;
+  --ds-color-gray-200: #dee2e6;
+  --ds-color-gray-300: #ced4da;
+  --ds-color-gray-400: #adb5bd;
+  --ds-color-gray-500: #6c757d;
+  --ds-color-gray-600: #495057;
+  --ds-color-gray-700: #343a40;
+  --ds-color-gray-800: #212529;
+  --ds-color-gray-900: #000000;
 
   /* Semantic Colors */
-  --color-success: #27ae60;
-  --color-warning: #f39c12;
-  --color-error: #e74c3c;
-  --color-info: #3498db;
+  --ds-color-success: #27ae60;
+  --ds-color-warning: #f39c12;
+  --ds-color-error: #e74c3c;
+  --ds-color-info: #3498db;
 
   /* Spacing Scale */
-  --spacing-xs: 0.25rem;    /* 4px */
-  --spacing-sm: 0.5rem;     /* 8px */
-  --spacing-md: 1rem;       /* 16px */
-  --spacing-lg: 1.5rem;     /* 24px */
-  --spacing-xl: 2rem;       /* 32px */
-  --spacing-2xl: 3rem;      /* 48px */
-  --spacing-3xl: 4rem;      /* 64px */
+  --ds-spacing-xs: 0.25rem;    /* 4px */
+  --ds-spacing-sm: 0.5rem;     /* 8px */
+  --ds-spacing-md: 1rem;       /* 16px */
+  --ds-spacing-lg: 1.5rem;     /* 24px */
+  --ds-spacing-xl: 2rem;       /* 32px */
+  --ds-spacing-2xl: 3rem;      /* 48px */
+  --ds-spacing-3xl: 4rem;      /* 64px */
 
   /* Typography Scale */
-  --font-size-xs: 0.75rem;   /* 12px */
-  --font-size-sm: 0.875rem;  /* 14px */
-  --font-size-base: 1rem;    /* 16px */
-  --font-size-lg: 1.125rem;  /* 18px */
-  --font-size-xl: 1.25rem;   /* 20px */
-  --font-size-2xl: 1.5rem;   /* 24px */
-  --font-size-3xl: 1.875rem; /* 30px */
-  --font-size-4xl: 2.25rem;  /* 36px */
+  --ds-font-size-xs: 0.75rem;   /* 12px */
+  --ds-font-size-sm: 0.875rem;  /* 14px */
+  --ds-font-size-base: 1rem;    /* 16px */
+  --ds-font-size-lg: 1.125rem;  /* 18px */
+  --ds-font-size-xl: 1.25rem;   /* 20px */
+  --ds-font-size-2xl: 1.5rem;   /* 24px */
+  --ds-font-size-3xl: 1.875rem; /* 30px */
+  --ds-font-size-4xl: 2.25rem;  /* 36px */
 
   /* Font Weights */
-  --font-weight-light: 300;
-  --font-weight-normal: 400;
-  --font-weight-medium: 500;
-  --font-weight-semibold: 600;
-  --font-weight-bold: 700;
+  --ds-font-weight-light: 300;
+  --ds-font-weight-normal: 400;
+  --ds-font-weight-medium: 500;
+  --ds-font-weight-semibold: 600;
+  --ds-font-weight-bold: 700;
 
   /* Border Radius */
   --border-radius-sm: 0.25rem;   /* 4px */
@@ -65,10 +65,10 @@
   --border-radius-full: 9999px;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --ds-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --ds-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --ds-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --ds-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 
   /* Transitions */
   --transition-fast: 150ms ease-in-out;
@@ -88,29 +88,29 @@
 
 /* Dark Mode Variables */
 [data-theme="dark"] {
-  --color-primary: #2dd4bf; /* Teal-400 */
-  --color-primary-dark: #14b8a6; /* Teal-500 */
-  --color-secondary: #a78bfa; /* Violet-400 */
-  --color-secondary-dark: #8b5cf6; /* Violet-500 */
-  --color-accent: #ff6b6b;
-  --color-accent-dark: #ee5a52;
+  --ds-color-primary: #2dd4bf; /* Teal-400 */
+  --ds-color-primary-dark: #14b8a6; /* Teal-500 */
+  --ds-color-secondary: #a78bfa; /* Violet-400 */
+  --ds-color-secondary-dark: #8b5cf6; /* Violet-500 */
+  --ds-color-accent: #ff6b6b;
+  --ds-color-accent-dark: #ee5a52;
 
-  --color-white: #1a1a1a;
-  --color-gray-50: #2d2d2d;
-  --color-gray-100: #3d3d3d;
-  --color-gray-200: #4d4d4d;
-  --color-gray-300: #5d5d5d;
-  --color-gray-400: #6d6d6d;
-  --color-gray-500: #8d8d8d;
-  --color-gray-600: #adadad;
-  --color-gray-700: #bdbdbd;
-  --color-gray-800: #cdcdcd;
-  --color-gray-900: #ffffff;
+  --ds-color-white: #1a1a1a;
+  --ds-color-gray-50: #2d2d2d;
+  --ds-color-gray-100: #3d3d3d;
+  --ds-color-gray-200: #4d4d4d;
+  --ds-color-gray-300: #5d5d5d;
+  --ds-color-gray-400: #6d6d6d;
+  --ds-color-gray-500: #8d8d8d;
+  --ds-color-gray-600: #adadad;
+  --ds-color-gray-700: #bdbdbd;
+  --ds-color-gray-800: #cdcdcd;
+  --ds-color-gray-900: #ffffff;
 
-  --color-success: #4caf50;
-  --color-warning: #ff9800;
-  --color-error: #f44336;
-  --color-info: #2196f3;
+  --ds-color-success: #4caf50;
+  --ds-color-warning: #ff9800;
+  --ds-color-error: #f44336;
+  --ds-color-info: #2196f3;
 }
 
 /*
@@ -142,18 +142,18 @@
 
 /* Focus styles */
 .focus-ring:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--ds-color-primary);
   outline-offset: 2px;
 }
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
   .btn-primary {
-    border: 2px solid var(--color-primary-dark);
+    border: 2px solid var(--ds-color-primary-dark);
   }
 
   .card {
-    border: 1px solid var(--color-gray-300);
+    border: 1px solid var(--ds-color-gray-300);
   }
 }
 

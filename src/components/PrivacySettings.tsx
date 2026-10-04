@@ -94,7 +94,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
       }, 2000);
     } catch (error) {
       logger.error('❌ Failed to export data:', error);
-      setExportError(error instanceof Error ? error.message : 'Export failed');
+      setExportError(error instanceof Error ? error.message : t('privacy.exportFailed'));
     } finally {
       setIsExporting(false);
     }
@@ -102,7 +102,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
 
   const handleDeleteAllData = async () => {
     if (deleteConfirmText.toLowerCase() !== 'delete my data') {
-      setDeleteError(t('privacy.confirmTextMismatch', 'Please type the confirmation text exactly'));
+      setDeleteError(t('privacy.confirmTextMismatch'));
       return;
     }
     
@@ -132,7 +132,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
       }, 1000);
     } catch (error) {
       logger.error('❌ Failed to delete data:', error);
-      setDeleteError(error instanceof Error ? error.message : 'Deletion failed');
+      setDeleteError(error instanceof Error ? error.message : t('privacy.deleteFailed'));
       setIsDeleting(false);
     }
   };
@@ -142,7 +142,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
       <div className="flex items-center gap-3 mb-6">
         <ShieldCheckIcon className="w-8 h-8 text-primary-600 dark:text-primary-500" />
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-          {t('privacy.title', 'Privacy & Security')}
+          {t('privacy.title')}
         </h2>
       </div>
 
@@ -150,13 +150,13 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
         <Card>
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading privacy settings...</p>
+            <p className="text-gray-600 dark:text-gray-400">{t('privacy.loading')}</p>
           </div>
         </Card>
       ) : !settings ? (
         <Card>
           <div className="p-8 text-center">
-            <p className="text-red-600 dark:text-red-400">Failed to load privacy settings</p>
+            <p className="text-red-600 dark:text-red-400">{t('privacy.loadFailed')}</p>
           </div>
         </Card>
       ) : (
@@ -167,7 +167,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
               <div className="flex items-center gap-2 mb-4">
                 <LockClosedIcon className="w-5 h-5 text-primary-600 dark:text-primary-500" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {t('privacy.encryption', 'Data Encryption')}
+                  {t('privacy.encryption')}
                 </h3>
               </div>
               <div className="space-y-4">
@@ -176,11 +176,11 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
                     <div className="flex items-center gap-2 mb-1">
                       <ShieldCheckIcon className="w-5 h-5 text-primary-600 dark:text-primary-500" />
                       <p className="font-medium text-gray-900 dark:text-white">
-                        {t('privacy.encryptLocalStorage', 'Encrypt Local Data')}
+                        {t('privacy.encryptLocalStorage')}
                       </p>
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {t('privacy.encryptLocalStorageDesc', 'All sensitive data stored locally will be encrypted')}
+                      {t('privacy.encryptLocalStorageDesc')}
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -190,7 +190,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
                       onChange={(e) => handleSettingChange('encryptLocalStorage', e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-500 dark:peer-focus:ring-primary-600 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-hidden peer-focus:ring-2 peer-focus:ring-primary-500 dark:peer-focus:ring-primary-600 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
                   </label>
                 </div>
               </div>
@@ -201,10 +201,10 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
       <Card>
         <div className="p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            {t('privacy.dataRetention', 'Data Retention')}
+            {t('privacy.dataRetention')}
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            {t('privacy.dataRetentionDesc', 'How long should we keep your data?')}
+            {t('privacy.dataRetentionDesc')}
           </p>
           <div className="mb-6">
             <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
@@ -224,13 +224,16 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
             />
             <div className="text-center mt-2">
               <span className="text-base font-semibold text-gray-900 dark:text-white">
-                {Math.round(settings.dataRetentionDays / 30)} {t('privacy.months', 'months')}
+                {/* Pluralised: the slider reaches 1, and "1 månader" / "1 måneder"
+                    is wrong in both Swedish and Norwegian. */}
+                {Math.round(settings.dataRetentionDays / 30)}{' '}
+                {t('privacy.months', { count: Math.round(settings.dataRetentionDays / 30) })}
               </span>
             </div>
           </div>
           <div className="flex items-center justify-between gap-4">
             <label className="flex-1 text-sm text-gray-700 dark:text-gray-300">
-              {t('privacy.autoDelete', 'Automatically delete data older than retention period')}
+              {t('privacy.autoDelete')}
             </label>
             <input
               type="checkbox"
@@ -248,17 +251,17 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
           <div className="flex items-center gap-2 mb-4">
             <EyeSlashIcon className="w-5 h-5 text-primary-600 dark:text-primary-500" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {t('privacy.sharing', 'Analytics & Sharing')}
+              {t('privacy.sharing')}
             </h3>
           </div>
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <p className="font-medium text-gray-900 dark:text-white mb-1">
-                  {t('privacy.allowAnalytics', 'Allow Usage Analytics')}
+                  {t('privacy.allowAnalytics')}
                 </p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {t('privacy.allowAnalyticsDesc', 'Help us improve the app by sharing anonymous usage data')}
+                  {t('privacy.allowAnalyticsDesc')}
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -268,16 +271,16 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
                   onChange={(e) => handleSettingChange('allowAnalytics', e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-500 dark:peer-focus:ring-primary-600 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-hidden peer-focus:ring-2 peer-focus:ring-primary-500 dark:peer-focus:ring-primary-600 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
               </label>
             </div>
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <p className="font-medium text-gray-900 dark:text-white mb-1">
-                  {t('privacy.shareAnonymized', 'Share Anonymized Data')}
+                  {t('privacy.shareAnonymized')}
                 </p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {t('privacy.shareAnonymizedDesc', 'Contribute to mental health research (fully anonymous)')}
+                  {t('privacy.shareAnonymizedDesc')}
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -287,7 +290,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
                   onChange={(e) => handleSettingChange('shareAnonymizedData', e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-500 dark:peer-focus:ring-primary-600 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-hidden peer-focus:ring-2 peer-focus:ring-primary-500 dark:peer-focus:ring-primary-600 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
               </label>
             </div>
           </div>
@@ -300,11 +303,11 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
       <Card>
         <div className="p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            {t('privacy.yourRights', 'Your Privacy Rights')}
+            {t('privacy.yourRights')}
           </h3>
           <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
             <p className="text-sm text-blue-800 dark:text-blue-300">
-              {t('privacy.gdprInfo', 'Under GDPR and data protection laws, you have the right to access, export, and delete your personal data.')}
+              {t('privacy.gdprInfo')}
             </p>
           </div>
           
@@ -315,7 +318,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
               className="flex items-center justify-center gap-2"
             >
               <ArrowDownTrayIcon className="w-5 h-5" />
-              {t('privacy.exportData', 'Export My Data')}
+              {t('privacy.exportData')}
             </Button>
             <Button
               variant="outline"
@@ -323,7 +326,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
               className="flex items-center justify-center gap-2 border-error-500 text-error-600 hover:bg-error-50 dark:border-error-700 dark:text-error-400 dark:hover:bg-error-900/30"
             >
               <TrashIcon className="w-5 h-5" />
-              {t('privacy.deleteData', 'Delete All My Data')}
+              {t('privacy.deleteData')}
             </Button>
           </div>
         </div>
@@ -331,7 +334,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
 
       <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
         <span className="mr-2" role="img" aria-label="lock">🔒</span>
-        <span className="font-medium">{t('privacy.commitment', 'Your privacy is our top priority. All data is encrypted and stored securely.')}</span>
+        <span className="font-medium">{t('privacy.commitment')}</span>
       </p>
 
       {/* Export Data Dialog */}
@@ -346,7 +349,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
           >
             <div className="flex items-start justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {t('privacy.exportDataTitle', 'Export Your Data')}
+                {t('privacy.exportDataTitle')}
               </h2>
               <button
                 onClick={() => setShowExportDialog(false)}
@@ -358,7 +361,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
             </div>
             
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {t('privacy.exportDataDesc', 'We will create a JSON file containing all your personal data, including mood logs, memories, and settings.')}
+              {t('privacy.exportDataDesc')}
             </p>
             
             {exportError && (
@@ -372,14 +375,14 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
             {exportSuccess && (
               <div className="bg-success-50 dark:bg-success-900/30 border border-success-200 dark:border-success-800 rounded-lg p-3 mb-4">
                 <p className="text-sm text-success-800 dark:text-success-300">
-                  ✅ {t('privacy.exportSuccess', 'Data exported successfully!')}
+                  ✅ {t('privacy.exportSuccess')}
                 </p>
               </div>
             )}
             
             <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-6">
               <p className="text-xs text-blue-800 dark:text-blue-300">
-                {t('privacy.exportDataNote', 'This file will be downloaded to your device and can be used to back up your data or transfer it to another service.')}
+                {t('privacy.exportDataNote')}
               </p>
             </div>
             
@@ -404,12 +407,12 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
                 {isExporting ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    {t('privacy.exporting', 'Exporting...')}
+                    {t('privacy.exporting')}
                   </>
                 ) : (
                   <>
                     <ArrowDownTrayIcon className="w-5 h-5" />
-                    {t('privacy.downloadData', 'Download Data')}
+                    {t('privacy.downloadData')}
                   </>
                 )}
               </Button>
@@ -430,7 +433,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
           >
             <div className="flex items-start justify-between mb-4">
               <h2 className="text-xl font-semibold text-error-600 dark:text-error-400">
-                {t('privacy.deleteDataTitle', 'Delete All Your Data')}
+                {t('privacy.deleteDataTitle')}
               </h2>
               <button
                 onClick={() => setShowDeleteDialog(false)}
@@ -443,7 +446,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
             
             <div className="bg-error-50 dark:bg-error-900/30 border border-error-200 dark:border-error-800 rounded-lg p-4 mb-4">
               <p className="text-sm text-error-800 dark:text-error-300 font-medium">
-                {t('privacy.deleteDataWarning', 'This action is permanent and cannot be undone. All your mood logs, memories, and personal data will be deleted forever.')}
+                {t('privacy.deleteDataWarning')}
               </p>
             </div>
             
@@ -457,7 +460,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
             
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                {t('privacy.deleteDataConfirm', 'To confirm, please type "delete my data" below:')}
+                {t('privacy.deleteDataConfirm')}
               </label>
               <input
                 type="text"
@@ -468,7 +471,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
                 }}
                 disabled={isDeleting}
                 placeholder="delete my data"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-error-500 dark:focus:ring-error-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-error-500 dark:focus:ring-error-600 disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
             
@@ -493,12 +496,12 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
                 {isDeleting ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    {t('privacy.deleting', 'Deleting...')}
+                    {t('privacy.deleting')}
                   </>
                 ) : (
                   <>
                     <TrashIcon className="w-5 h-5" />
-                    {t('privacy.confirmDelete', 'Delete Forever')}
+                    {t('privacy.confirmDelete')}
                   </>
                 )}
               </Button>

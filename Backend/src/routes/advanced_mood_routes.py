@@ -4,7 +4,7 @@ Integrates Swedish BERT NLP, LSTM forecasting, and clinical assessments
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from flask import Blueprint, g, request
 from pydantic import BaseModel, field_validator
@@ -498,6 +498,33 @@ def get_assessment_history():
         return APIResponse.error("Could not retrieve assessment history", "HISTORY_ERROR", 500)
 
 
+# PHQ-9 and GAD-7 ask about the last two weeks. A result older than this says
+# nothing about how the person is now, so it is left out of the composite
+# risk and the client asks for a new one instead. Without a window, one Q9
+# answer above 0 kept the card on "Akut risk" for good (UI audit S-2).
+ASSESSMENT_WINDOW_DAYS = 30
+
+
+def _is_current(assessment: dict, now: datetime) -> bool:
+    """Whether a stored assessment falls inside the window.
+
+    A missing or unreadable timestamp counts as current: dropping a result
+    that may carry a suicidal-ideation flag on a parsing failure would be the
+    unsafe direction.
+    """
+    raw = assessment.get('timestamp')
+    if isinstance(raw, datetime):
+        taken = raw if raw.tzinfo else raw.replace(tzinfo=UTC)
+    else:
+        try:
+            taken = datetime.fromisoformat(str(raw).replace('Z', '+00:00'))
+        except (TypeError, ValueError):
+            return True
+        if taken.tzinfo is None:
+            taken = taken.replace(tzinfo=UTC)
+    return now - taken <= timedelta(days=ASSESSMENT_WINDOW_DAYS)
+
+
 @advanced_mood_bp.route('/assess/comprehensive', methods=['GET'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
@@ -533,6 +560,13 @@ def comprehensive_clinical_assessment():
             elif data.get('type') == 'gad7' and not gad7_data:
                 gad7_data = data
 
+        now = datetime.now(UTC)
+        stale_assessments = []
+        for kind, data in (('phq9', phq9_data), ('gad7', gad7_data)):
+            if data and not _is_current(data, now):
+                stale_assessments.append({'type': kind, 'timestamp': data.get('timestamp')})
+        stale_types = {entry['type'] for entry in stale_assessments}
+
         # Get recent mood entries
         mood_docs = db.collection('users').document(user_id)\
             .collection('moods')\
@@ -546,7 +580,7 @@ def comprehensive_clinical_assessment():
         # ClinicalRiskStratification receives real PHQ9Result / GAD7Result
         # instances (not raw question-response dicts which assess_clinical_risk expects).
         phq9_obj: PHQ9Result | None = None
-        if phq9_data:
+        if phq9_data and 'phq9' not in stale_types:
             try:
                 phq9_obj = PHQ9Result(
                     total_score=int(phq9_data.get('total_score', 0)),
@@ -563,7 +597,7 @@ def comprehensive_clinical_assessment():
                 logger.warning(f"Could not reconstruct PHQ9Result: {re}")
 
         gad7_obj: GAD7Result | None = None
-        if gad7_data:
+        if gad7_data and 'gad7' not in stale_types:
             try:
                 gad7_obj = GAD7Result(
                     total_score=int(gad7_data.get('total_score', 0)),
@@ -591,8 +625,13 @@ def comprehensive_clinical_assessment():
             'protective_factors': assessment.protective_factors,
             'immediate_concerns': assessment.immediate_concerns,
             'suggested_interventions': assessment.suggested_interventions,
+            'patient_interventions': assessment.patient_interventions,
+            'risk_factor_details': assessment.risk_factor_details,
+            'protective_factor_details': assessment.protective_factor_details,
             'follow_up_recommended': assessment.follow_up_recommended,
             'follow_up_timeframe': assessment.follow_up_timeframe,
+            'stale_assessments': stale_assessments,
+            'assessment_window_days': ASSESSMENT_WINDOW_DAYS,
             'latest_phq9': phq9_data,
             'latest_gad7': gad7_data
         })

@@ -35,6 +35,13 @@ const ReferralProgram: React.FC = () => {
     const [copied, setCopied] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const calculateTier = (referralCount: number): string => {
+        if (referralCount >= 30) return 'Platinum';
+        if (referralCount >= 15) return 'Gold';
+        if (referralCount >= 5) return 'Silver';
+        return 'Bronze';
+    };
+
     const fetchReferralData = useCallback(async () => {
         if (!user?.user_id) {
             setError('User not authenticated');
@@ -88,13 +95,6 @@ const ReferralProgram: React.FC = () => {
         }
     }, [fetchReferralData, fetchReferralStats, user?.user_id]);
 
-    const calculateTier = (referralCount: number): string => {
-        if (referralCount >= 30) return 'Platinum';
-        if (referralCount >= 15) return 'Gold';
-        if (referralCount >= 5) return 'Silver';
-        return 'Bronze';
-    };
-
     const handleCopyCode = () => {
         if (referralData?.referralCode) {
             navigator.clipboard.writeText(referralData.referralCode);
@@ -121,7 +121,7 @@ const ReferralProgram: React.FC = () => {
         const shareUrls: { [key: string]: string } = {
             whatsapp: `https://wa.me/?text=${encodedMessage}%20${encodedLink}`,
             facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedLink}`,
-            twitter: `https://twitter.com/intent/tweet?text=${encodedMessage}&url=${encodedLink}`,
+            twitter: `https://x.com/intent/tweet?text=${encodedMessage}&url=${encodedLink}`,
             email: `mailto:?subject=${encodeURIComponent(t('referral.shareSubject', 'Gå med i Lugn & Trygg'))}&body=${encodedMessage}%20${encodedLink}`
         };
 
@@ -148,7 +148,7 @@ const ReferralProgram: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-slate-900 dark:to-slate-800">
+            <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-primary-50 to-secondary-50 dark:from-slate-900 dark:to-slate-800">
                 <div className="text-center">
                     <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600 mb-4"></div>
                     <p className="text-lg text-slate-600 dark:text-slate-400">
@@ -203,7 +203,7 @@ const ReferralProgram: React.FC = () => {
     const progress = tierInfo.required ? Math.min(100, (referralData.referralCount / tierInfo.required) * 100) : 100;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-linear-to-br from-primary-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="text-center mb-8">
@@ -216,8 +216,14 @@ const ReferralProgram: React.FC = () => {
                 </div>
 
                 {/* Copy Confirmation Toast */}
+                {/*
+                  z-50 was shared with BottomNav and with the cards above, so
+                  paint order decided the winner and the toast lost. The app
+                  layers nav at 120 and the mobile menu at 130/140; a
+                  confirmation belongs above all of them.
+                */}
                 {copied && (
-                    <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in-right">
+                    <div className="fixed top-4 right-4 z-150 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in-right">
                         <span>✅</span>
                         <span className="font-medium">{t('referral.copied', 'Kopierat till urklipp!')}</span>
                     </div>
@@ -250,7 +256,7 @@ const ReferralProgram: React.FC = () => {
                             </div>
                             <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
                                 <div 
-                                    className="bg-gradient-to-r from-primary-500 to-secondary-500 h-full rounded-full transition-all duration-500"
+                                    className="bg-linear-to-r from-primary-500 to-secondary-500 h-full rounded-full transition-all duration-500"
                                     style={{ width: `${progress}%` }}
                                 />
                             </div>
@@ -262,7 +268,7 @@ const ReferralProgram: React.FC = () => {
                     
                     {/* Stats Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg p-4 text-white text-center">
+                        <div className="bg-linear-to-br from-primary-500 to-primary-600 rounded-lg p-4 text-white text-center">
                             <div className="text-3xl font-bold mb-1">
                                 {referralData.referralCount || 0}
                             </div>
@@ -270,7 +276,7 @@ const ReferralProgram: React.FC = () => {
                                 {t('referral.totalInvited', 'Totalt bjudna')}
                             </div>
                         </div>
-                        <div className="bg-gradient-to-br from-secondary-500 to-secondary-600 rounded-lg p-4 text-white text-center">
+                        <div className="bg-linear-to-br from-secondary-500 to-secondary-600 rounded-lg p-4 text-white text-center">
                             <div className="text-3xl font-bold mb-1">
                                 {stats?.active || 0}
                             </div>
@@ -278,7 +284,7 @@ const ReferralProgram: React.FC = () => {
                                 {t('referral.activeUsers', 'Aktiva användare')}
                             </div>
                         </div>
-                        <div className="bg-gradient-to-br from-success-500 to-success-600 rounded-lg p-4 text-white text-center">
+                        <div className="bg-linear-to-br from-success-500 to-success-600 rounded-lg p-4 text-white text-center">
                             <div className="text-3xl font-bold mb-1">
                                 {t('referral.weeks', '{{count}} veckor', { count: referralData.rewards || 0 })}
                             </div>
@@ -362,8 +368,9 @@ const ReferralProgram: React.FC = () => {
                             onClick={() => handleShare('twitter')}
                             className="flex flex-col items-center gap-2 p-4 rounded-lg bg-sky-50 dark:bg-sky-900/20 hover:bg-sky-100 dark:hover:bg-sky-900/30 text-sky-700 dark:text-sky-300 transition-colors"
                         >
-                            <span className="text-3xl">🐦</span>
-                            <span className="font-semibold">Twitter</span>
+                            {/* Renamed to X in 2023. The bird went with it. */}
+                            <span className="text-3xl">𝕏</span>
+                            <span className="font-semibold">X</span>
                         </button>
                         <button
                             onClick={() => handleShare('email')}

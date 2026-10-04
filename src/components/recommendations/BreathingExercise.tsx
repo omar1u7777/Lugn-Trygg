@@ -143,8 +143,8 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
   }, []);
 
   return (
-    <div className={`${isBreathingFullscreen ? 'fixed inset-0 z-[260] overflow-y-auto bg-black/80 p-4 sm:p-8' : ''}`}>
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-blue-200 dark:border-blue-800">
+    <div className={`${isBreathingFullscreen ? 'fixed inset-0 z-260 overflow-y-auto bg-black/80 p-4 sm:p-8' : ''}`}>
+      <div className="bg-linear-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-blue-200 dark:border-blue-800">
 
         {/* Mode toggle: Basic vs Biofeedback */}
         <div className="flex justify-center mb-4 gap-2">
@@ -238,7 +238,13 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
 
         <div className="mb-4 bg-rose-50 dark:bg-rose-900/20 p-3 rounded-lg text-left">
           <label htmlFor="breathing-stress-before" className="text-sm font-medium text-rose-700 dark:text-rose-300 block mb-1">
-            {t('breathing.stressBefore', 'Stress före start')} ({breathingStressBefore ?? 0}/100)
+            {/*
+              breathingStressBefore is null until the user moves the slider, and
+              the button below is disabled on exactly that. Rendering "0/100"
+              for null said a value HAD been chosen, so the disabled button
+              looked broken rather than waiting. An em dash says nothing is set.
+            */}
+            {t('breathing.stressBefore', 'Stress före start')} ({breathingStressBefore === null ? '—' : `${breathingStressBefore}/100`})
           </label>
           <input
             id="breathing-stress-before"
@@ -279,16 +285,16 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
 
             <div
               className={`relative w-40 h-40 rounded-full flex flex-col items-center justify-center transition-all duration-1000 transform ${breathingPhase === 'exhale'
-                ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white scale-75 shadow-blue-500/50 shadow-lg'
+                ? 'bg-linear-to-br from-blue-400 to-blue-600 text-white scale-75 shadow-blue-500/50 shadow-lg'
                 : breathingPhase === 'inhale'
-                  ? 'bg-gradient-to-br from-green-400 to-green-600 text-white scale-125 shadow-green-500/50 shadow-xl animate-pulse'
+                  ? 'bg-linear-to-br from-green-400 to-green-600 text-white scale-125 shadow-green-500/50 shadow-xl animate-pulse'
                   : breathingPhase === 'hold'
-                    ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white scale-110 shadow-yellow-500/50 shadow-lg'
+                    ? 'bg-linear-to-br from-yellow-400 to-yellow-600 text-white scale-110 shadow-yellow-500/50 shadow-lg'
                     : breathingPhase === 'exhale2'
-                      ? 'bg-gradient-to-br from-blue-500 to-blue-700 text-white scale-75 shadow-blue-500/50 shadow-lg'
+                      ? 'bg-linear-to-br from-blue-500 to-blue-700 text-white scale-75 shadow-blue-500/50 shadow-lg'
                       : breathingPhase === 'completed'
-                        ? 'bg-gradient-to-br from-purple-500 to-pink-600 text-white scale-110 shadow-purple-500/50 shadow-xl'
-                        : 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-700 scale-100 shadow-gray-500/20 shadow-md'} `}
+                        ? 'bg-linear-to-br from-purple-500 to-pink-600 text-white scale-110 shadow-purple-500/50 shadow-xl'
+                        : 'bg-linear-to-br from-gray-300 to-gray-400 text-gray-700 scale-100 shadow-gray-500/20 shadow-md'} `}
             >
               <span className="text-xs font-semibold tracking-wide uppercase opacity-90">
                 {breathingCue.title}
@@ -383,14 +389,21 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
                 startBreathingExercise();
               }}
               disabled={breathingStressBefore === null}
-              className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+              aria-describedby={breathingStressBefore === null ? 'breathing-start-hint' : undefined}
+              /*
+                The button was disabled with no disabled styling at all —
+                opacity stayed 1, the hover colour stayed live, and the cursor
+                did not change. It read as an unresponsive button rather than
+                an unmet precondition.
+              */
+              className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
             >
               {breathingPhase === 'completed' ? t('breathing.startNew', '🔁 Starta ny omgång') : t('breathing.startExercise', '🚀 Starta andningsövning')}
             </button>
           )}
         </div>
         {!isBreathingActive && breathingStressBefore === null && (
-          <p className="text-center text-xs text-rose-600 dark:text-rose-300 mt-2">
+          <p id="breathing-start-hint" className="text-center text-xs text-rose-600 dark:text-rose-300 mt-2">
             {t('breathing.selectStressHint', 'Välj stressnivå före start för att kunna jämföra effekten efteråt.')}
           </p>
         )}

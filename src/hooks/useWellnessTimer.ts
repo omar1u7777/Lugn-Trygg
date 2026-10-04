@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 export interface UseWellnessTimerOptions {
   /** Called exactly once when the countdown reaches zero. Latest closure is
@@ -35,7 +35,11 @@ export function useWellnessTimer(options: UseWellnessTimerOptions = {}): Wellnes
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef<number | null>(null);
   const onCompleteRef = useRef(options.onComplete);
-  onCompleteRef.current = options.onComplete;
+  // Updated after commit, not during render: a render React discards must
+  // not leave the interval calling that render's callback.
+  useLayoutEffect(() => {
+    onCompleteRef.current = options.onComplete;
+  });
 
   const clearTick = useCallback(() => {
     if (intervalRef.current !== null) {

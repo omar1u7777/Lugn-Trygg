@@ -135,7 +135,7 @@ describe('Spinner', () => {
 describe('Skeleton', () => {
   it('renders text variant by default', () => {
     const { container } = render(<Skeleton />);
-    expect((container.firstChild as HTMLElement).className).toContain('rounded');
+    expect((container.firstChild as HTMLElement).className).toContain('rounded-sm');
   });
 
   it('renders circular variant', () => {

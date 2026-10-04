@@ -125,7 +125,7 @@ export const DialogHeader: React.FC<DialogHeaderProps> = ({
       {onClose && (
         <button
           onClick={onClose}
-          className="ml-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded"
+          className="ml-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded-sm"
           aria-label="Stäng dialog"
           type="button"
         >
@@ -269,7 +269,7 @@ export const Snackbar: React.FC<SnackbarProps> = ({
           <span>{message}</span>
           <button
             onClick={onClose}
-            className="ml-2 p-2 rounded hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="ml-2 p-2 rounded-sm hover:bg-white/10 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/50 min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Stäng notis"
             type="button"
           >

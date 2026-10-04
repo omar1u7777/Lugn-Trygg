@@ -146,7 +146,7 @@ interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
   ({ className, variant = 'text', width, height, ...props }, ref) => {
     const variants = {
-      text: 'rounded',
+      text: 'rounded-sm',
       circular: 'rounded-full',
       rectangular: 'rounded-lg',
     };

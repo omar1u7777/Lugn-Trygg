@@ -64,8 +64,8 @@ export const ListItemSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) =>
       <div key={i} className="animate-pulse flex items-center gap-4 p-4 bg-calm-100 dark:bg-calm-800 rounded-xl">
         <div className="w-12 h-12 bg-calm-200 dark:bg-calm-700 rounded-full" />
         <div className="flex-1 space-y-2">
-          <div className="h-4 bg-calm-200 dark:bg-calm-700 rounded w-3/4" />
-          <div className="h-3 bg-calm-200 dark:bg-calm-700 rounded w-1/2" />
+          <div className="h-4 bg-calm-200 dark:bg-calm-700 rounded-sm w-3/4" />
+          <div className="h-3 bg-calm-200 dark:bg-calm-700 rounded-sm w-1/2" />
         </div>
       </div>
     ))}
@@ -80,8 +80,8 @@ export const StatsSkeleton: React.FC = () => (
     {Array.from({ length: 4 }).map((_, i) => (
       <div key={i} className="animate-pulse p-4 bg-calm-100 dark:bg-calm-800 rounded-xl">
         <div className="w-8 h-8 bg-calm-200 dark:bg-calm-700 rounded-lg mb-3" />
-        <div className="h-6 bg-calm-200 dark:bg-calm-700 rounded w-1/2 mb-2" />
-        <div className="h-4 bg-calm-200 dark:bg-calm-700 rounded w-3/4" />
+        <div className="h-6 bg-calm-200 dark:bg-calm-700 rounded-sm w-1/2 mb-2" />
+        <div className="h-4 bg-calm-200 dark:bg-calm-700 rounded-sm w-3/4" />
       </div>
     ))}
   </div>

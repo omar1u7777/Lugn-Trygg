@@ -148,20 +148,20 @@ export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
         <Card className="border border-gray-200 dark:border-gray-700">
           <div className="p-4 sm:p-6">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-7 h-7 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-              <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+              <div className="w-7 h-7 bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse" />
+              <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse" />
             </div>
-            <div className="h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+            <div className="h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse" />
           </div>
         </Card>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="border border-gray-200 dark:border-gray-700">
               <div className="p-4 sm:p-6 space-y-4">
-                <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                <div className="h-2.5 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                <div className="h-10 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse" />
+                <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse" />
+                <div className="h-2.5 w-full bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse" />
+                <div className="h-10 w-full bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse" />
               </div>
             </Card>
           ))}
@@ -271,7 +271,7 @@ export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
                         )}
                       </div>
                     </div>
-                    <TrophyIcon className="w-6 h-6 text-warning-600 flex-shrink-0" aria-hidden="true" />
+                    <TrophyIcon className="w-6 h-6 text-warning-600 shrink-0" aria-hidden="true" />
                   </div>
 
                   {/* Description */}
@@ -379,7 +379,7 @@ export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
             </h2>
             <button
               onClick={() => setShowJoinDialog(false)}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
               aria-label="Stäng dialog"
             >
               <XMarkIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />

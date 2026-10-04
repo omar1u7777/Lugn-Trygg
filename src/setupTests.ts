@@ -3,6 +3,8 @@
 
 // Import jest-dom matchers for Vitest
 import '@testing-library/jest-dom/vitest';
+import { afterEach } from 'vitest';
+import { queryClient } from './contexts/queryClient';
 
 // Force development React for testing
 process.env.NODE_ENV = 'development';
@@ -41,3 +43,10 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
 if (typeof window !== 'undefined' && !window.scrollTo) {
   window.scrollTo = () => {};
 }
+
+// Components read shared lists through the app's queryClient singleton (the
+// mood list, for one). Without clearing it, one test's response is still
+// cached for the next and its fetch mocks are never called.
+afterEach(() => {
+  queryClient.clear();
+});

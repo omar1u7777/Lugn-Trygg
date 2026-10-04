@@ -55,6 +55,31 @@ export const useChatAnalytics = (userId: string) => {
     }
   }, [userId]);
 
+  // Calculate engagement score
+  const calculateEngagementScore = (metrics: ChatMetrics): number => {
+    let score = 0;
+    
+    // Message frequency (0-30 points)
+    const messageScore = Math.min(30, metrics.totalMessages * 0.5);
+    score += messageScore;
+    
+    // Conversation depth (0-25 points)
+    const avgLength = metrics.totalMessages > 0 ? 
+      metrics.emotionalJourney.length / metrics.totalMessages * 100 : 0;
+    score += Math.min(25, avgLength);
+    
+    // Emotional engagement (0-25 points)
+    const emotionalRatio = metrics.emotionalJourney.length / metrics.aiMessages;
+    score += emotionalRatio * 25;
+    
+    // Consistency (0-20 points)
+    const consistency = metrics.sessionDuration > 0 ? 
+      Math.min(20, metrics.sessionDuration / 60) : 0;
+    score += consistency;
+    
+    return Math.round(score);
+  };
+
   // Track message event
   const trackMessage = useCallback((
     message: string,
@@ -135,31 +160,6 @@ export const useChatAnalytics = (userId: string) => {
     }
   }, [metrics, patterns, userId]);
 
-  // Calculate engagement score
-  const calculateEngagementScore = (metrics: ChatMetrics): number => {
-    let score = 0;
-    
-    // Message frequency (0-30 points)
-    const messageScore = Math.min(30, metrics.totalMessages * 0.5);
-    score += messageScore;
-    
-    // Conversation depth (0-25 points)
-    const avgLength = metrics.totalMessages > 0 ? 
-      metrics.emotionalJourney.length / metrics.totalMessages * 100 : 0;
-    score += Math.min(25, avgLength);
-    
-    // Emotional engagement (0-25 points)
-    const emotionalRatio = metrics.emotionalJourney.length / metrics.aiMessages;
-    score += emotionalRatio * 25;
-    
-    // Consistency (0-20 points)
-    const consistency = metrics.sessionDuration > 0 ? 
-      Math.min(20, metrics.sessionDuration / 60) : 0;
-    score += consistency;
-    
-    return Math.round(score);
-  };
-
   // Analyze conversation patterns
   const analyzePatterns = useCallback((messages: Array<{
     timestamp: Date;
@@ -221,6 +221,19 @@ export const useChatAnalytics = (userId: string) => {
     setPatterns(newPatterns);
   }, []);
 
+  // Helper to get most frequent value
+  const getMostFrequent = (arr: number[]): number | undefined => {
+    if (arr.length === 0) return undefined;
+    
+    const frequency: Record<number, number> = {};
+    arr.forEach(val => {
+      frequency[val] = (frequency[val] || 0) + 1;
+    });
+    
+    return Object.entries(frequency)
+      .sort(([,a], [,b]) => b - a)[0][0] as number;
+  };
+
   // Get insights and recommendations
   const getInsights = useCallback(() => {
     if (!metrics || !patterns) return [];
@@ -273,19 +286,6 @@ export const useChatAnalytics = (userId: string) => {
 
     return insights;
   }, [metrics, patterns]);
-
-  // Helper to get most frequent value
-  const getMostFrequent = (arr: number[]): number | undefined => {
-    if (arr.length === 0) return undefined;
-    
-    const frequency: Record<number, number> = {};
-    arr.forEach(val => {
-      frequency[val] = (frequency[val] || 0) + 1;
-    });
-    
-    return Object.entries(frequency)
-      .sort(([,a], [,b]) => b - a)[0][0] as number;
-  };
 
   // Export analytics data
   const exportData = useCallback(() => {

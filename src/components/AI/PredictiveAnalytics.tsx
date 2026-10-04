@@ -148,21 +148,25 @@ const PredictionCard = React.memo(({ prediction }: { prediction: PredictionData 
 ));
 PredictionCard.displayName = 'PredictionCard';
 
-const InsightCard = React.memo(({ insight }: { insight: InsightData }) => {
-  const getIcon = () => {
-    switch (insight.type) {
-      case 'trend':
-        return insight.title.toLowerCase().includes('upp') ? ArrowTrendingUpIcon : ArrowTrendingDownIcon;
-      case 'pattern':
-        return LightBulbIcon;
-      case 'recommendation':
-        return ExclamationTriangleIcon;
-      default:
-        return LightBulbIcon;
-    }
-  };
+const insightIconType = (insight: InsightData) => {
+  switch (insight.type) {
+    case 'trend':
+      return insight.title.toLowerCase().includes('upp') ? ArrowTrendingUpIcon : ArrowTrendingDownIcon;
+    case 'pattern':
+      return LightBulbIcon;
+    case 'recommendation':
+      return ExclamationTriangleIcon;
+    default:
+      return LightBulbIcon;
+  }
+};
 
-  const Icon = getIcon();
+// Returns an element, not a component: a component chosen during render is
+// indistinguishable to React from a new component type on every render.
+const renderInsightIcon = (insight: InsightData) =>
+  React.createElement(insightIconType(insight), { className: 'w-5 h-5 shrink-0 mt-0.5' });
+
+const InsightCard = React.memo(({ insight }: { insight: InsightData }) => {
 
   const getSeverityColor = () => {
     switch (insight.severity) {
@@ -178,7 +182,7 @@ const InsightCard = React.memo(({ insight }: { insight: InsightData }) => {
   return (
     <div className={`rounded-lg p-4 border ${getSeverityColor()}`}>
       <div className="flex items-start gap-3">
-        <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
+        {renderInsightIcon(insight)}
         <div>
           <h4 className="font-medium text-gray-900 dark:text-white mb-1">
             {insight.title}
@@ -194,7 +198,7 @@ const InsightCard = React.memo(({ insight }: { insight: InsightData }) => {
 InsightCard.displayName = 'InsightCard';
 
 const TrendSummary = React.memo(({ trends }: { trends: TrendData }) => (
-  <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-lg p-6">
+  <div className="bg-linear-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-lg p-6">
     <div className="flex items-center justify-between mb-4">
       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
         Trendanalys ({trends.period})
@@ -237,7 +241,7 @@ const CrisisAlert = React.memo(({ crisisRisk }: { crisisRisk: NonNullable<Predic
   return (
     <div className={`rounded-lg p-4 border ${getAlertStyle()}`}>
       <div className="flex items-start gap-3">
-        <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0 mt-0.5" />
+        <ExclamationTriangleIcon className="w-5 h-5 shrink-0 mt-0.5" />
         <div>
           <h4 className="font-medium mb-2">
             Krisrisk: {crisisRisk.risk_level === 'high' ? 'Hög' : crisisRisk.risk_level === 'medium' ? 'Medelhög' : 'Låg'}
@@ -280,10 +284,10 @@ const PredictiveAnalytics: React.FC = React.memo(() => {
     return (
       <div className="space-y-6" role="status" aria-label="Laddar prediktiv analys">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4"></div>
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-sm w-1/3 mb-4"></div>
           <div className="space-y-3">
-            <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
-            <div className="h-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded-sm"></div>
+            <div className="h-24 bg-gray-200 dark:bg-gray-700 rounded-sm"></div>
           </div>
         </div>
       </div>

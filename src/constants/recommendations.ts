@@ -1,4 +1,5 @@
 import { Recommendation, BreathingPhaseConfig, KBTPhaseName } from '../types/recommendation';
+import type { TFunction } from 'i18next';
 
 export const KBT_PHASES: KBTPhaseName[] = ['identify', 'challenge', 'replace', 'practice', 'complete'];
 
@@ -589,8 +590,17 @@ export const RECOMMENDATIONS_POOL: Recommendation[] = [
 
 type RecPoolTranslations = Record<string, { title: string; description: string; category: string; content: string }>;
 
-export const getRecommendationsPool = (t: (key: string) => unknown): Recommendation[] => {
-  const pool = t('recommendationsPool') as RecPoolTranslations | undefined;
+export const getRecommendationsPool = (t: TFunction): Recommendation[] => {
+  /*
+   * returnObjects, for the same reason as dashboard.goalSteps: i18next hands
+   * back the key string rather than the object unless asked, so `pool` was the
+   * literal "recommendationsPool", typeof 'string', and this function returned
+   * the untranslated English pool on every call in every language.
+   *
+   * The `typeof pool !== 'object'` guard below is what kept it from crashing —
+   * and what kept anyone from noticing.
+   */
+  const pool = t('recommendationsPool', { returnObjects: true }) as RecPoolTranslations | undefined;
   if (!pool || typeof pool !== 'object') return RECOMMENDATIONS_POOL;
   return RECOMMENDATIONS_POOL.map(rec => {
     const tr = pool[rec.id];

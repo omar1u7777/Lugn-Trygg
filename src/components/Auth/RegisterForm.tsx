@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Alert, Input, Button, Typography } from "../ui/tailwind";
 import { PasswordInput } from "../ui/tailwind/PasswordInput";
+import PasswordStrengthIndicator from "../ui/PasswordStrengthIndicator";
 import { ArrowPathIcon, UserPlusIcon } from "@heroicons/react/24/outline";
 import { registerUser } from "../../api/api";
 import { useAccessibility } from "../../hooks/useAccessibility";
@@ -31,6 +32,9 @@ const extractErrorMessage = (err: unknown): string => {
   return DEFAULT_ERROR;
 };
 
+/** One definition, used by the live gate and by the submit-time check. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const RegisterForm: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -58,6 +62,40 @@ const RegisterForm: React.FC = () => {
     }
   }, [searchParams]);
 
+  /**
+   * Show a field's error when the user leaves it.
+   *
+   * Tying `disabled` to validity makes the submit handler's messages
+   * unreachable — the click that used to produce them cannot happen any more.
+   * Blur is where they surface instead: the same rules, said at the moment the
+   * user finishes with the field rather than after a round trip.
+   */
+  const validateOnBlur = (field: 'email' | 'password' | 'confirmPassword') => () => {
+    setValidationErrors(prev => {
+      const next = { ...prev };
+      if (field === 'email') {
+        if (email.trim() && !EMAIL_PATTERN.test(email.trim())) {
+          next.email = t('registerForm.invalidEmail', 'Ange en giltig e-postadress.');
+        } else {
+          delete next.email;
+        }
+      }
+      if (field === 'password') {
+        const problem = password ? validatePassword(password) : "";
+        if (problem) next.password = problem;
+        else delete next.password;
+      }
+      if (field === 'confirmPassword') {
+        if (confirmPassword && password !== confirmPassword) {
+          next.confirmPassword = t('registerForm.passwordMismatch', 'Lösenorden matchar inte.');
+        } else {
+          delete next.confirmPassword;
+        }
+      }
+      return next;
+    });
+  };
+
   const validatePassword = (pw: string) => {
     if (pw.length < 8) {
       return t('registerForm.passwordTooShort', 'Lösenordet måste vara minst 8 tecken långt.');
@@ -70,6 +108,24 @@ const RegisterForm: React.FC = () => {
     }
     return "";
   };
+
+  /*
+   * The button was disabled={loading} and nothing else, so "Skapa konto" stayed
+   * enabled through an empty form, an e-mail reading "not-an-email", a password
+   * of "abc", an unconfirmed password and unticked consent boxes. Every rule
+   * below already existed — they simply all ran after submit, which turns a
+   * fixable typo into a round trip and a generic server error.
+   *
+   * Same rules, evaluated as the user types. validatePassword is the single
+   * source; this does not restate it.
+   */
+  const isFormValid =
+    name.trim().length > 0 &&
+    EMAIL_PATTERN.test(email.trim()) &&
+    validatePassword(password) === "" &&
+    password === confirmPassword &&
+    acceptTerms &&
+    acceptPrivacy;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,8 +142,7 @@ const RegisterForm: React.FC = () => {
     }
 
     // Validate email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim() || !emailRegex.test(email)) {
+      if (!email.trim() || !EMAIL_PATTERN.test(email)) {
       setValidationErrors(prev => ({ ...prev, email: t('registerForm.invalidEmail') }));
       announceToScreenReader(t('registerForm.formErrors'), "assertive");
       return;
@@ -238,6 +293,7 @@ const RegisterForm: React.FC = () => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={validateOnBlur('email')}
               placeholder={t('registerForm.emailPlaceholder')}
               required
               disabled={loading}
@@ -289,6 +345,7 @@ const RegisterForm: React.FC = () => {
               autoComplete="new-password"
               value={password}
               onChange={setPassword}
+              onBlur={validateOnBlur('password')}
               placeholder={t('registerForm.passwordPlaceholder')}
               required
               disabled={loading}
@@ -296,6 +353,16 @@ const RegisterForm: React.FC = () => {
               helpText={t('registerForm.passwordHelp')}
               dataTestId="register-password-input"
             />
+            {/*
+              The help text listed four requirements and then never said which
+              of them were met. PasswordStrengthIndicator already existed and
+              was already used on the profile page; it just was not here, so the
+              one screen where a password is chosen was the one screen without
+              feedback while typing.
+            */}
+            {password.length > 0 && (
+              <PasswordStrengthIndicator password={password} className="mt-2" />
+            )}
           </div>
 
           <div>
@@ -314,6 +381,7 @@ const RegisterForm: React.FC = () => {
               autoComplete="new-password"
               value={confirmPassword}
               onChange={setConfirmPassword}
+              onBlur={validateOnBlur('confirmPassword')}
               placeholder={t('registerForm.confirmPasswordPlaceholder')}
               required
               disabled={loading}
@@ -341,7 +409,7 @@ const RegisterForm: React.FC = () => {
                 checked={acceptTerms}
                 onChange={(e) => setAcceptTerms(e.target.checked)}
                 disabled={loading}
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="mt-1 h-4 w-4 rounded-sm border-gray-300 text-primary-600 focus:ring-primary-500"
                 aria-describedby={validationErrors.terms ? "terms-error" : undefined}
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -358,7 +426,7 @@ const RegisterForm: React.FC = () => {
                 checked={acceptPrivacy}
                 onChange={(e) => setAcceptPrivacy(e.target.checked)}
                 disabled={loading}
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="mt-1 h-4 w-4 rounded-sm border-gray-300 text-primary-600 focus:ring-primary-500"
                 aria-describedby={validationErrors.terms ? "terms-error" : undefined}
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -377,7 +445,7 @@ const RegisterForm: React.FC = () => {
             type="submit"
             variant="primary"
             size="lg"
-            disabled={loading}
+            disabled={loading || !isFormValid}
             data-testid="register-submit-button"
             className="w-full min-h-[44px] sm:min-h-[48px]"
             aria-describedby={loading ? "register-loading" : undefined}
@@ -401,7 +469,7 @@ const RegisterForm: React.FC = () => {
             {t('registerForm.hasAccount')}{" "}
             <Link
               to="/login"
-              className="text-primary-600 dark:text-primary-400 font-semibold hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
+              className="text-primary-600 dark:text-primary-400 font-semibold hover:underline focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-sm"
               data-testid="register-login-link"
               aria-label={t('registerForm.goToLogin')}
             >

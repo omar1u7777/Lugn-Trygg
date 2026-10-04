@@ -88,9 +88,9 @@ const UpgradePage: React.FC = () => {
   // Om redan premium, visa bekräftelse
   if (hasFullAccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#fff7f0] to-[#fffaf5] p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-linear-to-b from-[#fff7f0] to-[#fffaf5] p-4 sm:p-6 lg:p-8">
         <div className="max-w-2xl mx-auto text-center py-16">
-          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-400 rounded-full flex items-center justify-center mb-6 shadow-lg">
+          <div className="mx-auto w-20 h-20 bg-linear-to-br from-amber-400 to-orange-400 rounded-full flex items-center justify-center mb-6 shadow-lg">
             <SparklesIcon className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-[#2f2a24] mb-4">
@@ -101,7 +101,7 @@ const UpgradePage: React.FC = () => {
           </p>
           <button
             onClick={() => navigate('/dashboard')}
-            className="inline-flex items-center gap-2 bg-[#2c8374] hover:bg-[#1e5f54] text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-md"
+            className="inline-flex items-center gap-2 bg-[#2c8374] hover:bg-primary-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-md"
           >
             <ArrowLeftIcon className="w-5 h-5" />
             Tillbaka till Dashboard
@@ -149,7 +149,7 @@ const UpgradePage: React.FC = () => {
   const enterprisePrice = ENTERPRISE_PRICE_SEK;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#fff7f0] to-[#fffaf5] p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-linear-to-b from-[#fff7f0] to-[#fffaf5] p-4 sm:p-6 lg:p-8">
       {/* Tillbaka-knapp */}
       <div className="max-w-5xl mx-auto mb-6">
         <button
@@ -163,7 +163,7 @@ const UpgradePage: React.FC = () => {
 
       {/* Header */}
       <div className="max-w-5xl mx-auto text-center mb-12">
-        <div className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-400/20 to-orange-400/20 text-amber-700 px-4 py-2 rounded-full text-sm font-medium mb-4 border border-amber-300/30">
+        <div className="inline-flex items-center gap-2 bg-linear-to-r from-amber-400/20 to-orange-400/20 text-amber-700 px-4 py-2 rounded-full text-sm font-medium mb-4 border border-amber-300/30">
           <SparklesIcon className="w-4 h-4" />
           Uppgradera till Premium
         </div>
@@ -218,7 +218,7 @@ const UpgradePage: React.FC = () => {
             onClick={() => setSelectedPlan('yearly')}
           >
             {/* Populär-badge */}
-            <div className="absolute top-0 right-0 bg-gradient-to-r from-[#2c8374] to-[#3a9d8c] text-white text-xs font-bold px-3 py-1.5 rounded-bl-xl">
+            <div className="absolute top-0 right-0 bg-linear-to-r from-[#2c8374] to-[#3a9d8c] text-white text-xs font-bold px-3 py-1.5 rounded-bl-xl">
               🎁 SPARA {yearlySavings} kr
             </div>
 
@@ -247,7 +247,7 @@ const UpgradePage: React.FC = () => {
           </Card>
 
           {/* Enterprise */}
-          <Card className="p-6 border-2 border-dashed border-[#c08a5d]/40 bg-[#fff7f0]">
+          <Card className="p-6 border-2 border-dashed border-[#c08a5d]/40 bg-calm-50">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-[#2f2a24]">
                 Enterprise
@@ -283,7 +283,7 @@ const UpgradePage: React.FC = () => {
         <button
           onClick={() => handleUpgrade()}
           disabled={isProcessing}
-          className="w-full bg-gradient-to-r from-[#2c8374] to-[#3a9d8c] hover:from-[#1e5f54] hover:to-[#2c8374] text-white font-bold py-4 px-8 rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed text-lg transform hover:scale-[1.02]"
+          className="w-full bg-linear-to-r from-[#2c8374] to-[#3a9d8c] hover:from-[#1e5f54] hover:to-[#2c8374] text-white font-bold py-4 px-8 rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed text-lg transform hover:scale-[1.02]"
         >
           {isProcessing ? (
             <span className="flex items-center justify-center gap-2">
@@ -340,7 +340,7 @@ const UpgradePage: React.FC = () => {
                 </div>
                 {category.features.map((feature, featureIndex) => (
                   <div key={featureIndex} className="grid grid-cols-[minmax(180px,2fr)_minmax(88px,1fr)_minmax(88px,1fr)] sm:grid-cols-3 gap-2 sm:gap-0 px-3 sm:px-6 py-4 items-center min-w-[360px] sm:min-w-0">
-                    <span className="text-gray-900 dark:text-white text-sm break-words">
+                    <span className="text-gray-900 dark:text-white text-sm wrap-break-word">
                       {feature.name}
                     </span>
                     <div className="text-center">

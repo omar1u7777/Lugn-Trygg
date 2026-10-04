@@ -65,7 +65,7 @@ export const SkeletonLoader: React.FC<{
   if (type === 'card') {
     return (
       <div
-        className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))] motion-safe:animate-[fade-in_0.3s_ease-out]"
+        className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(250px,1fr))] motion-safe:animate-[fade-in_0.3s_ease-out]"
         role="status"
         aria-live="polite"
         aria-label="Laddar kort"
@@ -78,8 +78,8 @@ export const SkeletonLoader: React.FC<{
             aria-label={`Laddar kort ${idx + 1} av ${count}`}
           >
             <div className="h-[200px] bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
-            <div className="h-[30px] bg-gray-200 dark:bg-gray-700 rounded mt-2.5 animate-pulse" />
-            <div className="h-[20px] bg-gray-200 dark:bg-gray-700 rounded mt-1.5 animate-pulse" />
+            <div className="h-[30px] bg-gray-200 dark:bg-gray-700 rounded-sm mt-2.5 animate-pulse" />
+            <div className="h-[20px] bg-gray-200 dark:bg-gray-700 rounded-sm mt-1.5 animate-pulse" />
           </div>
         ))}
       </div>
@@ -103,8 +103,8 @@ export const SkeletonLoader: React.FC<{
           >
             <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
             <div className="flex-1 space-y-2">
-              <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-4/5 animate-pulse" />
+              <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-sm w-4/5 animate-pulse" />
             </div>
           </div>
         ))}
@@ -122,7 +122,7 @@ export const SkeletonLoader: React.FC<{
       {items.map((_, idx) => (
         <div
           key={idx}
-          className="h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"
+          className="h-5 bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse"
           role="progressbar"
           aria-label={`Laddar rad ${idx + 1} av ${count}`}
         />
@@ -142,7 +142,7 @@ export const LoadingOverlay: React.FC<LoadingProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50"
       role="status"
       aria-live="polite"
       aria-atomic="true"

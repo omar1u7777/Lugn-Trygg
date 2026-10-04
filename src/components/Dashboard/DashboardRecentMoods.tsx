@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { getMoodLabel, getMoodEmoji } from '../../features/mood/utils';
 import { Card } from '../ui/tailwind/Card';
 import { getDashboardRegionProps } from '../../constants/accessibility';
+import { tagLabel } from '../../utils/tagLabel';
 
 interface MoodActivity {
   id: string;
@@ -195,10 +196,10 @@ export const DashboardRecentMoods: React.FC<DashboardRecentMoodsProps> = ({
     return (
       <Card className="mb-6" aria-busy="true">
         <div className="p-4 sm:p-6 space-y-4">
-          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3 animate-pulse" />
+          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-sm w-1/3 animate-pulse" />
           {[1, 2, 3].map((i) => (
             <div key={i} className="space-y-2">
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-sm w-1/4 animate-pulse" />
               <div className="h-16 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse" />
             </div>
           ))}
@@ -244,7 +245,7 @@ export const DashboardRecentMoods: React.FC<DashboardRecentMoodsProps> = ({
           <div className={`${maxHeight} overflow-y-auto pr-1 space-y-6 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent`}>
             {groupedMoods.map((group) => (
               <div key={group.dateKey}>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm py-1 z-10">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs py-1 z-10">
                   {group.dateLabel}
                 </h4>
                 <div className="space-y-3">
@@ -256,7 +257,7 @@ export const DashboardRecentMoods: React.FC<DashboardRecentMoodsProps> = ({
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <span
-                            className="text-xl sm:text-2xl flex-shrink-0"
+                            className="text-xl sm:text-2xl shrink-0"
                             aria-hidden="true"
                           >
                             {item.emoji}
@@ -284,16 +285,16 @@ export const DashboardRecentMoods: React.FC<DashboardRecentMoodsProps> = ({
                                 {item.tags.map((tag) => (
                                   <span
                                     key={tag}
-                                    className="px-1.5 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded text-[10px] font-medium"
+                                    className="px-1.5 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-sm text-[10px] font-medium"
                                   >
-                                    #{tag}
+                                    #{tagLabel(t, tag)}
                                   </span>
                                 ))}
                               </div>
                             )}
                           </div>
                         </div>
-                        <time className="text-xs font-medium text-gray-400 dark:text-gray-500 flex-shrink-0 tabular-nums">
+                        <time className="text-xs font-medium text-gray-400 dark:text-gray-500 shrink-0 tabular-nums">
                           {item.time}
                         </time>
                       </div>

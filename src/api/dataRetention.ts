@@ -5,6 +5,7 @@
 
 import api from './client';
 import { API_ENDPOINTS } from './constants';
+import { svCount } from '../utils/plural';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -129,7 +130,7 @@ export const DEFAULT_RETENTION_POLICY: RetentionPolicy = {
  */
 export const formatRetentionPeriod = (days: number): string => {
   if (days < 30) {
-    return `${days} dagar`;
+    return svCount(days, 'dag', 'dagar');
   } else if (days < 365) {
     const months = Math.floor(days / 30);
     return `${months} månad${months > 1 ? 'er' : ''}`;

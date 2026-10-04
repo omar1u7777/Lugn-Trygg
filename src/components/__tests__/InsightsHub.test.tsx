@@ -5,7 +5,7 @@ import i18n from '../../i18n';
 import InsightsHub from '../InsightsHub';
 
 vi.mock('../../api/mood', () => ({
-  getMoods: vi.fn(),
+  getAllMoods: vi.fn(),
   getWeeklyAnalysis: vi.fn(),
 }));
 vi.mock('../../hooks/useAuth', () => ({
@@ -20,7 +20,7 @@ vi.mock('../DailyInsights', () => ({
 vi.mock('../WeeklyAnalysis', () => ({ default: () => <div /> }));
 vi.mock('../AI/PredictiveAnalytics', () => ({ default: () => <div /> }));
 
-import { getMoods, getWeeklyAnalysis } from '../../api/mood';
+import { getAllMoods, getWeeklyAnalysis } from '../../api/mood';
 
 const renderP = (c: React.ReactNode) =>
   render(<I18nextProvider i18n={i18n}>{c}</I18nextProvider>);
@@ -33,7 +33,7 @@ describe('InsightsHub trend fix (#9)', () => {
     const tenDaysAgo = new Date(now.getTime() - 10 * 86400000);
     const threeDaysAgo = new Date(now.getTime() - 3 * 86400000);
 
-    vi.mocked(getMoods).mockResolvedValue([
+    vi.mocked(getAllMoods).mockResolvedValue([
       { score: 0, timestamp: tenDaysAgo.toISOString() },
       { score: 0, timestamp: new Date(tenDaysAgo.getTime() + 86400000).toISOString() },
       { score: 5, timestamp: threeDaysAgo.toISOString() },
@@ -58,7 +58,7 @@ describe('InsightsHub trend fix (#9)', () => {
     const threeDaysAgo = new Date(now.getTime() - 3 * 86400000);
 
     // prev=1, last=10 → raw 900% which is unreasonable
-    vi.mocked(getMoods).mockResolvedValue([
+    vi.mocked(getAllMoods).mockResolvedValue([
       { score: 1, timestamp: tenDaysAgo.toISOString() },
       { score: 1, timestamp: new Date(tenDaysAgo.getTime() + 86400000).toISOString() },
       { score: 10, timestamp: threeDaysAgo.toISOString() },

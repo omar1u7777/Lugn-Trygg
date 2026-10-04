@@ -30,13 +30,18 @@ const mkInsight = (d: string) => ({
 describe('DailyInsights i18n (#1-3)', () => {
   beforeEach(() => { vi.clearAllMocks(); i18n.changeLanguage('sv'); });
 
-  it('#1 minMoodsRequired is translated', async () => {
+  it('#1 the empty-state hint is translated', async () => {
+    // Was asserting "Minst 3 mood-loggar behövs" — a claim this component
+    // cannot make. It receives only a userId and has no idea how many logs
+    // exist, so it was stating a requirement it could not check and
+    // contradicting the backend when it was wrong (BUG-27). The hint that
+    // replaced it is true in every case, so that is what is pinned now.
     vi.mocked(getPendingInsights).mockResolvedValue([]);
     vi.mocked(generateInsights).mockResolvedValue([]);
     renderP(<DailyInsights userId="u" />);
-    await waitFor(() => expect(screen.getByText(/Minst 3 mood-loggar/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Logga ditt mående regelbundet/)).toBeInTheDocument());
     await act(async () => { i18n.changeLanguage('en'); });
-    await waitFor(() => expect(screen.getByText(/At least 3 mood logs/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Log your mood regularly/i)).toBeInTheDocument());
   });
 
   it('#2 domain labels are translated', async () => {
@@ -122,5 +127,50 @@ describe('DailyInsights per-user generate cooldown', () => {
     // suppressed by user-a's cooldown timestamp under a shared cache key.
     renderP(<DailyInsights userId="user-b" />);
     await waitFor(() => expect(generateInsights).toHaveBeenCalledWith('user-b', expect.anything()));
+  });
+});
+
+/**
+ * BUG-27 — three different answers to the same question within seconds.
+ *
+ * The page said "Du har loggat ditt mående tre gånger", then — after the user
+ * dismissed the last insight — "Minst 3 mood-loggar behövs för att generera
+ * insikter", and elsewhere "Logga ditt mående 1 gång(er) till". Same data, same
+ * minute.
+ *
+ * The middle one was the frontend's. This component receives only a userId: it
+ * has no idea how many logs exist, so it was asserting a data requirement it
+ * could not check, in an empty state that conflated "nothing right now" with
+ * "not enough data yet".
+ *
+ * The report reads the ✕ as a regenerate action. It is not — handleDismiss does
+ * exactly what the icon says. What confused the tester is what appeared
+ * afterwards.
+ */
+describe('BUG-27: the empty state does not invent a requirement', () => {
+  it('never claims a minimum number of logs', async () => {
+    (getPendingInsights as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    renderP(<DailyInsights userId="u1" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Minst 3 mood-loggar/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it('distinguishes "handled them all" from "nothing yet"', async () => {
+    (getPendingInsights as ReturnType<typeof vi.fn>).mockResolvedValue([mkInsight('mood')]);
+    renderP(<DailyInsights userId="u1" />);
+
+    await waitFor(() => expect(screen.getByText('T')).toBeInTheDocument());
+
+    await act(async () => {
+      screen.getByRole('button', { name: /Stäng/i }).click();
+    });
+
+    // Having just read an insight, being told there is not enough data to
+    // generate one is the contradiction this fixes.
+    await waitFor(() => {
+      expect(screen.getByText(/hanterat alla/i)).toBeInTheDocument();
+    });
   });
 });

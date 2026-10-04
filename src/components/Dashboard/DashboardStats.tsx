@@ -64,14 +64,14 @@ const BentoItem: React.FC<{
   const trendConfig = {
     up: { icon: '✦', label: t('dashboardStats.positiveDevelopment'), color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' },
     down: { icon: '~', label: t('dashboardStats.naturallyVarying'), color: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' },
-    stable: { icon: '○', label: t('dashboardStats.stable'), color: 'bg-white/90 text-neutral-700 dark:bg-slate-700/80 dark:text-neutral-200 shadow-sm' }
+    stable: { icon: '○', label: t('dashboardStats.stable'), color: 'bg-white/90 text-neutral-700 dark:bg-slate-700/80 dark:text-neutral-200 shadow-xs' }
   };
 
   const currentTrend = trend ? trendConfig[trend.direction] : null;
 
   return (
     <div 
-      className={`relative overflow-hidden rounded-[2rem] p-6 transition-all duration-300 
+      className={`relative overflow-hidden rounded-4xl p-6 transition-all duration-300 
         hover:shadow-lg border border-transparent hover:border-black/5 
         min-h-[160px]
         ${bgColors[color]} ${className}`}
@@ -85,7 +85,7 @@ const BentoItem: React.FC<{
         </div>
         {trend && currentTrend && (
           <span 
-            className={`text-xs font-medium px-2 sm:px-2.5 py-1 rounded-full backdrop-blur-sm 
+            className={`text-xs font-medium px-2 sm:px-2.5 py-1 rounded-full backdrop-blur-xs 
               transition-colors duration-200 ${currentTrend.color}`}
             title={t('dashboardStats.trendTooltip', { label: currentTrend.label })}
           >
@@ -150,7 +150,7 @@ const ConsistencyProgress: React.FC<{ current: number; total: number; t: (key: s
       
       <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full transition-all duration-500"
+          className="h-full bg-linear-to-r from-emerald-400 to-teal-500 rounded-full transition-all duration-500"
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -181,7 +181,7 @@ const AchievementProgress: React.FC<{
         </div>
         <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full transition-all duration-500"
+            className="h-full bg-linear-to-r from-emerald-400 to-teal-500 rounded-full transition-all duration-500"
             style={{ width: '5%' }}
           />
         </div>
@@ -209,7 +209,7 @@ const AchievementProgress: React.FC<{
       </div>
       <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-neutral-400 to-neutral-600 rounded-full transition-all duration-500"
+          className="h-full bg-linear-to-r from-neutral-400 to-neutral-600 rounded-full transition-all duration-500"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -250,7 +250,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
         {[...Array(2)].map((_, i) => (
           <div 
             key={i} 
-            className="h-40 bg-gray-100 dark:bg-gray-800 rounded-[2rem]" 
+            className="h-40 bg-gray-100 dark:bg-gray-800 rounded-4xl" 
           />
         ))}
       </div>

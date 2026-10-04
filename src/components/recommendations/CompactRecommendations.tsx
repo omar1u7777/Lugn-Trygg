@@ -27,14 +27,14 @@ export const CompactRecommendations: React.FC<CompactRecommendationsProps> = ({
       {/* Loading State - Compact */}
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse">
-          <div className="h-40 rounded-[2rem] bg-gray-100 dark:bg-gray-800" />
-          <div className="h-40 rounded-[2rem] bg-gray-100 dark:bg-gray-800" />
+          <div className="h-40 rounded-4xl bg-gray-100 dark:bg-gray-800" />
+          <div className="h-40 rounded-4xl bg-gray-100 dark:bg-gray-800" />
         </div>
       )}
 
       {/* Error State - Compact */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-[2rem] p-6 text-center">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-4xl p-6 text-center">
           <p className="text-red-700 dark:text-red-300">{t('recommendations.error.loadFailedCompact', 'Kunde inte ladda rekommendationer')}</p>
         </div>
       )}

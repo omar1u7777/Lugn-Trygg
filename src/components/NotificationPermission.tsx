@@ -130,7 +130,7 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
       onClick={() => !isLoading && handleSkip()}
     >
       <div 
-        className="bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 rounded-lg p-6 max-w-md w-full shadow-xl"
+        className="bg-linear-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 rounded-lg p-6 max-w-md w-full shadow-xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-labelledby="notification-dialog-title"
@@ -168,7 +168,7 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
 
           {permissionState === 'granted' ? (
             <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-start gap-3">
-              <CheckCircleIcon className="w-6 h-6 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <CheckCircleIcon className="w-6 h-6 text-green-600 dark:text-green-500 shrink-0 mt-0.5" aria-hidden="true" />
               <p className="text-green-800 dark:text-green-300">
                 You'll now receive personalized notifications to support your wellness journey.
               </p>
@@ -216,7 +216,7 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
           {permissionState === 'granted' ? (
             <button
               onClick={() => onClose(true)}
-              className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-800 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-800 text-white rounded-lg font-medium transition-colors focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
             >
               Get Started
             </button>
@@ -224,13 +224,13 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
             <>
               <button
                 onClick={handleSkip}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
               >
                 Back
               </button>
               <button
                 onClick={handleDeny}
-                className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-800 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-800 text-white rounded-lg font-medium transition-colors focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
               >
                 Close
               </button>
@@ -240,14 +240,14 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
               <button
                 onClick={handleSkip}
                 disabled={isLoading}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
               >
                 Maybe Later
               </button>
               <button
                 onClick={handleRequestPermission}
                 disabled={isLoading}
-                className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-800 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-800 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
               >
                 {isLoading ? 'Requesting...' : 'Enable Notifications'}
               </button>

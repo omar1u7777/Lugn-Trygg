@@ -121,9 +121,9 @@ const PasswordStrengthIndicator: React.FC<PasswordStrengthIndicatorProps> = ({
               }`}
             >
               {isMet ? (
-                <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
+                <CheckCircleIcon className="w-4 h-4 shrink-0" />
               ) : (
-                <XCircleIcon className="w-4 h-4 flex-shrink-0" />
+                <XCircleIcon className="w-4 h-4 shrink-0" />
               )}
               <span>{req.label}</span>
             </div>

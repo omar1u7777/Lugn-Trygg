@@ -20,10 +20,21 @@ vi.mock('react-i18next', () => {
     'moodLogger.reflectionPrompts.good': 'Vad bidrog till att du känner dig okej eller bra just nu?',
     'moodLogger.reflectionPrompts.high': 'Vad vill du ta med dig från den här positiva känslan resten av dagen?',
     'moodLogger.defaultNotePrefix': 'Känner mig',
+    // Tags are stored by internal id and displayed by label. Without these the
+    // mock would answer with the key, which is the bug this view used to have.
+    'mood.tags.predefined.work': 'Arbete',
+    'mood.tags.predefined.exercise': 'Träning',
   };
-  const t = (key: string, fallback?: string) => {
+  // Mirrors i18next: a string second argument is a default, an object is
+  // options and may carry defaultValue. The old signature accepted only the
+  // string form, so a caller passing { defaultValue: '' } — the way you ask
+  // i18next "is this key defined?" — got the key back instead of ''.
+  const t = (key: string, fallback?: string | { defaultValue?: string }) => {
     if (typeof fallback === 'string') return fallback;
     if (translations[key]) return translations[key];
+    if (fallback && typeof fallback === 'object' && typeof fallback.defaultValue === 'string') {
+      return fallback.defaultValue;
+    }
     return key;
   };
   return {
@@ -451,8 +462,11 @@ describe('SuperMoodLogger', () => {
     render(<SuperMoodLogger showRecentMoods />);
     await waitFor(() => {
       expect(screen.getByText('Feeling great today')).toBeInTheDocument();
-      expect(screen.getByText('#work')).toBeInTheDocument();
-      expect(screen.getByText('#exercise')).toBeInTheDocument();
+      // Was '#work' / '#exercise' — this assertion pinned the bug rather than
+      // the behaviour. Tags are stored by internal id and must be shown by
+      // their translated label; the ids are not words any user wrote or reads.
+      expect(screen.getByText('#Arbete')).toBeInTheDocument();
+      expect(screen.getByText('#Träning')).toBeInTheDocument();
     });
   });
 

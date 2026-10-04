@@ -25,7 +25,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isPremium, planLabel 
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   const userDisplayName = extractDisplayName(user?.email || '');
-  const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2c8374] focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900';
+  const focusRing = 'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-500 focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900';
 
   // Stäng dropdown vid klick utanför
   useEffect(() => {
@@ -59,6 +59,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isPremium, planLabel 
     <div className="relative" ref={dropdownRef}>
       {/* Trigger Button */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:border-[#2c8374] dark:hover:border-[#2c8374] transition-all duration-200 min-h-[44px] ${focusRing}`}
         aria-expanded={isOpen}
@@ -83,7 +84,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isPremium, planLabel 
               {userDisplayName}
             </p>
             {isPremium && planLabel && (
-              <span className="inline-flex items-center gap-1 mt-1 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1 mt-1 bg-linear-to-r from-amber-400 to-orange-400 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                 ✨ {planLabel}
               </span>
             )}
@@ -102,9 +103,10 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isPremium, planLabel 
               <span>{t('navigation.profile')}</span>
             </Link>
 
-            {/* Settings Link */}
+            {/* Settings Link: the settings tab, not the same page as "Profil"
+                above (UI audit N-3). */}
             <Link
-              to="/profile"
+              to="/profile?tab=appearance"
               className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               onClick={() => setIsOpen(false)}
               role="menuitem"

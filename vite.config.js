@@ -3,8 +3,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import tailwindcss from "tailwindcss";
-import autoprefixer from "autoprefixer";
+import tailwindcss from "@tailwindcss/postcss";
 import viteCompression from "vite-plugin-compression";
 import { visualizer } from "rollup-plugin-visualizer";
 
@@ -91,10 +90,10 @@ export default defineConfig({
   plugins,
   css: {
     postcss: {
-      plugins: [
-        tailwindcss({ config: path.resolve(__dirname, "tailwind.config.js") }),
-        autoprefixer(),
-      ],
+      // Tailwind 4 reads tailwind.config.js through the @config line in
+      // src/index.css and adds vendor prefixes itself (Lightning CSS), so
+      // autoprefixer is no longer part of the chain.
+      plugins: [tailwindcss()],
     },
   },
   resolve: {

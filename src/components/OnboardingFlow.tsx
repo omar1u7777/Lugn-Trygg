@@ -46,7 +46,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
           <button
             key={goal}
             onClick={() => toggleGoal(goal)}
-            className={`w-full px-4 py-2.5 rounded-lg border-2 font-medium transition-all duration-200 flex items-center justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] ${
+            className={`w-full px-4 py-2.5 rounded-lg border-2 font-medium transition-all duration-200 flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] ${
               selGoals.includes(goal)
                 ? 'bg-primary-600 border-primary-600 text-white'
                 : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -116,7 +116,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
               <ul className="space-y-1.5" aria-label="Valda mål">
                 {selectedGoals.map((goal) => (
                   <li key={goal} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                    <CheckIcon className="w-4 h-4 text-green-500 flex-shrink-0" aria-hidden="true" />
+                    <CheckIcon className="w-4 h-4 text-green-500 shrink-0" aria-hidden="true" />
                     {goal}
                   </li>
                 ))}
@@ -269,7 +269,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
 
   return (
     <div 
-      className="fixed inset-0 bg-gradient-to-br from-primary-50 via-secondary-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-linear-to-br from-primary-50 via-secondary-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center z-50 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="onboarding-title"
@@ -280,7 +280,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
         {/* Progress bar */}
         <div className="w-full bg-gray-200 dark:bg-gray-700 h-2">
           <div
-            className="h-2 bg-gradient-to-r from-primary-600 to-secondary-600 transition-all duration-500"
+            className="h-2 bg-linear-to-r from-primary-600 to-secondary-600 transition-all duration-500"
             style={{ width: `${progress}%` }}
             role="progressbar"
             aria-valuenow={progress}
@@ -377,14 +377,14 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
                 <button
                   onClick={handleSkip}
                   disabled={isSaving}
-                  className="w-full sm:w-auto px-6 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed order-2 sm:order-1"
+                  className="w-full sm:w-auto px-6 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed order-2 sm:order-1"
                 >
                   {t('onboarding.skip')}
                 </button>
                 <button
                   onClick={handleNext}
                   disabled={!canProceedToNextStep() || isSaving}
-                  className="w-full sm:flex-1 px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] flex items-center justify-center gap-2 order-1 sm:order-2"
+                  className="w-full sm:flex-1 px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] flex items-center justify-center gap-2 order-1 sm:order-2"
                   aria-label={activeStep === 1 && selectedGoals.length === 0 ? t('onboarding.selectAtLeastOne') : undefined}
                 >
                   {isSaving ? (
@@ -423,7 +423,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
             {/* Desktop hero */}
             <div className="hidden lg:block" aria-hidden="true">
               <div className="relative">
-                <div className="absolute inset-6 blur-3xl bg-gradient-to-br from-primary-200/70 via-secondary-200/60 to-amber-200/60 dark:from-primary-500/30 dark:via-secondary-500/30 dark:to-amber-500/30 -z-10 rounded-[40px]"></div>
+                <div className="absolute inset-6 blur-3xl bg-linear-to-br from-primary-200/70 via-secondary-200/60 to-amber-200/60 dark:from-primary-500/30 dark:via-secondary-500/30 dark:to-amber-500/30 -z-10 rounded-[40px]"></div>
                 <div className="relative rounded-[32px] border border-white/70 dark:border-white/10 overflow-hidden shadow-2xl">
                   <OptimizedImage
                     src={ONBOARDING_HERO_IMAGE_ID}

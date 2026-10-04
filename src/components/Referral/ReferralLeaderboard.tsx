@@ -3,6 +3,7 @@ import api from '../../api/api';
 import { API_ENDPOINTS } from '../../api/constants';
 import { Paper, Spinner, Alert, Chip, Divider, Button, Grid } from '../ui/tailwind';
 import { logger } from '../../utils/logger';
+import { svCount } from '../../utils/plural';
 
 
 interface LeaderboardEntry {
@@ -21,10 +22,6 @@ const ReferralLeaderboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchLeaderboard();
-    }, []);
-
     const fetchLeaderboard = async () => {
         try {
             setLoading(true);
@@ -39,6 +36,10 @@ const ReferralLeaderboard: React.FC = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchLeaderboard();
+    }, []);
 
     const getRankBadge = (rank: number): string => {
         if (rank === 1) return '🥇';
@@ -100,7 +101,7 @@ const ReferralLeaderboard: React.FC = () => {
                             aria-current={entry.isCurrentUser ? 'true' : undefined}
                             className={`p-4 rounded-lg ${entry.isCurrentUser ? 'ring-2 ring-primary-500 ' : ''}${
                                 isTopThree(entry.rank)
-                                    ? 'bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 shadow-md'
+                                    ? 'bg-linear-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 shadow-md'
                                     : 'bg-gray-50 dark:bg-gray-800/50'
                             }`}
                         >
@@ -123,7 +124,7 @@ const ReferralLeaderboard: React.FC = () => {
                                         />
                                     </div>
                                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        {entry.successfulReferrals} referenser • {entry.rewardsEarned} veckor premium
+                                        {svCount(entry.successfulReferrals, 'referens', 'referenser')} • {svCount(entry.rewardsEarned, 'vecka', 'veckor')} premium
                                     </p>
                                 </div>
                             </div>

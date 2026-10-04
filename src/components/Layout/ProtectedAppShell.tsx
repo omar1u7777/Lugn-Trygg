@@ -34,7 +34,7 @@ const ProtectedAppShell: React.FC = () => {
       return <WorldClassDashboardSkeleton />;
     }
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-[#fff7f0] to-[#fffaf5]">
+      <div className="flex items-center justify-center min-h-screen bg-linear-to-b from-[#fff7f0] to-[#fffaf5]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
           <p className="text-slate-600">Laddar...</p>
@@ -67,7 +67,7 @@ const ProtectedAppShell: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-gradient-to-b from-[#fff7f0] to-[#fffaf5] dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      <div className="min-h-screen bg-linear-to-b from-[#fff7f0] to-[#fffaf5] dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
         {/* Top Navigation */}
         <Navigation />
 
@@ -78,7 +78,7 @@ const ProtectedAppShell: React.FC = () => {
         <main
           id="main-content"
           tabIndex={-1}
-          className="pt-20 pb-24 lg:pb-8 lg:ml-64 px-4 sm:px-6 lg:px-8 focus:outline-none"
+          className="pt-20 pb-24 lg:pb-8 lg:ml-64 px-4 sm:px-6 lg:px-8 focus:outline-hidden"
           dir={i18n.dir()}
         >
           <div className={`${isContentHeavyRoute ? 'max-w-7xl' : 'max-w-6xl'} mx-auto`}>

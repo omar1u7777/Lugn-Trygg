@@ -102,7 +102,7 @@ describe('OptimizedImage', () => {
     expect(img).toHaveAttribute('src', 'https://example.com/fallback.jpg');
   });
 
-  it('renders blur placeholder when placeholder=blur and not loaded', () => {
+  it('renders blur-sm placeholder when placeholder=blur and not loaded', () => {
     const { container } = render(
       <OptimizedImage
         src="https://example.com/img.jpg"
@@ -115,7 +115,7 @@ describe('OptimizedImage', () => {
     expect(blurImg).toBeInTheDocument();
   });
 
-  it('does not render blur placeholder when placeholder=empty', () => {
+  it('does not render blur-sm placeholder when placeholder=empty', () => {
     const { container } = render(
       <OptimizedImage
         src="https://example.com/img.jpg"

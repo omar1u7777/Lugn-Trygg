@@ -26,30 +26,6 @@ export const useChatCache = (userId: string) => {
   const [cache, setCache] = useState<ChatCache>({});
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load cache from localStorage on mount
-  useEffect(() => {
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const parsedCache = JSON.parse(cached);
-        
-        // Clean expired entries
-        const cleanedCache = cleanExpiredCache(parsedCache);
-        
-        setCache(cleanedCache);
-        
-        // Save cleaned cache back
-        localStorage.setItem(CACHE_KEY, JSON.stringify(cleanedCache));
-      }
-    } catch (error) {
-      logger.error('Failed to load chat cache:', error);
-      // Clear corrupted cache
-      localStorage.removeItem(CACHE_KEY);
-    } finally {
-      setIsLoaded(true);
-    }
-  }, []);
-
   // Clean expired cache entries
   const cleanExpiredCache = (cache: ChatCache): ChatCache => {
     const cleaned: ChatCache = {};
@@ -73,6 +49,30 @@ export const useChatCache = (userId: string) => {
     
     return cleaned;
   };
+
+  // Load cache from localStorage on mount
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const parsedCache = JSON.parse(cached);
+        
+        // Clean expired entries
+        const cleanedCache = cleanExpiredCache(parsedCache);
+        
+        setCache(cleanedCache);
+        
+        // Save cleaned cache back
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cleanedCache));
+      }
+    } catch (error) {
+      logger.error('Failed to load chat cache:', error);
+      // Clear corrupted cache
+      localStorage.removeItem(CACHE_KEY);
+    } finally {
+      setIsLoaded(true);
+    }
+  }, []);
 
   // Save cache to localStorage
   const trimCache = useCallback((sourceCache: ChatCache): ChatCache => {

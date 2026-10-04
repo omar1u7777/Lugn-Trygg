@@ -229,6 +229,7 @@ function formatRelativeTime(date: Date): string {
   if (diffMins < 1) return 'Just nu';
   if (diffMins < 60) return `${diffMins} min sedan`;
   if (diffHours < 24) return `${diffHours} tim sedan`;
+  if (diffDays === 1) return 'Igår';
   if (diffDays < 7) return `${diffDays} dagar sedan`;
   
   return date.toLocaleDateString('sv-SE');

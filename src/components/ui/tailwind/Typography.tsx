@@ -3,7 +3,7 @@ import { cn } from '../../../utils/cn';
 
 interface TypographyProps extends React.HTMLAttributes<HTMLElement> {
   variant?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'body1' | 'body2' | 'caption' | 'overline';
-  component?: keyof JSX.IntrinsicElements;
+  component?: keyof React.JSX.IntrinsicElements;
   color?: 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'text.primary' | 'text.secondary';
   align?: 'left' | 'center' | 'right' | 'justify';
   textAlign?: 'left' | 'center' | 'right' | 'justify'; // MUI compatibility
@@ -46,7 +46,7 @@ export const Typography = React.forwardRef<HTMLElement, TypographyProps>(
       overline: 'span',
     };
 
-    const Element = (component || elementMap[variant]) as keyof JSX.IntrinsicElements;
+    const Element = (component || elementMap[variant]) as keyof React.JSX.IntrinsicElements;
 
     // Variant styles
     const variantStyles = {

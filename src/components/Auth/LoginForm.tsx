@@ -358,6 +358,19 @@ const LoginForm = () => {
                   🔒
                 </span>
                 {t('loginForm.passwordLabel', 'Lösenord')}
+                {/*
+                  The e-mail field goes through the shared Input, which renders
+                  this marker from its `required` prop. The password field is a
+                  hand-written label and had none — so the form marked one of
+                  two mandatory fields, which reads as the other being optional.
+                  Same markup as Input's, deliberately.
+                */}
+                <span
+                  className="text-error-500 ml-1"
+                  aria-label={t('common.requiredField', 'obligatoriskt fält')}
+                >
+                  *
+                </span>
               </label>
               <PasswordInput
                 id="password"
@@ -421,7 +434,7 @@ const LoginForm = () => {
             {t('loginForm.noAccount', 'Har du inget konto?')}{" "}
             <Link
               to="/register"
-              className="text-primary-700 dark:text-primary-300 font-semibold no-underline hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
+              className="text-primary-700 dark:text-primary-300 font-semibold no-underline hover:underline focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-sm"
               data-testid="login-register-link"
               aria-label={t('loginForm.goToRegister', 'Gå till registreringssidan')}
             >
@@ -434,7 +447,7 @@ const LoginForm = () => {
             onClick={() => setShowForgotPassword(true)}
             disabled={loading}
             data-testid="login-forgot-password-button"
-            className="text-sm sm:text-base font-semibold text-primary-700 dark:text-primary-300 bg-transparent border-none cursor-pointer hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] flex items-center justify-center"
+            className="text-sm sm:text-base font-semibold text-primary-700 dark:text-primary-300 bg-transparent border-none cursor-pointer hover:underline focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-sm disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] flex items-center justify-center"
             aria-label={t('loginForm.openForgotPassword', 'Öppna glömt lösenord-dialog')}
             aria-haspopup="dialog"
           >

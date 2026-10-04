@@ -12,6 +12,7 @@ vi.mock('../../hooks/useAuth', () => ({
 
 vi.mock('../../api/api', () => ({
   getMoods: vi.fn(),
+  getMoodTotal: vi.fn(),
   getMemories: vi.fn(),
   getJournalEntries: vi.fn(),
   saveJournalEntry: vi.fn(),
@@ -32,7 +33,7 @@ vi.mock('../MoodList', () => ({ default: () => <div>MoodList</div> }));
 vi.mock('../MemoryJournal', () => ({ default: () => <div>MemoryJournal</div> }));
 
 import JournalHub from '../JournalHub';
-import { getMoods, getMemories, getJournalEntries } from '../../api/api';
+import { getMoods, getMoodTotal, getMemories, getJournalEntries } from '../../api/api';
 
 /** Local-midnight ISO timestamp N days back, i.e. what a real client writes. */
 const localDaysAgo = (daysAgo: number, hour: number) => {
@@ -46,6 +47,7 @@ describe('JournalHub stats', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getMoods).mockResolvedValue([]);
+    vi.mocked(getMoodTotal).mockResolvedValue(0);
     vi.mocked(getMemories).mockResolvedValue([]);
     vi.mocked(getJournalEntries).mockResolvedValue([]);
   });
@@ -80,6 +82,19 @@ describe('JournalHub stats', () => {
 
     expect(await screen.findByText(/Kunde inte hämta din statistik/)).toBeInTheDocument();
     expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
+
+  it('counts mood logs from the server total, not the first page (UI audit D-1)', async () => {
+    // getMoods returns one page of 50; the user has 122.
+    vi.mocked(getMoods).mockResolvedValue(Array.from({ length: 50 }, (_, i) => ({ id: `m${i}` })) as never);
+    vi.mocked(getMoodTotal).mockResolvedValue(122);
+
+    render(<JournalHub />);
+
+    await waitFor(() => {
+      const card = screen.getByText('Humörloggar').closest('div')?.parentElement;
+      expect(card?.textContent).toContain('122');
+    });
   });
 
   it('shows real counts with no error banner when every fetch succeeds', async () => {

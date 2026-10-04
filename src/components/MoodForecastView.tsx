@@ -177,7 +177,7 @@ export const MoodForecastView: React.FC = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-xs">
           <p className="text-xs text-gray-500 uppercase">Genomsnittligt humör</p>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-2xl">
@@ -189,7 +189,7 @@ export const MoodForecastView: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-xs">
           <p className="text-xs text-gray-500 uppercase">Trend</p>
           <div className="flex items-center gap-2 mt-1">
             {trend > 0.05 ? (
@@ -211,7 +211,7 @@ export const MoodForecastView: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-xs">
           <p className="text-xs text-gray-500 uppercase">Prognossäkerhet</p>
           <div className="mt-1">
             {typeof forecast[0]?.uncertainty === 'number' ? (
@@ -336,7 +336,7 @@ export const MoodForecastView: React.FC = () => {
             <span>Förutspådd valens</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-teal-100 rounded"></div>
+            <div className="w-4 h-4 bg-teal-100 rounded-sm"></div>
             <span>Konfidensintervall (95%)</span>
           </div>
         </div>
@@ -344,7 +344,7 @@ export const MoodForecastView: React.FC = () => {
 
       {/* Temporal Patterns */}
       {patterns.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xs p-4">
           <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
             <InformationCircleIcon className="w-5 h-5 text-indigo-600" />
             Upptäckta mönster
@@ -399,7 +399,7 @@ export const MoodForecastView: React.FC = () => {
                 : getRiskLevel(day.risk_flags) === 'moderate'
                 ? 'bg-yellow-50 border-yellow-200'
                 : 'bg-white dark:bg-gray-800'
-            } border shadow-sm`}
+            } border shadow-xs`}
           >
             <p className="text-xs text-gray-500">{day.date}</p>
             <p className="text-2xl my-1">{day.emoji}</p>

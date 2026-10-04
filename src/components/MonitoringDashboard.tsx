@@ -26,6 +26,76 @@ interface AlertItem {
   resolved: boolean;
 }
 
+// Module scope: declared inside MonitoringDashboard it was a new component
+// type on every render, so each card remounted and its useId ids changed.
+const MetricCard: React.FC<{
+  title: string;
+  value: string | number;
+  unit?: string;
+  trend?: 'up' | 'down' | 'stable';
+  status?: 'success' | 'warning' | 'error';
+  icon: React.ReactNode;
+  screenReaderLabel: string;
+  /** Source for this metric could not be reached — show "unknown", not a number. */
+  unavailable?: boolean;
+}> = ({ title, value, unit, trend, status = 'success', icon, screenReaderLabel, unavailable }) => {
+  const { t } = useTranslation();
+  const titleId = useId();
+  const statusId = useId();
+  const statusText = unavailable
+    ? t('monitoring.metricUnknown', 'Unknown')
+    : status === 'success'
+    ? t('monitoring.metricGood', 'Healthy')
+    : status === 'warning'
+      ? t('monitoring.metricWarning', 'Warning')
+      : t('monitoring.metricCritical', 'Critical');
+
+  return (
+    <Card
+      role="group"
+      aria-labelledby={titleId}
+      aria-describedby={statusId}
+      aria-label={screenReaderLabel}
+    >
+      <div className="p-4 sm:p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="text-primary-600 dark:text-primary-500">
+            {icon}
+          </div>
+          <h3 id={titleId} className="text-base font-medium text-gray-600 dark:text-gray-400">
+            {title}
+          </h3>
+        </div>
+        {trend && !unavailable && (
+          <div className="text-sm">
+            {trend === 'up' ? <ArrowTrendingUpIcon className="w-5 h-5 text-success-600" /> :
+             trend === 'down' ? <ArrowTrendingUpIcon className="w-5 h-5 text-error-600 rotate-180" /> :
+             <div />}
+          </div>
+        )}
+      </div>
+
+      <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2" aria-live="polite">
+        {unavailable ? '—' : <>{value}{unit}</>}
+      </p>
+
+      <span
+        id={statusId}
+        className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+          unavailable ? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' :
+          status === 'success' ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400' :
+          status === 'warning' ? 'bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400' :
+          'bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-400'
+        }`}
+      >
+        {statusText}
+      </span>
+    </div>
+    </Card>
+  );
+};
+
 const MonitoringDashboard: React.FC = () => {
   const { t } = useTranslation();
   const [metrics, setMetrics] = useState<SystemMetrics>({
@@ -172,72 +242,6 @@ const MonitoringDashboard: React.FC = () => {
     }
   };
 
-  const MetricCard: React.FC<{
-    title: string;
-    value: string | number;
-    unit?: string;
-    trend?: 'up' | 'down' | 'stable';
-    status?: 'success' | 'warning' | 'error';
-    icon: React.ReactNode;
-    screenReaderLabel: string;
-    /** Source for this metric could not be reached — show "unknown", not a number. */
-    unavailable?: boolean;
-  }> = ({ title, value, unit, trend, status = 'success', icon, screenReaderLabel, unavailable }) => {
-    const titleId = useId();
-    const statusId = useId();
-    const statusText = unavailable
-      ? t('monitoring.metricUnknown', 'Unknown')
-      : status === 'success'
-      ? t('monitoring.metricGood', 'Healthy')
-      : status === 'warning'
-        ? t('monitoring.metricWarning', 'Warning')
-        : t('monitoring.metricCritical', 'Critical');
-
-    return (
-      <Card
-        role="group"
-        aria-labelledby={titleId}
-        aria-describedby={statusId}
-        aria-label={screenReaderLabel}
-      >
-        <div className="p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="text-primary-600 dark:text-primary-500">
-              {icon}
-            </div>
-            <h3 id={titleId} className="text-base font-medium text-gray-600 dark:text-gray-400">
-              {title}
-            </h3>
-          </div>
-          {trend && !unavailable && (
-            <div className="text-sm">
-              {trend === 'up' ? <ArrowTrendingUpIcon className="w-5 h-5 text-success-600" /> :
-               trend === 'down' ? <ArrowTrendingUpIcon className="w-5 h-5 text-error-600 rotate-180" /> :
-               <div />}
-            </div>
-          )}
-        </div>
-
-        <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2" aria-live="polite">
-          {unavailable ? '—' : <>{value}{unit}</>}
-        </p>
-
-        <span
-          id={statusId}
-          className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-            unavailable ? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' :
-            status === 'success' ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400' :
-            status === 'warning' ? 'bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400' :
-            'bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-400'
-          }`}
-        >
-          {statusText}
-        </span>
-      </div>
-      </Card>
-    );
-  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 sm:space-y-8">
@@ -388,11 +392,11 @@ const MonitoringDashboard: React.FC = () => {
               <button
                 key={alert.id}
                 onClick={() => setSelectedAlert(alert)}
-                className="w-full flex items-start gap-3 py-4 px-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400"
+                className="w-full flex items-start gap-3 py-4 px-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400"
                 aria-expanded={selectedAlert?.id === alert.id}
                 aria-controls={`alert-${alert.id}`}
               >
-                <div className="flex-shrink-0 mt-1">
+                <div className="shrink-0 mt-1">
                   {getStatusIcon(alert.type)}
                 </div>
                 <div className="flex-1 text-left">

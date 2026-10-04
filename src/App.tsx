@@ -83,7 +83,7 @@ function App() {
 
     if (offlineMode) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 px-4">
+            <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 px-4">
                 <div className="text-center max-w-md mx-auto">
                     <div className="text-6xl mb-6">📡</div>
                     <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-4">
@@ -133,6 +133,8 @@ function App() {
 
                     {/* Redirect old /voice-chat to unified /ai-chat */}
                     <Route path="/voice-chat" element={<Navigate to="/ai-chat" replace />} />
+                    {/* /settings was a 404 that people typed or followed (UI audit N-3, N-5). */}
+                    <Route path="/settings" element={<Navigate to="/profile?tab=appearance" replace />} />
 
                     <Route path="*" element={<NotFoundPage />} />
                 </Routes>

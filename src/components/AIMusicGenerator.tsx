@@ -88,7 +88,7 @@ async function fetchAudioBlob(url: string): Promise<string> {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export const AIMusicGenerator: React.FC = () => {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const sv = i18n.language === 'sv';
 
   // — Soundscape catalogue
@@ -152,7 +152,9 @@ export const AIMusicGenerator: React.FC = () => {
   // ── Audio events ──────────────────────────────────────────────────────────
 
   // Keep ref in sync for unmount cleanup
-  trackRef.current = track;
+  useEffect(() => {
+    trackRef.current = track;
+  }, [track]);
 
   const savePlaybackSession = useCallback(() => {
     if (!playbackStartRef.current || !trackRef.current) return;
@@ -362,7 +364,15 @@ export const AIMusicGenerator: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+    <div
+      /*
+        pb-24 on mobile, matching ProtectedAppShell. This element scrolls on its
+        own, so it does not inherit the shell's bottom padding, and p-4 left
+        16px under the last control while the fixed bottom nav is taller than
+        that — "30s förhandsgranskning" and "Generera 5 min" sat under it.
+      */
+      className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 pb-24 lg:pb-6"
+    >
       {/* Hidden audio element */}
       <audio ref={audioRef} preload="auto" />
 
@@ -441,7 +451,7 @@ export const AIMusicGenerator: React.FC = () => {
                   <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
                     {sv ? sc.description : sc.description_en}
                   </div>
-                  <div className="mt-2 text-xs font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 inline-block">
+                  <div className="mt-2 text-xs font-mono px-1.5 py-0.5 rounded-sm bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 inline-block">
                     {sc.brainwave}
                   </div>
                   {active && (
@@ -486,7 +496,7 @@ export const AIMusicGenerator: React.FC = () => {
           <select
             value={selectedMood}
             onChange={(e) => setSelectedMood(e.target.value)}
-            className="text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">{sv ? '— välj humör —' : '— select mood —'}</option>
             {MOODS.map((m) => (
@@ -538,7 +548,7 @@ export const AIMusicGenerator: React.FC = () => {
         <button
           onClick={handleGenerate}
           disabled={isGenerating || isPreviewing || loadingCatalogue}
-          className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-colors shadow-sm bg-indigo-600 hover:bg-indigo-700"
+          className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-colors shadow-xs bg-indigo-600 hover:bg-indigo-700"
         >
           {isGenerating
             ? <><span className="animate-spin">⏳</span>{sv ? 'Genererar AI-ljud…' : 'Generating AI audio…'}</>
@@ -557,7 +567,7 @@ export const AIMusicGenerator: React.FC = () => {
 
       {/* ── Audio player ── */}
       {(audioObjectUrl || isLoadingAudio) && (
-        <div className="bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20 border border-indigo-200 dark:border-indigo-800 rounded-2xl p-5 space-y-4">
+        <div className="bg-linear-to-br from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20 border border-indigo-200 dark:border-indigo-800 rounded-2xl p-5 space-y-4">
           {/* Track info */}
           {track && (
             <div className="flex items-start justify-between">
@@ -631,12 +641,24 @@ export const AIMusicGenerator: React.FC = () => {
       {/* ── Best-for chips on selected soundscape ── */}
       {selectedSoundscape && (
         <div className="text-xs text-slate-500 dark:text-slate-400">
-          <span className="font-semibold">{sv ? 'Passar för: ' : 'Good for: '}</span>
-          {selectedSoundscape.best_for.map((tag, i) => (
-            <span key={i} className="inline-block mr-1 mb-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-              {tag}
-            </span>
-          ))}
+          {/*
+            Was `sv ? 'Passar för: ' : 'Good for: '` — a hand-rolled two-way
+            ternary, so Norwegian got English. There are three locales.
+          */}
+          <span className="font-semibold">{t('aiMusic.goodFor', 'Passar för:')} </span>
+          {/*
+            A list, not loose spans. Visually the chips were separated by
+            margin, but the text content ran them together —
+            "MeditationMindfulnessCreative flow" is what a screen reader and any
+            text extraction saw.
+          */}
+          <ul className="inline">
+            {selectedSoundscape.best_for.map((tag, i) => (
+              <li key={i} className="inline-block mr-1 mb-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                {tag}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

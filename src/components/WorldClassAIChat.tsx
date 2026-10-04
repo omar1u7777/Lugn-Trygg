@@ -17,6 +17,7 @@ import {
   SpeakerXMarkIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { analytics } from '../services/analytics';
 import { getChatHistory } from '../api/api';
@@ -79,7 +80,7 @@ function renderInline(text: string): React.ReactNode {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
       parts.push(
-        <code key={ki++} className="bg-black/10 dark:bg-white/10 px-1 rounded text-[0.8em] font-mono">
+        <code key={ki++} className="bg-black/10 dark:bg-white/10 px-1 rounded-sm text-[0.8em] font-mono">
           {codeContent}
         </code>
       );
@@ -192,10 +193,10 @@ const MessageBubble: React.FC<{
       <div className={`flex max-w-[85%] md:max-w-[75%] ${isUser ? 'flex-row-reverse' : 'flex-row'} gap-3`}>
         {/* Avatar */}
         <div className={`
-          flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-sm
+          shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-xs
           ${isUser
-            ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
-            : 'bg-gradient-to-br from-teal-400 to-emerald-600'}
+            ? 'bg-linear-to-br from-indigo-500 to-purple-600'
+            : 'bg-linear-to-br from-teal-400 to-emerald-600'}
         `}>
           {isUser ? (
             <UserIcon className="w-5 h-5 text-white" />
@@ -206,7 +207,7 @@ const MessageBubble: React.FC<{
 
         {/* Bubble */}
         <div className={`
-          relative p-4 md:p-5 rounded-2xl shadow-sm text-sm md:text-base leading-relaxed
+          relative p-4 md:p-5 rounded-2xl shadow-xs text-sm md:text-base leading-relaxed
           ${isUser
             ? 'bg-primary-600 text-white rounded-tr-sm'
             : 'bg-white/80 dark:bg-slate-800/80 backdrop-blur-md text-gray-800 dark:text-gray-100 rounded-tl-sm border border-white/40 dark:border-white/10'}
@@ -273,18 +274,25 @@ const MessageBubble: React.FC<{
 // Main Component
 // ----------------------------------------------------------------------
 
+// Message ids are React keys. A timestamp alone repeats when two messages are
+// created in the same millisecond (a user message and an immediate error).
+let messageSeq = 0;
+const nextMessageId = (prefix: 'ai' | 'err' | 'user'): string =>
+  `${prefix}-${Date.now()}-${++messageSeq}`;
+
 const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const { t, i18n } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const { canSendMessage, incrementChatMessage, getRemainingMessages, plan, isPremium } = useSubscription();
+  const navigate = useNavigate();
 
   // Streaming hook - onComplete adds the completed AI message to messages state
   const { isStreaming, currentMessage, streamMessage, stopStreaming, clearStreamingMessage } = useStreamingChat({
     onComplete: (fullMessage, crisisDetected) => {
       if (fullMessage.trim()) {
         const aiMsg: ChatMessage = {
-          id: `ai-${Date.now()}`,
+          id: nextMessageId('ai'),
           role: 'assistant',
           content: fullMessage,
           timestamp: new Date(),
@@ -305,7 +313,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
       logger.error('Streaming error:', error);
       clearStreamingMessage();
       setMessages(prev => [...prev, {
-        id: `err-${Date.now()}`,
+        id: nextMessageId('err'),
         role: 'assistant',
         content: t('aiChat.errorFallback'),
         timestamp: new Date()
@@ -398,50 +406,6 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load History
-  useEffect(() => {
-    analytics.page('World Class AI Chat', { component: 'WorldClassAIChat' });
-    loadChatHistory();
-    announceToScreenReader(t('aiChat.welcomeMessage'), 'polite');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Scroll to bottom on initial load after messages are loaded
-  useEffect(() => {
-    if (!loading && messages.length > 0) {
-      const scrollTimer = setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 150);
-      return () => clearTimeout(scrollTimer);
-    }
-  }, [loading, messages.length]);
-
-  // Safety timeout: always clear loading after 5 seconds max to prevent infinite spinner
-  useEffect(() => {
-    const safetyTimer = setTimeout(() => {
-      if (isMountedRef.current) {
-        setLoading(current => {
-          if (current) {
-            logger.warn('Loading safety timeout triggered - forcing loading state to false');
-            return false;
-          }
-          return current;
-        });
-      }
-    }, 5000); // 5 second max loading time
-
-    return () => clearTimeout(safetyTimer);
-  }, []);
-
-  // Auto-scroll - also triggers on currentMessage so streaming text scrolls live
-  useEffect(() => {
-    // Use setTimeout to ensure DOM has updated before scrolling
-    const scrollTimer = setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-    return () => clearTimeout(scrollTimer);
-  }, [messages, isTyping, currentMessage?.content]);
-
   const loadChatHistory = useCallback(async () => {
     if (!user?.user_id) { setLoading(false); return; }
     // getCachedMessages() guards isLoaded internally — returns [] until cache is ready,
@@ -516,6 +480,50 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
     }
   }, [user, getCachedMessages, isMountedRef, executeWithRecovery, isOnline, t, syncWithServer]);
 
+  // Load History
+  useEffect(() => {
+    analytics.page('World Class AI Chat', { component: 'WorldClassAIChat' });
+    loadChatHistory();
+    announceToScreenReader(t('aiChat.welcomeMessage'), 'polite');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Scroll to bottom on initial load after messages are loaded
+  useEffect(() => {
+    if (!loading && messages.length > 0) {
+      const scrollTimer = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [loading, messages.length]);
+
+  // Safety timeout: always clear loading after 5 seconds max to prevent infinite spinner
+  useEffect(() => {
+    const safetyTimer = setTimeout(() => {
+      if (isMountedRef.current) {
+        setLoading(current => {
+          if (current) {
+            logger.warn('Loading safety timeout triggered - forcing loading state to false');
+            return false;
+          }
+          return current;
+        });
+      }
+    }, 5000); // 5 second max loading time
+
+    return () => clearTimeout(safetyTimer);
+  }, []);
+
+  // Auto-scroll - also triggers on currentMessage so streaming text scrolls live
+  useEffect(() => {
+    // Use setTimeout to ensure DOM has updated before scrolling
+    const scrollTimer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+    return () => clearTimeout(scrollTimer);
+  }, [messages, isTyping, currentMessage?.content]);
+
   const handleSendMessage = useCallback(async () => {
     // Use transcript from voice if available, otherwise typed input
     const messageText = (isListening ? transcript : inputMessage).trim();
@@ -532,7 +540,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
     }
 
     const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
+      id: nextMessageId('user'),
       role: 'user',
       content: messageText,
       timestamp: new Date(),
@@ -576,7 +584,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   ];
 
   return (
-    <div className="fixed inset-0 z-[1050] flex items-center justify-center p-0 md:p-6 bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-1050 flex items-center justify-center p-0 md:p-6 bg-black/40 backdrop-blur-xs">
       {/* Main Container - The "Sanctuary" */}
       <div className="w-full h-full md:h-[85vh] md:max-w-4xl bg-[#fdfbf7] dark:bg-slate-950 rounded-none md:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col relative">
 
@@ -585,9 +593,9 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-200/20 rounded-full blur-[80px] pointer-events-none animate-pulse-slow z-0" style={{ animationDelay: '2s' }} />
 
         {/* Header */}
-        <div className="sticky top-0 z-30 px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-sm">
+        <div className="sticky top-0 z-30 px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-xs">
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20 flex-shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-linear-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20 shrink-0">
               <SparklesIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse" />
             </div>
             <div className="min-w-0">
@@ -610,7 +618,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
             </div>
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {hasChatLimit && (
               <div className="hidden sm:flex px-2 sm:px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400">
                 {remainingMessages > 0 ? t('aiChat.messagesLeft', { count: remainingMessages }) : t('aiChat.limitReached')}
@@ -626,7 +634,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                 onClose();
               }}
               aria-label={t('common.close')}
-              className="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors flex-shrink-0"
+              className="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors shrink-0"
             >
               <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 dark:text-gray-300" />
             </button>
@@ -642,7 +650,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
             </div>
           ) : messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto animate-fade-in-up px-4">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-tr from-teal-50 to-emerald-50 dark:from-slate-800 dark:to-slate-800 rounded-[2rem] flex items-center justify-center mb-4 sm:mb-6 shadow-sm rotate-3">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-linear-to-tr from-teal-50 to-emerald-50 dark:from-slate-800 dark:to-slate-800 rounded-4xl flex items-center justify-center mb-4 sm:mb-6 shadow-xs rotate-3">
                 <ChatBubbleLeftRightIcon className="w-8 h-8 sm:w-10 sm:h-10 text-teal-600 dark:text-teal-400" />
               </div>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">{t('aiChat.welcomeHome')}</h2>
@@ -656,7 +664,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                     key={i}
                     onClick={() => setInputMessage(s.text)}
                     aria-label={s.text}
-                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-full shadow-sm hover:shadow-md hover:border-teal-300 dark:hover:border-teal-700 transition-all transform hover:-translate-y-0.5 text-xs sm:text-sm text-gray-600 dark:text-gray-300"
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-full shadow-xs hover:shadow-md hover:border-teal-300 dark:hover:border-teal-700 transition-all transform hover:-translate-y-0.5 text-xs sm:text-sm text-gray-600 dark:text-gray-300"
                   >
                     {s.icon} <span className="hidden sm:inline">{s.text}</span>
                   </button>
@@ -713,7 +721,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
               {networkError && (
                 <div className="flex justify-center mb-4 sm:mb-6 animate-fade-in-up">
                   <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 sm:px-4 py-2 sm:py-3 flex items-center gap-2 max-w-md">
-                    <ExclamationTriangleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                    <ExclamationTriangleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 dark:text-amber-400 shrink-0" />
                     <p className="text-xs sm:text-sm text-amber-800 dark:text-amber-200">{networkError}</p>
                   </div>
                 </div>
@@ -746,7 +754,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
 
               {isTyping && !isStreaming && (
                 <div className="flex justify-start mb-4 sm:mb-6 animate-fade-in-up">
-                  <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md px-3 sm:px-4 py-2 sm:py-3 rounded-2xl rounded-tl-sm border border-white/40 shadow-sm flex items-center gap-1.5 ml-8 sm:ml-12">
+                  <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md px-3 sm:px-4 py-2 sm:py-3 rounded-2xl rounded-tl-sm border border-white/40 shadow-xs flex items-center gap-1.5 ml-8 sm:ml-12">
                     <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                     <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                     <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -761,15 +769,15 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         {/* Input Area */}
         <div className="relative z-20 p-3 sm:p-4 md:p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border-t border-white/20 dark:border-white/5">
           {limitError && (
-            <div className="absolute top-[-2.5rem] sm:top-[-3rem] left-0 w-full px-4 sm:px-6 flex justify-center animate-fade-in-up">
-              <div className="bg-rose-100 text-rose-700 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-sm font-medium shadow-sm">
+            <div className="absolute -top-10 sm:-top-12 left-0 w-full px-4 sm:px-6 flex justify-center animate-fade-in-up">
+              <div className="bg-rose-100 text-rose-700 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-sm font-medium shadow-xs">
                 {limitError}
               </div>
             </div>
           )}
           {voiceError && (
-            <div className="absolute top-[-2.5rem] sm:top-[-3rem] left-0 w-full px-4 sm:px-6 flex justify-center animate-fade-in-up">
-              <div className="bg-amber-100 text-amber-700 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-sm font-medium shadow-sm">
+            <div className="absolute -top-10 sm:-top-12 left-0 w-full px-4 sm:px-6 flex justify-center animate-fade-in-up">
+              <div className="bg-amber-100 text-amber-700 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-sm font-medium shadow-xs">
                 {voiceError}
               </div>
             </div>
@@ -793,7 +801,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                     }
                   }}
                   aria-label={isListening ? t('aiChat.stopRecording') : t('aiChat.startRecording')}
-                  className={`flex-shrink-0 p-2 sm:p-3 rounded-full transition-all min-h-[40px] sm:min-h-[44px] min-w-[40px] sm:min-w-[44px] flex items-center justify-center ${
+                  className={`shrink-0 p-2 sm:p-3 rounded-full transition-all min-h-[40px] sm:min-h-[44px] min-w-[40px] sm:min-w-[44px] flex items-center justify-center ${
                     isListening
                       ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -806,13 +814,27 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                   )}
                 </button>
               ) : (
-                <div
-                  className="flex-shrink-0 p-2 sm:p-3 rounded-full min-h-[40px] sm:min-h-[44px] min-w-[40px] sm:min-w-[44px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed relative"
+                /*
+                  This was a <div> with a title and no handler: a control that
+                  looks disabled, is not in the tab order, and does nothing at
+                  all when pressed. The title is the only explanation offered,
+                  and titles do not appear on touch — which is where most of
+                  these users are.
+
+                  It is the upsell for a paid feature, so it should sell: a real
+                  button that goes to /upgrade, the same destination every other
+                  premium prompt in the app uses.
+                */
+                <button
+                  type="button"
+                  onClick={() => navigate('/upgrade')}
+                  className="shrink-0 p-2 sm:p-3 rounded-full min-h-[40px] sm:min-h-[44px] min-w-[40px] sm:min-w-[44px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors relative focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500"
+                  aria-label={t('aiChat.voicePremiumAction', { defaultValue: 'Röst är en Premium-funktion — uppgradera' })}
                   title={t('aiChat.voicePremium', { defaultValue: 'Röst är en Premium-funktion' })}
                 >
                   <MicrophoneIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span className="absolute -top-1 -right-1 px-1 py-0.5 text-[8px] font-bold bg-amber-400 text-amber-900 rounded-full">PRO</span>
-                </div>
+                </button>
               )
             )}
 
@@ -826,7 +848,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
               aria-label={!isOnline ? t('aiChat.offlinePlaceholder') : t('aiChat.inputPlaceholder')}
               disabled={!canSendMore || isTyping || isStreaming}
               readOnly={isListening}
-              className="w-full pl-4 sm:pl-6 pr-12 sm:pr-14 py-2.5 sm:py-4 bg-white dark:bg-slate-800 border-0 rounded-[1.5rem] sm:rounded-[2rem] shadow-lg ring-1 ring-gray-100 dark:ring-gray-700 focus:ring-2 focus:ring-teal-500/50 transition-all resize-none text-sm sm:text-base text-gray-700 dark:text-gray-200 placeholder-gray-400 min-h-[2.75rem] sm:min-h-[3.5rem] max-h-24 sm:max-h-32 disabled:opacity-60"
+              className="w-full pl-4 sm:pl-6 pr-12 sm:pr-14 py-2.5 sm:py-4 bg-white dark:bg-slate-800 border-0 rounded-3xl sm:rounded-4xl shadow-lg ring-1 ring-gray-100 dark:ring-gray-700 focus:ring-2 focus:ring-teal-500/50 transition-all resize-none text-sm sm:text-base text-gray-700 dark:text-gray-200 placeholder-gray-400 min-h-11 sm:min-h-14 max-h-24 sm:max-h-32 disabled:opacity-60"
             />
 
             <div className="absolute right-1.5 sm:right-2 bottom-1.5 sm:bottom-2">
@@ -843,7 +865,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                 {!isOnline ? (
                   <WifiIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 ) : canSendMore ? (
-                  <PaperAirplaneIcon className="w-4 h-4 sm:w-5 sm:h-5 -rotate-90 translate-x-[1px]" />
+                  <PaperAirplaneIcon className="w-4 h-4 sm:w-5 sm:h-5 -rotate-90 translate-x-px" />
                 ) : (
                   <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 )}

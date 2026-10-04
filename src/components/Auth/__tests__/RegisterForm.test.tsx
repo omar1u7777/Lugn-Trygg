@@ -12,7 +12,10 @@ const accessibilityMock = vi.hoisted(() => ({
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => {
+    // Honours the fallback argument, as i18next does. Without it any key
+    // absent from the map below rendered as the key itself — which is how
+    // the password checklist came out as "password.requirement.length".
+    t: (key: string, fallback?: string | Record<string, unknown>) => {
       const translations: Record<string, string> = {
         'registerForm.title': 'Skapa konto',
         'registerForm.nameLabel': 'Namn',
@@ -47,7 +50,9 @@ vi.mock('react-i18next', () => ({
         'registerForm.referralActive': 'Referenskod aktiv!',
         'registerForm.referralCode': 'Kod:',
       };
-      return translations[key] || key;
+      if (translations[key]) return translations[key];
+      if (typeof fallback === 'string') return fallback;
+      return key;
     },
     i18n: { language: 'sv' },
   }),
@@ -112,7 +117,11 @@ describe('RegisterForm', () => {
     fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
       target: { value: 'DifferentPass2!' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
+    // Was a submit click. The button is disabled while the form is invalid, so
+    // that click cannot happen any more — blur is where the message appears
+    // now, which is earlier and cheaper for the user (BUG-38).
+    fireEvent.blur(screen.getByPlaceholderText(/skapa ett starkt lösenord/i));
+    fireEvent.blur(screen.getByPlaceholderText(/bekräfta ditt lösenord/i));
 
     await waitFor(() => {
       expect(screen.getByText(/lösenorden matchar inte/i)).toBeInTheDocument();
@@ -134,7 +143,11 @@ describe('RegisterForm', () => {
     fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
       target: { value: 'Ab1!' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
+    // Was a submit click. The button is disabled while the form is invalid, so
+    // that click cannot happen any more — blur is where the message appears
+    // now, which is earlier and cheaper for the user (BUG-38).
+    fireEvent.blur(screen.getByPlaceholderText(/skapa ett starkt lösenord/i));
+    fireEvent.blur(screen.getByPlaceholderText(/bekräfta ditt lösenord/i));
 
     await waitFor(() => {
       expect(screen.getByText(/lösenordet måste vara minst 8 tecken/i)).toBeInTheDocument();
@@ -156,7 +169,11 @@ describe('RegisterForm', () => {
     fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
       target: { value: 'lowercase!' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
+    // Was a submit click. The button is disabled while the form is invalid, so
+    // that click cannot happen any more — blur is where the message appears
+    // now, which is earlier and cheaper for the user (BUG-38).
+    fireEvent.blur(screen.getByPlaceholderText(/skapa ett starkt lösenord/i));
+    fireEvent.blur(screen.getByPlaceholderText(/bekräfta ditt lösenord/i));
 
     await waitFor(() => {
       expect(screen.getByText(/lösenordet måste innehålla minst en stor bokstav/i)).toBeInTheDocument();
@@ -178,7 +195,11 @@ describe('RegisterForm', () => {
     fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
       target: { value: 'Abcdefg1' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
+    // Was a submit click. The button is disabled while the form is invalid, so
+    // that click cannot happen any more — blur is where the message appears
+    // now, which is earlier and cheaper for the user (BUG-38).
+    fireEvent.blur(screen.getByPlaceholderText(/skapa ett starkt lösenord/i));
+    fireEvent.blur(screen.getByPlaceholderText(/bekräfta ditt lösenord/i));
 
     await waitFor(() => {
       expect(screen.getByText(/lösenordet måste innehålla minst ett specialtecken/i)).toBeInTheDocument();
@@ -380,5 +401,90 @@ describe('RegisterForm', () => {
     await waitFor(() => {
       expect(screen.getByText(/kunde inte ansluta/i)).toBeInTheDocument();
     });
+  });
+});
+
+/**
+ * BUG-38 — "Skapa konto" reported disabled=false through an entirely empty
+ * form, an e-mail reading "not-an-email", a password of "abc", an unconfirmed
+ * password and unticked consent boxes.
+ *
+ * Every rule already existed in this component. They all ran after submit,
+ * which turns a fixable typo into a round trip and a generic server error.
+ *
+ * Tying `disabled` to validity has a consequence worth stating: the submit
+ * handler's messages become unreachable, because the click that produced them
+ * cannot happen. They surface on blur now instead — the four existing tests
+ * above were rewritten for that, and they assert the same strings.
+ */
+describe('BUG-38: the submit button reflects the form', () => {
+  const submitButton = () => screen.getByTestId('register-submit-button');
+
+  const fill = (placeholder: RegExp, value: string) =>
+    fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value } });
+
+  const fillValidForm = () => {
+    fill(/ange ditt namn/i, 'Test User');
+    fill(/ange din e-postadress/i, 'test@example.com');
+    fill(/skapa ett starkt lösenord/i, 'Str0ng!Pass');
+    fill(/bekräfta ditt lösenord/i, 'Str0ng!Pass');
+    (screen.getAllByRole('checkbox') as HTMLInputElement[]).forEach((box) => {
+      if (!box.checked) fireEvent.click(box);
+    });
+  };
+
+  it('is disabled on an empty form', () => {
+    render(<RegisterForm />);
+    expect(submitButton()).toBeDisabled();
+  });
+
+  it.each([
+    ['an invalid e-mail', () => fill(/ange din e-postadress/i, 'not-an-email')],
+    ['a weak password', () => fill(/skapa ett starkt lösenord/i, 'abc')],
+    ['an unconfirmed password', () => fill(/bekräfta ditt lösenord/i, 'something-else')],
+  ])('stays disabled with %s', (_label, breakIt) => {
+    render(<RegisterForm />);
+    fillValidForm();
+    expect(submitButton()).not.toBeDisabled();
+
+    breakIt();
+
+    expect(submitButton()).toBeDisabled();
+  });
+
+  it('stays disabled while consent is unticked', () => {
+    // The pointed one: the button offered to create an account against terms
+    // the user had not agreed to.
+    render(<RegisterForm />);
+    fill(/ange ditt namn/i, 'Test User');
+    fill(/ange din e-postadress/i, 'test@example.com');
+    fill(/skapa ett starkt lösenord/i, 'Str0ng!Pass');
+    fill(/bekräfta ditt lösenord/i, 'Str0ng!Pass');
+
+    expect(submitButton()).toBeDisabled();
+  });
+
+  it('enables only once everything holds', () => {
+    render(<RegisterForm />);
+    fillValidForm();
+    expect(submitButton()).not.toBeDisabled();
+  });
+});
+
+describe('BUG-38: the requirements are shown as they are met', () => {
+  it('shows no checklist before there is a password', () => {
+    render(<RegisterForm />);
+    // Matched against the checklist's own label, not the help text — the help
+    // text says "Minst 8 tecken" and is always present, which is precisely the
+    // problem: it listed the rules and never said which ones were satisfied.
+    expect(screen.queryByText(/8\+ tecken/i)).not.toBeInTheDocument();
+  });
+
+  it('shows the checklist once the user starts typing', () => {
+    render(<RegisterForm />);
+    fireEvent.change(screen.getByPlaceholderText(/skapa ett starkt lösenord/i), {
+      target: { value: 'abc' },
+    });
+    expect(screen.getByText(/8\+ tecken/i)).toBeInTheDocument();
   });
 });

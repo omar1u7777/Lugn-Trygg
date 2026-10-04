@@ -74,6 +74,30 @@
       background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
     }
 
+    /*
+      The splash used prefers-color-scheme alone, which is the OPERATING
+      SYSTEM's preference. A user who chose dark mode inside the app while
+      their OS is light got a bright hero card for the whole warm-up while the
+      header and bottom nav around it were already dark.
+
+      html.theme-dark is set by the inline script below, from the same
+      localStorage key ThemeContext writes, before first paint.
+    */
+    html.theme-dark #initial-loader {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    }
+    html.theme-dark #initial-loader h1 { color: #5eead4 !important; }
+    html.theme-dark #initial-loader p { color: #94a3b8 !important; }
+    html.theme-dark .loader-card {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 40%, #1e293b 100%);
+    }
+    html.theme-dark .inline-hero {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 45%, #0f172a 100%);
+    }
+    html.theme-dark .inline-hero__title,
+    html.theme-dark .inline-hero__eyebrow { color: #e2e8f0; }
+    html.theme-dark .inline-hero__text { color: #94a3b8; }
+
     @media (prefers-color-scheme: dark) {
       #initial-loader {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
@@ -292,6 +316,20 @@
       }
       if (typeof window.__tailwindReady === 'undefined') {
         window.__tailwindReady = false;
+      }
+
+      /*
+        Mirror the stored theme onto <html> before first paint, so the splash
+        above can follow the app's own choice rather than the OS preference.
+        Same key ThemeContext writes.
+      */
+      try {
+        if (localStorage.getItem('lugn-trygg-theme') === 'dark') {
+          document.documentElement.classList.add('theme-dark');
+        }
+      } catch (themeError) {
+        // localStorage unavailable (private browsing). The prefers-color-scheme
+        // rules still apply; this is an improvement on them, not a replacement.
       }
 
       var inlineHero = typeof document !== 'undefined' ? document.getElementById('inline-hero') : null;

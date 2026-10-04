@@ -18,7 +18,8 @@ interface HealthDataChartsProps {
 	userId: string;
 }
 
-const PIE_COLORS = ['#16a34a', '#f59e0b', '#dc2626'];
+const PIE_COLORS = ['#16a34a', '#f59e0b', '#dc2626'] as const;
+const pieColor = (index: number): string => PIE_COLORS[index % PIE_COLORS.length] ?? PIE_COLORS[0];
 
 const HealthDataCharts: React.FC<HealthDataChartsProps> = ({ userId }) => {
 	const [stats, setStats] = useState<SyncStatsResponse | null>(null);
@@ -146,7 +147,7 @@ const HealthDataCharts: React.FC<HealthDataChartsProps> = ({ userId }) => {
 									label
 								>
 									{outcomeData.map((entry, index) => (
-										<Cell key={entry.name} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+										<Cell key={entry.name} fill={pieColor(index)} />
 									))}
 								</Pie>
 								<Tooltip

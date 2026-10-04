@@ -109,7 +109,7 @@ export const UsageLimitBanner: React.FC<UsageLimitBannerProps> = ({
           </div>
           <Link
             to="/upgrade"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white shadow-md transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-linear-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white shadow-md transition-all"
           >
             <SparklesIcon className="w-4 h-4" />
             <span>Uppgradera – obegränsat</span>
@@ -192,7 +192,7 @@ export const UsageLimitBanner: React.FC<UsageLimitBannerProps> = ({
           to="/upgrade"
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
             isCritical || isWarning
-              ? 'bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white shadow-md'
+              ? 'bg-linear-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white shadow-md'
               : 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200'
           }`}
         >

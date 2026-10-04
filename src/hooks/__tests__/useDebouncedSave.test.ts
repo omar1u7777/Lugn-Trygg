@@ -213,3 +213,76 @@ describe('useDebouncedSave', () => {
     expect(result.current.hasUnsavedChanges).toBe(false);
   });
 });
+
+/**
+ * BUG-40 — the profile's notification tab announced "Osparade ändringar" the
+ * moment it opened, before the user had touched a control, and offered no Save
+ * button to act on it.
+ *
+ * Loading settings from the server went through updateData, which moves the
+ * working copy but leaves `lastSaved` on whatever the hook was initialised with
+ * — the component's hardcoded defaults. The two then differ by definition, so
+ * hasUnsavedChanges is true the instant the fetch resolves.
+ *
+ * cancelSave() was already being called there and does not help: it clears the
+ * pending timer, not the baseline. That is the distinction setBaseline exists
+ * to make.
+ */
+describe('setBaseline: adopting server state is not an edit', () => {
+  // Fake timers live in the first describe's beforeEach, not at file level.
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const serverData = { emailNotifications: false, pushNotifications: true };
+
+  it('does not report unsaved changes after adopting server state', () => {
+    const onSave = vi.fn();
+    const { result } = renderHook(() =>
+      useDebouncedSave({ emailNotifications: true, pushNotifications: false }, { onSave, delay: 1000 })
+    );
+
+    act(() => { result.current.setBaseline(serverData); });
+
+    expect(result.current.data).toEqual(serverData);
+    expect(result.current.hasUnsavedChanges).toBe(false);
+  });
+
+  it('is what updateData could not do', () => {
+    // The old call. Kept as a test so the difference is visible rather than
+    // asserted in a comment.
+    const onSave = vi.fn();
+    const { result } = renderHook(() =>
+      useDebouncedSave({ emailNotifications: true, pushNotifications: false }, { onSave, delay: 1000 })
+    );
+
+    act(() => { result.current.updateData(serverData); });
+
+    expect(result.current.hasUnsavedChanges).toBe(true);
+  });
+
+  it('does not schedule a save for data that came from the server', () => {
+    const onSave = vi.fn();
+    const { result } = renderHook(() =>
+      useDebouncedSave({ emailNotifications: true, pushNotifications: false }, { onSave, delay: 1000 })
+    );
+
+    act(() => { result.current.setBaseline(serverData); });
+    act(() => { vi.advanceTimersByTime(5000); });
+
+    // Writing the server's own answer back to it is the write that overwrote
+    // real preferences with defaults when a load half-failed.
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('still reports a genuine edit made after adopting', () => {
+    const onSave = vi.fn();
+    const { result } = renderHook(() =>
+      useDebouncedSave({ emailNotifications: true, pushNotifications: false }, { onSave, delay: 1000 })
+    );
+
+    act(() => { result.current.setBaseline(serverData); });
+    act(() => { result.current.updateData({ ...serverData, pushNotifications: false }); });
+
+    expect(result.current.hasUnsavedChanges).toBe(true);
+  });
+});

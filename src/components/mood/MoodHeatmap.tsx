@@ -107,8 +107,8 @@ export const MoodHeatmap: React.FC = () => {
     return (
       <Card className="p-6">
         <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4"></div>
-          <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-sm w-1/3 mb-4"></div>
+          <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded-sm"></div>
         </div>
       </Card>
     );
@@ -129,15 +129,15 @@ export const MoodHeatmap: React.FC = () => {
       <div className="flex items-center gap-2 mb-4 text-xs">
         <span className="text-gray-600 dark:text-gray-400">{t('mood.heatmap.legend', 'Humör')}:</span>
         <div className="flex items-center gap-1">
-          <div className="w-4 h-4 bg-red-500 rounded"></div>
+          <div className="w-4 h-4 bg-red-500 rounded-sm"></div>
           <span className="text-gray-600 dark:text-gray-400">Lågt</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-4 h-4 bg-yellow-400 rounded"></div>
+          <div className="w-4 h-4 bg-yellow-400 rounded-sm"></div>
           <span className="text-gray-600 dark:text-gray-400">Medel</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-4 h-4 bg-green-500 rounded"></div>
+          <div className="w-4 h-4 bg-green-500 rounded-sm"></div>
           <span className="text-gray-600 dark:text-gray-400">Högt</span>
         </div>
       </div>
@@ -147,7 +147,7 @@ export const MoodHeatmap: React.FC = () => {
         <div className="inline-block min-w-full">
           {/* Hour labels */}
           <div className="flex mb-1">
-            <div className="w-12 flex-shrink-0"></div>
+            <div className="w-12 shrink-0"></div>
             {HOURS.filter((_, i) => i % 3 === 0).map(hour => (
               <div key={hour} className="w-8 text-center text-xs text-gray-500 dark:text-gray-400">
                 {hour}
@@ -158,7 +158,7 @@ export const MoodHeatmap: React.FC = () => {
           {/* Days and cells */}
           {DAYS.map((dayLabel, dayIndex) => (
             <div key={dayIndex} className="flex items-center mb-1">
-              <div className="w-12 flex-shrink-0 text-xs font-medium text-gray-600 dark:text-gray-400 pr-2">
+              <div className="w-12 shrink-0 text-xs font-medium text-gray-600 dark:text-gray-400 pr-2">
                 {dayLabel}
               </div>
               <div className="flex gap-0.5">
@@ -169,7 +169,7 @@ export const MoodHeatmap: React.FC = () => {
                   return (
                     <div
                       key={hour}
-                      className={`w-3 h-6 rounded-sm ${color} transition-all hover:scale-110 cursor-pointer`}
+                      className={`w-3 h-6 rounded-xs ${color} transition-all hover:scale-110 cursor-pointer`}
                       title={cell 
                         ? `${dayLabel} ${hour}:00 - Humör: ${cell.averageScore.toFixed(1)}/10 (${cell.count} loggningar)`
                         : `${dayLabel} ${hour}:00 - Ingen data`

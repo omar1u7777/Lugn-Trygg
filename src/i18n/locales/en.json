@@ -23,10 +23,10 @@
     "no": "No",
     "ok": "OK",
     "status": "Status",
-    "offlineTitle": " You are offline!",
+    "offlineTitle": "You are offline!",
     "offlineMessage": "Check your internet connection and try again.",
     "retry": "Try again",
-    "pageNotFound": " Page not found!",
+    "pageNotFound": "Page not found!",
     "skipToContent": "Skip to main content",
     "skipToNavigation": "Skip to navigation",
     "skipToSearch": "Skip to search",
@@ -105,20 +105,20 @@
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Welcome",
-    "reminder": " Reminder:",
+    "reminder": "Reminder:",
     "moodReminder": "You haven't logged your mood today. Take a moment to reflect on your day!",
     "moodTrends": "Mood trends (last week)",
     "memoryFrequency": "Memory frequency (last week)",
     "logMood": "Log Mood",
-    "openMoodLogger": " Open Mood Logging",
+    "openMoodLogger": "Open mood logging",
     "yourMoodLogs": "Your Mood Logs",
-    "viewMoodLogs": " View Mood Logs",
+    "viewMoodLogs": "View Mood Logs",
     "recordMemory": "Record Memory",
-    "openRecording": " Open Recording",
+    "openRecording": "Open recording",
     "yourMemories": "Your Memories",
-    "viewMemories": " View Memories",
+    "viewMemories": "View Memories",
     "aiTherapist": "AI Therapist",
-    "openChat": " Open Chat",
+    "openChat": "Open chat",
     "todayMood": "Today's mood",
     "weeklyStats": "Weekly statistics",
     "recentMemories": "Recent memories",
@@ -127,9 +127,9 @@
     "chatWithAI": "Chat with AI",
     "viewAnalytics": "View analytics",
     "weeklyMoodAnalysis": "Weekly Mood Analysis",
-    "loadingAnalysis": " Loading analysis...",
-    "analysisError": " Error: {error}",
-    "noDataAvailable": " No data available.",
+    "loadingAnalysis": "Loading analysis...",
+    "analysisError": "Error: {error}",
+    "noDataAvailable": "No data available.",
     "moodDistribution": "Mood Distribution",
     "moodLogs": "Mood Logs",
     "average": "Average",
@@ -141,7 +141,7 @@
     "badges": "Achievements",
     "relaxingSounds": "Relaxing Sounds",
     "weeklyMemoryActivity": "Weekly Memory Activity",
-    "noMemoryData": " No memory data available.",
+    "noMemoryData": "No memory data available.",
     "goalSteps": {
       "Bättre sömn": [
         "Go to bed at 10pm tonight",
@@ -234,7 +234,8 @@
     "openBreathingExercise": "Open breathing exercise",
     "openJournal": "Open journal",
     "openMeditation": "Open meditation",
-    "seeSleepTips": "See sleep tips"
+    "seeSleepTips": "See sleep tips",
+    "seeRecommendations": "See recommendations"
   },
   "navLinks": {
     "dashboard": "Dashboard",
@@ -299,8 +300,8 @@
     "greeting": "Hi, how are you feeling today?",
     "sadResponse": "I hear you might be feeling a bit down. Would you like to listen to calming music?",
     "recording": "Recording...",
-    "startRecording": " Start Logging",
-    "close": " Close",
+    "startRecording": "Start Logging",
+    "close": "Close",
     "errorRecording": "An error occurred during recording. Please try again.",
     "errorSave": "Could not save the mood. Please try again later.",
     "veryBad": "Very bad",
@@ -317,7 +318,7 @@
     "negative": "Negative",
     "positive": "Positive",
     "valence": {
-      "label": "Valence (Pleasant ↔ Unpleasant)",
+      "label": "Valence (Unpleasant ↔ Pleasant)",
       "min": "Unpleasant",
       "max": "Pleasant",
       "unpleasant": "Unpleasant",
@@ -362,7 +363,9 @@
         "alone": "Alone",
         "nature": "Nature",
         "creative": "Creative"
-      }
+      },
+      "errorEmpty": "Type something before adding the tag",
+      "errorDuplicate": "That tag is already selected"
     }
   },
   "memories": {
@@ -607,8 +610,10 @@
     "errors": {
       "notLoggedIn": "You must be signed in to send feedback",
       "emptyMessage": "Please write a message",
-      "submitFailed": "Something went wrong while submitting. Please try again."
-    }
+      "submitFailed": "Something went wrong while submitting. Please try again.",
+      "noRating": "Choose how satisfied you are"
+    },
+    "ratingStar": "{{count}} of 5"
   },
   "referral": {
     "title": "Referral programme",
@@ -620,7 +625,6 @@
     "topTier": "Highest tier reached! 🎉",
     "totalInvited": "Total invited",
     "activeUsers": "Active users",
-    "weeks": "{{count}} weeks",
     "premiumReward": "Premium reward",
     "referralLink": "Referral link",
     "copy": "Copy",
@@ -645,7 +649,11 @@
       "activation": "The reward is activated once your friend completes sign-up",
       "noCash": "Rewards cannot be exchanged for cash",
       "changes": "Lugn & Trygg reserves the right to change these terms"
-    }
+    },
+    "weeksUnit_one": "week",
+    "weeksUnit_other": "weeks",
+    "weeks_one": "{{count}} week",
+    "weeks_other": "{{count}} weeks"
   },
   "healthIntegrations": {
     "title": "Health integrations (OAuth)",
@@ -718,6 +726,20 @@
       "firstSyncBody": "The first sync can take 1–2 minutes. Try again in a little while.",
       "reconnectTitle": "Try reconnecting:",
       "reconnectBody": "Click “Disconnect” and then “Connect” again to refresh the authorisation."
+    },
+    "providers": {
+      "google_fit": {
+        "description": "Sync activity, heart rate and sleep data from Google Fit"
+      },
+      "fitbit": {
+        "description": "Connect your Fitbit device for comprehensive health tracking"
+      },
+      "samsung": {
+        "description": "Sync health data from the Samsung Health app"
+      },
+      "withings": {
+        "description": "Connect Withings devices for weight and health metrics"
+      }
     }
   },
   "relaxingSounds": {
@@ -827,7 +849,8 @@
       "exercise": "Exercise",
       "food": "Food",
       "weather": "Weather"
-    }
+    },
+    "selectMoodFirst": "Choose how you feel to log it."
   },
   "aiChat": {
     "sanctuary": "Your Sanctuary",
@@ -870,7 +893,8 @@
     "crisisSos": "📞 SOS Alarm: 112",
     "crisisMind": "💙 Mind: 90101 (24/7)",
     "crisisDisclaimer": "Lugn & Trygg does not replace professional care. Seek help if you're feeling unwell.",
-    "voicePremium": "Voice is a Premium feature"
+    "voicePremium": "Voice is a Premium feature",
+    "voicePremiumAction": "Voice is a Premium feature — upgrade"
   },
   "voiceRecorder": {
     "title": "🎤 Voice Recording",
@@ -1028,7 +1052,13 @@
       "downwardTrendDesc": "Your mood has declined in recent days. Consider talking to someone.",
       "needSupport": "Need support?",
       "needSupportDesc": "Your mood is low. You're not alone - consider professional help."
-    }
+    },
+    "trendStep1": "1. We take your 7 most recent mood entries.",
+    "trendStep2": "2. We take the 7 entries before those.",
+    "trendStep3": "3. We average each group.",
+    "trendStep4": "4. We compare the two averages.",
+    "trendStep5": "5. A difference above 0.5 counts as up, below −0.5 as down, otherwise stable.",
+    "trendStep6": "6. The 0.5 threshold is there so ordinary day-to-day variation is not called a trend."
   },
   "worldDashboard": {
     "dashboardLoaded": "Dashboard loaded",
@@ -1151,7 +1181,8 @@
     "algorithm": "Algorithm",
     "trainingAccuracy": "Training accuracy",
     "dataPoints": "Data points",
-    "noData": "No data available for analysis"
+    "noData": "No data available for analysis",
+    "loading": "Loading your analysis…"
   },
   "dashboardStats": {
     "sectionTitle": "Statistics Overview",
@@ -1163,8 +1194,8 @@
     "nextMilestone": "Next milestone:",
     "almostThere": "🎉 Almost there! One activity left!",
     "activitiesToNext": "🎯 {{count}} activities to next level",
-    "startJourney": " Start your journey! Log your first mood to unlock your first achievement.",
-    "allAchievementsUnlocked": " All achievements unlocked!",
+    "startJourney": "Start your journey! Log your first mood to unlock your first achievement.",
+    "allAchievementsUnlocked": "All achievements unlocked!",
     "naturallyVarying": "Naturally varying",
     "positiveDevelopment": "Positive development",
     "stable": "Stable",
@@ -1187,7 +1218,7 @@
     "nextLevel": "Nästa nivå: {{level}}",
     "activitiesRemaining": "{{count}} aktiviteter kvar",
     "keepGoing": "Håll dig igång!",
-    "almostThere": " Nästan där!"
+    "almostThere": "Almost there!"
   },
   "safetyBlock": {
     "title": "Säkerhetsblock",
@@ -1490,7 +1521,8 @@
     "profile": "Profile",
     "settings": "Settings",
     "theme": "Theme",
-    "language": "Language"
+    "language": "Language",
+    "logout": "Log out"
   },
   "password": {
     "strength": {
@@ -1521,7 +1553,6 @@
     "engagementMessage": "With {{moods}} logged moods and {{chats}} conversations, you're on a roll.",
     "engagementUrgency": "Limited offer for engaged users",
     "engagementCta": "Continue your journey",
-    "streakTitle": "{{days}} days of consistency!",
     "streakSubtitle": "Don't break the chain",
     "streakMessage": "You've built a habit. Make sure you can keep going.",
     "streakUrgency": "{{streakUsers}} users have protected their streak",
@@ -1541,7 +1572,9 @@
     "benefitReminders": "Smarter reminders",
     "benefitGoals": "Personal goals and challenges",
     "remaining": "{{remaining}} left",
-    "trust": "No commitment. Cancel anytime."
+    "trust": "No commitment. Cancel anytime.",
+    "streakTitle_one": "{{count}} day with Lugn & Trygg!",
+    "streakTitle_other": "{{count}} days with Lugn & Trygg!"
   },
   "recommendations": {
     "preferences": {
@@ -1643,6 +1676,12 @@
     },
     "crisis": {
       "suicideHotline": "📞 Suicide Line: {{suicideLine}}"
+    },
+    "streakDays_one": "{{count}} day in a row",
+    "streakDays_other": "{{count}} days in a row",
+    "compact": {
+      "streakDays_one": "🔥 {{count}} day",
+      "streakDays_other": "🔥 {{count}} days"
     }
   },
   "wellnessHub": {
@@ -1695,7 +1734,6 @@
     "guest": "Guest",
     "manageJourney": "Manage your personal journey, settings and security.",
     "loginToSave": "Log in to save your data.",
-    "memberForDays": "Member for {{days}} days",
     "upgradeNow": "Upgrade now",
     "moodLogs": "Mood Logs",
     "aiChats": "AI Chats",
@@ -1762,7 +1800,9 @@
     "deleteItem5": "Wellness goals and progress",
     "deleteNote": "Your data will be permanently deleted within 30 days. You can cancel by contacting support within that time.",
     "deleting": "Deleting...",
-    "settingsLoadFailed": "Could not load your saved settings. Reload the page before changing anything."
+    "settingsLoadFailed": "Could not load your saved settings. Reload the page before changing anything.",
+    "memberForDays_one": "Member for {{count}} day",
+    "memberForDays_other": "Member for {{count}} days"
   },
   "wellnessGoalLabels": {
     "Hantera stress": {
@@ -2342,7 +2382,17 @@
       "protectiveFactors": "Protective factors",
       "interventions": "Recommended interventions",
       "loading": "Calculating combined risk…",
-      "error": "Could not calculate combined risk"
+      "error": "Could not calculate combined risk",
+      "crisisTitle": "You don't have to carry this alone",
+      "crisisText": "Your latest answer shows thoughts of harming yourself. Talk to someone now – help is available around the clock.",
+      "callEmergency": "Call {{number}}",
+      "callSuicideLine": "Suicide line {{number}}",
+      "openCrisisPage": "More ways to get help",
+      "careTitle": "Talk to healthcare",
+      "careText": "Your result suggests you may need support. Call {{number}} (healthcare advice) or contact your health centre.",
+      "callHealthcare": "Call {{number}}",
+      "stale": "Your latest {{type}} is from {{date}}. Results older than {{days}} days are not included in the assessment.",
+      "retake": "Take a new {{type}}"
     },
     "interventions": {
       "BEHAVIORAL_ACTIVATION": "Behavioural activation – schedule meaningful activities",
@@ -2362,8 +2412,24 @@
       "SOCIAL_RECONNECTION": "Reconnect socially",
       "URGENT_REFERRAL_PSYCHIATRY": "Urgent referral to psychiatry",
       "URGENT_THERAPY_REFERRAL": "Urgent referral to therapy",
-      "WEEKLY_MONITORING": "Weekly monitoring"
-    }
+      "WEEKLY_MONITORING": "Weekly monitoring",
+      "CONTACT_CRISIS_SUPPORT": "Contact crisis support – the numbers are above",
+      "CONTACT_HEALTHCARE": "Contact 1177 or your health centre"
+    },
+    "factors": {
+      "SUICIDAL_IDEATION": "Thoughts of harming yourself (PHQ-9 question 9: {{q9}})",
+      "PHQ9_SCORE": "PHQ-9: {{score}} points ({{severity}})",
+      "GAD7_SCORE": "GAD-7: {{score}} points ({{severity}})",
+      "MOOD_DECLINING": "Mood declining over the past week",
+      "NEGATIVE_STREAK_one": "{{count}} day of low mood",
+      "NEGATIVE_STREAK_other": "{{count}} days in a row of low mood",
+      "SLEEP_DEPRIVATION": "Less than 5 hours of sleep",
+      "SOCIAL_ISOLATION": "No social contact for more than 3 days",
+      "LOW_PHQ9": "Low PHQ-9: {{score}} points",
+      "LOW_GAD7": "Low GAD-7: {{score}} points"
+    },
+    "q9Badge": "Question 9 answered",
+    "q9BadgeHint": "You answered that you have had thoughts of harming yourself (question 9). This is marked regardless of the total score."
   },
   "insights": {
     "loading": "Analyzing your patterns…",
@@ -2373,7 +2439,9 @@
     "generate": "Generate insights",
     "recommendation": "Recommendation",
     "retryLater": "Try again later",
-    "error": "Could not fetch insights right now. Please try again."
+    "error": "Could not fetch insights right now. Please try again.",
+    "allHandled": "You have handled all your insights",
+    "allHandledHint": "New insights appear as you keep logging how you feel."
   },
   "dailyInsights": {
     "minMoodsRequired": "At least 3 mood logs are needed to generate insights.",
@@ -2391,5 +2459,134 @@
   },
   "moodList": {
     "shown": "Shown"
+  },
+  "privacy": {
+    "title": "Privacy & Security",
+    "commitment": "Your privacy is our top priority. All data is encrypted and stored securely.",
+    "encryption": "Data Encryption",
+    "encryptLocalStorage": "Encrypt Local Data",
+    "encryptLocalStorageDesc": "All sensitive data stored locally will be encrypted",
+    "dataRetention": "Data Retention",
+    "dataRetentionDesc": "How long should we keep your data?",
+    "months_one": "month",
+    "months_other": "months",
+    "autoDelete": "Automatically delete data older than retention period",
+    "sharing": "Analytics & Sharing",
+    "allowAnalytics": "Allow Usage Analytics",
+    "allowAnalyticsDesc": "Help us improve the app by sharing anonymous usage data",
+    "shareAnonymized": "Share Anonymized Data",
+    "shareAnonymizedDesc": "Contribute to mental health research (fully anonymous)",
+    "yourRights": "Your Privacy Rights",
+    "gdprInfo": "Under GDPR and data protection laws, you have the right to access, export, and delete your personal data.",
+    "exportData": "Export My Data",
+    "exportDataTitle": "Export Your Data",
+    "exportDataDesc": "We will create a JSON file containing all your personal data, including mood logs, memories, and settings.",
+    "exportDataNote": "This file will be downloaded to your device and can be used to back up your data or transfer it to another service.",
+    "exporting": "Exporting…",
+    "exportSuccess": "Data exported successfully!",
+    "downloadData": "Download Data",
+    "deleteData": "Delete All My Data",
+    "deleteDataTitle": "Delete All Your Data",
+    "deleteDataWarning": "This action is permanent and cannot be undone. All your mood logs, memories, and personal data will be deleted forever.",
+    "deleteDataConfirm": "To confirm, please type \"delete my data\" below:",
+    "confirmDelete": "Delete Forever",
+    "confirmTextMismatch": "Please type the confirmation text exactly",
+    "deleting": "Deleting…",
+    "loading": "Loading privacy settings…",
+    "loadFailed": "Failed to load privacy settings",
+    "exportFailed": "Export failed",
+    "deleteFailed": "Deletion failed"
+  },
+  "wellnessGoals": {
+    "skip": "Skip",
+    "saving": "Saving…",
+    "continue": "Continue ({{selected}}/{{max}})",
+    "save": "Save ({{selected}}/{{max}})",
+    "close": "Close"
+  },
+  "rewardsCatalog": {
+    "ai_insights_pro": {
+      "title": "AI Insights Pro",
+      "description": "Advanced AI analytics and predictions"
+    },
+    "badge_collector": {
+      "title": "Badge Collector",
+      "description": "Exclusive badge for dedicated users"
+    },
+    "custom_theme": {
+      "title": "Custom Theme",
+      "description": "Unlock exclusive colour themes for the app"
+    },
+    "early_adopter": {
+      "title": "Early Adopter",
+      "description": "Special badge for early users"
+    },
+    "export_data": {
+      "title": "Data Export",
+      "description": "Export all your data to PDF or CSV"
+    },
+    "first_mood": {
+      "title": "First Step",
+      "description": "Log your first mood"
+    },
+    "journal_starter": {
+      "title": "Journal Starter",
+      "description": "Write your first journal entry"
+    },
+    "meditation_guru": {
+      "title": "Meditation Guru",
+      "description": "Complete 50 meditations"
+    },
+    "merch_tshirt": {
+      "title": "Lugn & Trygg T-shirt",
+      "description": "Exclusive t-shirt (free shipping)"
+    },
+    "month_streak": {
+      "title": "Month of Mindfulness",
+      "description": "Log your mood 30 days in a row"
+    },
+    "mood_master": {
+      "title": "Mood Master",
+      "description": "Log your mood 30 days in a row"
+    },
+    "mood_warrior": {
+      "title": "Mood Warrior",
+      "description": "Log 100 mood entries"
+    },
+    "premium_1month": {
+      "title": "1 Month Premium",
+      "description": "Access to all premium features for one month"
+    },
+    "premium_1week": {
+      "title": "1 Week Premium",
+      "description": "Access to all premium features for one week"
+    },
+    "premium_3months": {
+      "title": "3 Months Premium",
+      "description": "Access to all premium features for three months"
+    },
+    "premium_month": {
+      "title": "1 Month Premium",
+      "description": "Unlock all premium features for 30 days"
+    },
+    "premium_week": {
+      "title": "1 Week Premium",
+      "description": "Unlock all premium features for 7 days"
+    },
+    "referral_hero": {
+      "title": "Referral Hero",
+      "description": "Invite 5 friends"
+    },
+    "vip_support": {
+      "title": "VIP Support",
+      "description": "Priority support for one month"
+    },
+    "week_streak": {
+      "title": "Week of Wellness",
+      "description": "Log your mood 7 days in a row"
+    }
+  },
+  "aiMusic": {
+    "goodFor": "Good for:"
   }
 }

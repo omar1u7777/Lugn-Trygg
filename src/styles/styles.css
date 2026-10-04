@@ -4,9 +4,12 @@
  * to be emitted AFTER utilities from index.css, overriding all input/button
  * border-radius, padding, and border styling.
  *
- * @apply directives work because PostCSS/Tailwind processes all CSS files.
+ * Tailwind 4 compiles each CSS file on its own, so @apply here needs the
+ * theme from index.css. @reference provides it without emitting any of
+ * index.css a second time.
  * Styles here are written WITHOUT @layer so they don't need @tailwind.
  */
+@reference "../index.css";
 
 /*
  * Z-INDEX SYSTEM - Lugn & Trygg
@@ -1100,7 +1103,7 @@ body {
 .dark-mode {
   /* Global dark theme */
   --bg-color: #1a1a1a;
-  --text-color: #e0e0e0;
+  --ds-text-color: #e0e0e0;
   --card-bg: #2d2d2d;
   --border-color: #404040;
   --hover-bg: #3a3a3a;
@@ -1109,7 +1112,7 @@ body {
 
 .dark-mode body {
   background-color: var(--bg-color);
-  color: var(--text-color);
+  color: var(--ds-text-color);
 }
 
 .dark-mode .navbar {
@@ -1129,7 +1132,7 @@ body {
 .dark-mode .stat-card {
   background: var(--card-bg);
   border-color: var(--border-color);
-  color: var(--text-color);
+  color: var(--ds-text-color);
 }
 
 .dark-mode .dashboard-section h2,
@@ -1139,7 +1142,7 @@ body {
 .dark-mode .analysis-title,
 .dark-mode .sounds-title,
 .dark-mode .setup-card h3 {
-  color: var(--text-color);
+  color: var(--ds-text-color);
 }
 
 .dark-mode .dashboard-btn {
@@ -1155,7 +1158,7 @@ body {
 .dark-mode .phone-input {
   background-color: var(--card-bg);
   border-color: var(--border-color);
-  color: var(--text-color);
+  color: var(--ds-text-color);
 }
 
 .dark-mode .auth-input:focus,
@@ -1190,11 +1193,11 @@ body {
 }
 
 .dark-mode .info-box h4 {
-  color: var(--text-color);
+  color: var(--ds-text-color);
 }
 
 .dark-mode .theme-toggle-btn {
-  color: var(--text-color);
+  color: var(--ds-text-color);
 }
 
 .dark-mode .theme-toggle-btn:hover {
@@ -1226,11 +1229,11 @@ body {
 }
 
 .dark-mode .ai-insight-text p {
-  color: var(--text-color);
+  color: var(--ds-text-color);
 }
 
 .dark-mode .weekly-analysis {
-  color: var(--text-color);
+  color: var(--ds-text-color);
 }
 
 .dark-mode .insights-card h4 {
