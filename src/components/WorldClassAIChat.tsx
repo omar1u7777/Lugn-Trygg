@@ -17,6 +17,7 @@ import {
   SpeakerXMarkIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { analytics } from '../services/analytics';
 import { getChatHistory } from '../api/api';
@@ -284,6 +285,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const { canSendMessage, incrementChatMessage, getRemainingMessages, plan, isPremium } = useSubscription();
+  const navigate = useNavigate();
 
   // Streaming hook - onComplete adds the completed AI message to messages state
   const { isStreaming, currentMessage, streamMessage, stopStreaming, clearStreamingMessage } = useStreamingChat({
@@ -812,13 +814,27 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                   )}
                 </button>
               ) : (
-                <div
-                  className="shrink-0 p-2 sm:p-3 rounded-full min-h-[40px] sm:min-h-[44px] min-w-[40px] sm:min-w-[44px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed relative"
+                /*
+                  This was a <div> with a title and no handler: a control that
+                  looks disabled, is not in the tab order, and does nothing at
+                  all when pressed. The title is the only explanation offered,
+                  and titles do not appear on touch — which is where most of
+                  these users are.
+
+                  It is the upsell for a paid feature, so it should sell: a real
+                  button that goes to /upgrade, the same destination every other
+                  premium prompt in the app uses.
+                */
+                <button
+                  type="button"
+                  onClick={() => navigate('/upgrade')}
+                  className="shrink-0 p-2 sm:p-3 rounded-full min-h-[40px] sm:min-h-[44px] min-w-[40px] sm:min-w-[44px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors relative focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500"
+                  aria-label={t('aiChat.voicePremiumAction', { defaultValue: 'Röst är en Premium-funktion — uppgradera' })}
                   title={t('aiChat.voicePremium', { defaultValue: 'Röst är en Premium-funktion' })}
                 >
                   <MicrophoneIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span className="absolute -top-1 -right-1 px-1 py-0.5 text-[8px] font-bold bg-amber-400 text-amber-900 rounded-full">PRO</span>
-                </div>
+                </button>
               )
             )}
 

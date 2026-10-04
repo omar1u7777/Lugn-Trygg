@@ -871,7 +871,8 @@
     "crisisSos": "📞 SOS Alarm: 112",
     "crisisMind": "💙 Mind: 90101 (24/7)",
     "crisisDisclaimer": "Lugn & Trygg does not replace professional care. Seek help if you're feeling unwell.",
-    "voicePremium": "Voice is a Premium feature"
+    "voicePremium": "Voice is a Premium feature",
+    "voicePremiumAction": "Voice is a Premium feature — upgrade"
   },
   "voiceRecorder": {
     "title": "🎤 Voice Recording",
