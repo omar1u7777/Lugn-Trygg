@@ -696,6 +696,19 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   {t('dashboard.changeGoals', 'Ändra mål')}
                 </button>
               </div>
+              {/*
+                BUG-24: the row scrolls (scrollWidth 959 vs clientWidth 678 on
+                the tested width) and gave no sign of it — the third goal was
+                simply cut off. The wrapper adds a fade on the right edge, which
+                is the conventional cue that there is more sideways.
+                pointer-events-none so it cannot swallow a tap on the card
+                underneath it.
+              */}
+              <div className="relative">
+                <div
+                  className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white dark:from-slate-900 to-transparent rounded-r-lg"
+                  aria-hidden="true"
+                />
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {safeDashboardStats.wellnessGoals.map((goal) => {
                   const nextStep = goalStepsMap[goal] || (t('dashboard.defaultGoalStep') as string);
@@ -763,6 +776,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                     </div>
                   );
                 })}
+              </div>
               </div>
               <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
                 {t('worldDashboard.goalRecommendations')}

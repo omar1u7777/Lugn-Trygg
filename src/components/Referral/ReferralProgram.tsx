@@ -216,8 +216,14 @@ const ReferralProgram: React.FC = () => {
                 </div>
 
                 {/* Copy Confirmation Toast */}
+                {/*
+                  z-50 was shared with BottomNav and with the cards above, so
+                  paint order decided the winner and the toast lost. The app
+                  layers nav at 120 and the mobile menu at 130/140; a
+                  confirmation belongs above all of them.
+                */}
                 {copied && (
-                    <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in-right">
+                    <div className="fixed top-4 right-4 z-[150] bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in-right">
                         <span>✅</span>
                         <span className="font-medium">{t('referral.copied', 'Kopierat till urklipp!')}</span>
                     </div>
