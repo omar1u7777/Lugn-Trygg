@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { getMoods, getUserRewards, getAchievements, type Achievement, type UserReward } from '../api/api';
+import { getAllMoods, getUserRewards, getAchievements, type Achievement, type UserReward } from '../api/api';
 import useAuth from '../hooks/useAuth';
 import { LockClosedIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
@@ -125,7 +125,8 @@ const BadgeDisplay: React.FC = () => {
 
       try {
         const [moods, rewards, achievements] = await Promise.all([
-          getMoods(userId),
+          // Every entry, not the first page of 50: Mood Warrior needs 100.
+          getAllMoods(userId),
           getUserRewards(),
           getAchievements(),
         ]);

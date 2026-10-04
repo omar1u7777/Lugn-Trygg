@@ -132,7 +132,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     wtScheduledTime, setWtScheduledTime,
     wtPostponeCommitted, setWtPostponeCommitted,
     wtReflection, setWtReflection,
-  } = useCBTExercises({ userId: user?.user_id, announce: announceToScreenReader });
+  } = useCBTExercises({ userId: user?.user_id, announce: announceToScreenReader, enabled: !compact });
 
   const [debugMode, setDebugMode] = useState(false);
   const showDebugTools = import.meta.env.DEV;

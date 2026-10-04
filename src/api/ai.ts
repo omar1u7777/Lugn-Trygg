@@ -151,6 +151,7 @@ export interface AIStory {
 interface StoryHistoryItem {
   id: string;
   storyPreview?: string;
+  dominantMood?: string;
   locale?: string;
   moodDataPoints?: number;
   aiGenerated?: boolean;
@@ -163,8 +164,11 @@ interface StoryHistoryItem {
  * Raw response returned by POST /api/v1/ai/story.
  */
 interface GeneratedStoryResponse {
-  id?: string;
+  id?: string | null;
+  /** False when the AI service failed and a general story was returned unsaved. */
+  saved?: boolean;
   story?: string;
+  dominantMood?: string;
   locale?: string;
   moodSummary?: Record<string, unknown>;
   aiGenerated?: boolean;
@@ -181,20 +185,38 @@ const estimateDurationSeconds = (text: string): number => {
   return Math.max(60, Math.ceil((words / WORDS_PER_MINUTE) * 60));
 };
 
-const deriveTitle = (text: string): string => {
+const TITLE_MAX_LENGTH = 60;
+
+/**
+ * A card title for a story that has none of its own.
+ *
+ * Stories often open with a markdown heading ("### Vandraren och den stilla
+ * sjön"), which is the real title; otherwise the first sentence stands in.
+ * The old version took the first 60 characters of the raw text, so titles
+ * carried the "###" and stopped mid-word ("…bodde i en lit").
+ */
+export const deriveTitle = (text: string): string => {
   if (!text) return "Untitled Story";
-  const firstSentence = text.split(/[.!?]\s+/)[0] || "";
-  return firstSentence.trim().slice(0, 60) || "Untitled Story";
+  const firstLine = text.trim().split("\n")[0] ?? "";
+  const heading = /^#{1,6}\s+(.+)$/.exec(firstLine.trim());
+  const source = heading?.[1] ?? (text.trim().split(/[.!?]\s+/)[0] ?? "");
+  const clean = source.replace(/[#*_`]/g, "").replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "");
+  if (!clean) return "Untitled Story";
+  if (clean.length <= TITLE_MAX_LENGTH) return clean;
+  const cut = clean.slice(0, TITLE_MAX_LENGTH);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 };
 
-const deriveMood = (moodSummary?: Record<string, unknown>): string => {
-  const mood = moodSummary?.dominantMood || moodSummary?.dominant_mood || "neutral";
-  return typeof mood === "string" ? mood.toLowerCase() : "neutral";
-};
+const normaliseMood = (mood: unknown): string =>
+  typeof mood === "string" && mood ? mood.toLowerCase() : "neutral";
+
+const deriveMood = (raw: { dominantMood?: string; moodSummary?: Record<string, unknown> }): string =>
+  normaliseMood(raw.dominantMood ?? raw.moodSummary?.dominant_mood ?? raw.moodSummary?.dominantMood);
 
 const mapHistoryToAIStory = (raw: StoryHistoryItem): AIStory => {
   const content = raw.storyPreview || "";
-  const mood = "neutral"; // history endpoint does not preserve mood summary
+  const mood = normaliseMood(raw.dominantMood);
   return {
     id: raw.id,
     title: deriveTitle(content),
@@ -209,7 +231,7 @@ const mapHistoryToAIStory = (raw: StoryHistoryItem): AIStory => {
 
 const mapGeneratedToAIStory = (raw: GeneratedStoryResponse): AIStory => {
   const content = raw.story || "";
-  const mood = deriveMood(raw.moodSummary);
+  const mood = deriveMood(raw);
   return {
     // Prefer the server's real doc id. The old `generated-${Date.now()}`
     // fallback silently broke favourites: a story favourited right after
