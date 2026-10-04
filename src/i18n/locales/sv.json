@@ -1387,7 +1387,81 @@
     "line7Desc": "Samtalshjälp för existentiella frågor.",
     "visitWebsite": "Besök {{site}}",
     "remember": "Kom ihåg:",
-    "reminder": "Dina känslor är viktiga och giltiga. Att söka hjälp är ett tecken på styrka, inte svaghet."
+    "reminder": "Dina känslor är viktiga och giltiga. Att söka hjälp är ett tecken på styrka, inte svaghet.",
+    "page": {
+      "title": "Hjälp och Stöd",
+      "heroTitle": "Du är inte ensam",
+      "heroBody": "Att må dåligt är inte ett tecken på svaghet. Det finns alltid någon som vill hjälpa dig, dygnet runt. Välj det sätt som känns bäst för dig – telefon, chatt eller webb.",
+      "otherWays": "Andra sätt att få stöd",
+      "healthcareWeb": "Sjukvårdsupplysning och e-tjänster",
+      "closing": "Det är modigt att be om hjälp. Du förtjänar att må bra.",
+      "emergencyBanner": {
+        "text": "Vid akut fara för livet:",
+        "call": "Ring {{number}}"
+      },
+      "aiChat": {
+        "title": "Prata med {{app}} AI",
+        "subtitle": "Direkt stöd och samtal i appen"
+      },
+      "resources": {
+        "emergency": {
+          "title": "Akut nödläge",
+          "subtitle": "Ring {{number}} vid omedelbart livshotande situation",
+          "description": "Vid akuta självmordstankar eller livshotande situation",
+          "action": "Ring {{number}}",
+          "available": "Dygnet runt"
+        },
+        "suicideLine": {
+          "title": "Självmordslinjen",
+          "subtitle": "Telefonjour för dig i kris",
+          "description": "Samtal om självmordstankar och existentiell ångest",
+          "action": "Ring {{number}}",
+          "available": "Dygnet runt"
+        },
+        "mindChat": {
+          "title": "Mind Självmordslinjen",
+          "subtitle": "Chattjour online",
+          "description": "Anonym chatt för dig med självmordstankar. Samma tjänst nås även på telefon.",
+          "action": "Öppna chatt",
+          "available": "Dygnet runt"
+        },
+        "healthcare": {
+          "title": "Vårdguiden 1177",
+          "subtitle": "Sjukvårdsrådgivning",
+          "description": "Sjuksköterskerådgivning och vårdbokning",
+          "action": "Ring {{number}}",
+          "available": "Dygnet runt"
+        },
+        "priest": {
+          "title": "Jourhavande Präst",
+          "subtitle": "Själavård och existentiellt stöd",
+          "description": "Ring {{number}} och be att bli kopplad. Samtal om livsfrågor, sorg och existentiell oro",
+          "action": "Ring {{number}} och be om präst",
+          "available": "Varje kväll 21–06"
+        },
+        "bris": {
+          "title": "BRIS – Barnens hjälptelefon",
+          "subtitle": "Stöd för barn och unga upp till 18 år",
+          "description": "Telefon och chatt för barn och unga",
+          "action": "Ring {{number}}",
+          "available": "Dygnet runt"
+        },
+        "spes": {
+          "title": "SPES – SuicidPrevention",
+          "subtitle": "Anhörigstöd efter suicid",
+          "description": "Stöd för anhöriga och närstående efter suicid",
+          "action": "Besök webbplats",
+          "available": "Webbplats"
+        },
+        "companion": {
+          "title": "Jourhavande Medmänniska",
+          "subtitle": "Samtalsstöd i natten",
+          "description": "Samtalshjälp för existentiella frågor och ensamhet",
+          "action": "Ring {{number}}",
+          "available": "21–06 (natten)"
+        }
+      }
+    }
   },
   "greeting": {
     "morning": "God morgon",
@@ -1557,7 +1631,16 @@
         "depression": "Depression",
         "stress": "Stress",
         "good": "Mår bra"
-      }
+      },
+      "disclaimerPrefix": "⚠️ Viktigt:",
+      "disclaimerBody": "Dessa KBT-övningar är ett komplement till — inte en ersättning för — professionell psykoterapi. Söker du vård, kontakta legitimerad psykolog eller psykoterapeut. Kris: {{emergency}} | Självmordslinjen: {{suicideLine}} | {{healthcare}}"
+    },
+    "disclaimer": {
+      "crisisNumber": "🔹 Krisnummer Sverige: {{emergency}} (akut) eller {{healthcare}} (vårdguiden)",
+      "suicideLine": "🔹 Självmordslinjen: {{suicideLine}} (alla dagar, dygnet runt)"
+    },
+    "crisis": {
+      "suicideHotline": "📞 Självmordslinjen: {{suicideLine}}"
     }
   },
   "wellnessHub": {
@@ -1746,7 +1829,7 @@
     "rest": "Vila",
     "completed": "Klart!",
     "basicMode": "Grundläge",
-    "hrvBiofeedback": "HRV Biofeedback",
+    "hrvBiofeedback": "Resonansandning",
     "patternDescription": "Välj andningsmönster — cirkeln animeras i realtid baserat på din andningsrytm.",
     "patterns": {
       "coherence": "❤️ Koherens 6bpm",
@@ -1860,9 +1943,9 @@
   "recommendationsPool": {
     "stress-1": {
       "title": "4-7-8 Andningsövning",
-      "description": "Dr. Andrew Weils vetenskapligt beprövade metod för ångest och sömn",
+      "description": "Dr. Andrew Weils andningsteknik för oro och sömn",
       "category": "Stresshantering",
-      "content": "Tekniken aktiverar det parasympatiska nervsystemet och sänker kortisolnivåer med upp till 30%."
+      "content": "Tekniken aktiverar det parasympatiska nervsystemet, den del av kroppen som bromsar stresspåslag."
     },
     "stress-2": {
       "title": "KBT-övning: Hantera Stressiga Tankar",
@@ -2258,6 +2341,26 @@
       "interventions": "Rekommenderade åtgärder",
       "loading": "Beräknar kombinerad risk…",
       "error": "Kunde inte beräkna kombinerad risk"
+    },
+    "interventions": {
+      "BEHAVIORAL_ACTIVATION": "Beteendeaktivering – planera in meningsfulla aktiviteter",
+      "CBT_THERAPY_REFERRAL": "Remiss till KBT-terapi",
+      "CREATE_SAFETY_PLAN": "Upprätta en säkerhetsplan",
+      "DAILY_MONITORING": "Daglig uppföljning",
+      "DAILY_MOOD_TRACKING": "Daglig humörloggning",
+      "IMMEDIATE_CRISIS_INTERVENTION": "Omedelbar krisintervention",
+      "INVOLVE_FAMILY_SUPPORT": "Involvera stöd från familj eller närstående",
+      "LIFESTYLE_INTERVENTIONS": "Livsstilsinsatser – sömn, rörelse och kost",
+      "MEDICATION_EVALUATION": "Läkemedelsbedömning av läkare",
+      "PREVENTIVE_MAINTENANCE": "Förebyggande underhåll av mående",
+      "REMOVE_MEANS_SELF_HARM": "Avlägsna medel för självskada från din närhet",
+      "SELF_HELP_CBT_MODULES": "KBT-moduler för självhjälp",
+      "SLEEP_HYGIENE_PROTOCOL": "Sömnhygien – rutiner för bättre sömn",
+      "SLEEP_INTERVENTION": "Sömninsats",
+      "SOCIAL_RECONNECTION": "Återknyt sociala kontakter",
+      "URGENT_REFERRAL_PSYCHIATRY": "Akut remiss till psykiatrin",
+      "URGENT_THERAPY_REFERRAL": "Akut remiss till terapi",
+      "WEEKLY_MONITORING": "Veckovis uppföljning"
     }
   },
   "insights": {

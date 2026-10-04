@@ -259,9 +259,26 @@ export const RECOMMENDATIONS_POOL: Recommendation[] = [
         id: 'stress-1',
         type: 'meditation',
         title: '4-7-8 Andningsövning',
-        description: 'Dr. Andrew Weils vetenskapligt beprövade metod för ångest och sömn',
-        content: 'Denna teknik, utvecklad av Dr. Andrew Weil från Harvard Medical School, har hjälpt miljontals människor med ångest, sömnproblem och stress. Kliniska studier visar 78% minskning av ångestsymptom efter 4 veckor. Tekniken aktiverar det parasympatiska nervsystemet och sänker kortisolnivåer med upp till 30%.',
-        tags: ['andning', 'stress', 'ångest', 'sömn', 'kortisol', 'parasympatisk', 'Hantera stress'],
+        // Rewritten to drop claims nothing here can support (BUG-08).
+        //
+        // Removed: "Kliniska studier visar 78% minskning av ångestsymptom efter
+        // 4 veckor" and "sänker kortisolnivåer med upp till 30%". Neither cited
+        // a source, and no source was found for either figure. Precise
+        // percentages read as measured findings, and this is a mental-health
+        // app whose users may weigh them against actual treatment.
+        //
+        // Also removed: "vetenskapligt beprövad" and "har hjälpt miljontals
+        // människor" — one is a strength of evidence the literature does not
+        // support for this technique, the other is uncountable.
+        //
+        // Kept: the attribution to Andrew Weil, which is accurate, and the
+        // mechanism. A long exhale engaging the parasympathetic nervous system
+        // is ordinary physiology, not a clinical effect claim. "Från Harvard
+        // Medical School" is gone: he holds an MD from there, which is not the
+        // same as the institution endorsing the technique.
+        description: 'Dr. Andrew Weils andningsteknik för oro och sömn',
+        content: 'Tekniken är utformad av Dr. Andrew Weil och bygger på en lång utandning: du andas in genom näsan i fyra sekunder, håller andan i sju och andas ut genom munnen i åtta. Den förlängda utandningen aktiverar det parasympatiska nervsystemet — den del av kroppen som bromsar stresspåslag — vilket många upplever som lugnande. Hur mycket den hjälper varierar från person till person.',
+        tags: ['andning', 'stress', 'ångest', 'sömn', 'parasympatisk', 'Hantera stress'],
         difficulty: 'beginner',
         duration: 4,
         category: 'Stresshantering',

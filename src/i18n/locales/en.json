@@ -1389,7 +1389,81 @@
     "line7Desc": "Conversation support for existential questions.",
     "visitWebsite": "Visit {{site}}",
     "remember": "Remember:",
-    "reminder": "Your feelings are important and valid. Seeking help is a sign of strength, not weakness."
+    "reminder": "Your feelings are important and valid. Seeking help is a sign of strength, not weakness.",
+    "page": {
+      "title": "Help and Support",
+      "heroTitle": "You are not alone",
+      "heroBody": "Feeling bad is not a sign of weakness. There is always someone who wants to help you, around the clock. Choose whatever feels easiest — phone, chat or web.",
+      "otherWays": "Other ways to get support",
+      "healthcareWeb": "Healthcare information and e-services",
+      "closing": "Asking for help takes courage. You deserve to feel well.",
+      "emergencyBanner": {
+        "text": "If life is in immediate danger:",
+        "call": "Call {{number}}"
+      },
+      "aiChat": {
+        "title": "Talk to {{app}} AI",
+        "subtitle": "Direct support and conversation in the app"
+      },
+      "resources": {
+        "emergency": {
+          "title": "Emergency",
+          "subtitle": "Call {{number}} if life is in immediate danger",
+          "description": "For acute suicidal thoughts or a life-threatening situation",
+          "action": "Call {{number}}",
+          "available": "Around the clock"
+        },
+        "suicideLine": {
+          "title": "Suicide Line (Sweden)",
+          "subtitle": "Phone line for you in crisis",
+          "description": "Talk about suicidal thoughts and existential distress",
+          "action": "Call {{number}}",
+          "available": "Around the clock"
+        },
+        "mindChat": {
+          "title": "Mind Suicide Line",
+          "subtitle": "Online chat service",
+          "description": "Anonymous chat if you have suicidal thoughts. The same service is also reachable by phone.",
+          "action": "Open chat",
+          "available": "Around the clock"
+        },
+        "healthcare": {
+          "title": "Healthcare Guide 1177",
+          "subtitle": "Medical advice",
+          "description": "Nurse advice and care appointments",
+          "action": "Call {{number}}",
+          "available": "Around the clock"
+        },
+        "priest": {
+          "title": "On-call Priest",
+          "subtitle": "Pastoral and existential support",
+          "description": "Call {{number}} and ask to be connected. Conversations about life, grief and existential worry",
+          "action": "Call {{number}} and ask for a priest",
+          "available": "Every evening 21:00-06:00"
+        },
+        "bris": {
+          "title": "BRIS – Children’s helpline",
+          "subtitle": "Support for children and young people up to 18",
+          "description": "Phone and chat for children and young people",
+          "action": "Call {{number}}",
+          "available": "Around the clock"
+        },
+        "spes": {
+          "title": "SPES – Suicide Prevention",
+          "subtitle": "Support for the bereaved",
+          "description": "Support for family and friends bereaved by suicide",
+          "action": "Visit website",
+          "available": "Website"
+        },
+        "companion": {
+          "title": "On-call Fellow Human",
+          "subtitle": "Someone to talk to at night",
+          "description": "Conversational support for existential questions and loneliness",
+          "action": "Call {{number}}",
+          "available": "21:00-06:00 (night)"
+        }
+      }
+    }
   },
   "greeting": {
     "morning": "Good morning",
@@ -1559,7 +1633,16 @@
         "depression": "Depression",
         "stress": "Stress",
         "good": "Feeling good"
-      }
+      },
+      "disclaimerPrefix": "⚠️ Important:",
+      "disclaimerBody": "These CBT exercises complement — they do not replace — professional psychotherapy. If you are seeking care, contact a licensed psychologist or psychotherapist. Crisis: {{emergency}} | Suicide Line: {{suicideLine}} | {{healthcare}}"
+    },
+    "disclaimer": {
+      "crisisNumber": "🔹 Crisis numbers (Sweden): {{emergency}} (emergency) or {{healthcare}} (healthcare guide)",
+      "suicideLine": "🔹 Suicide Line: {{suicideLine}} (every day, around the clock)"
+    },
+    "crisis": {
+      "suicideHotline": "📞 Suicide Line: {{suicideLine}}"
     }
   },
   "wellnessHub": {
@@ -1748,7 +1831,7 @@
     "rest": "Rest",
     "completed": "Done!",
     "basicMode": "Basic",
-    "hrvBiofeedback": "HRV Biofeedback",
+    "hrvBiofeedback": "Resonance breathing",
     "patternDescription": "Choose breathing pattern — the circle animates in real-time based on your breathing rhythm.",
     "patterns": {
       "coherence": "❤️ Coherence 6bpm",
@@ -1862,9 +1945,9 @@
   "recommendationsPool": {
     "stress-1": {
       "title": "4-7-8 Breathing Exercise",
-      "description": "Dr. Andrew Weil's scientifically proven method for anxiety and sleep",
+      "description": "Dr Andrew Weil's breathing technique for worry and sleep",
       "category": "Stress management",
-      "content": "This technique activates the parasympathetic nervous system and lowers cortisol levels by up to 30%."
+      "content": "The technique activates the parasympathetic nervous system, the part of the body that dampens the stress response."
     },
     "stress-2": {
       "title": "CBT Exercise: Managing Stressful Thoughts",
@@ -2260,6 +2343,26 @@
       "interventions": "Recommended interventions",
       "loading": "Calculating combined risk…",
       "error": "Could not calculate combined risk"
+    },
+    "interventions": {
+      "BEHAVIORAL_ACTIVATION": "Behavioural activation – schedule meaningful activities",
+      "CBT_THERAPY_REFERRAL": "Referral to CBT therapy",
+      "CREATE_SAFETY_PLAN": "Create a safety plan",
+      "DAILY_MONITORING": "Daily monitoring",
+      "DAILY_MOOD_TRACKING": "Daily mood tracking",
+      "IMMEDIATE_CRISIS_INTERVENTION": "Immediate crisis intervention",
+      "INVOLVE_FAMILY_SUPPORT": "Involve family or close support",
+      "LIFESTYLE_INTERVENTIONS": "Lifestyle measures – sleep, movement and diet",
+      "MEDICATION_EVALUATION": "Medication evaluation by a doctor",
+      "PREVENTIVE_MAINTENANCE": "Preventive maintenance of wellbeing",
+      "REMOVE_MEANS_SELF_HARM": "Remove means of self-harm from your surroundings",
+      "SELF_HELP_CBT_MODULES": "Self-help CBT modules",
+      "SLEEP_HYGIENE_PROTOCOL": "Sleep hygiene – routines for better sleep",
+      "SLEEP_INTERVENTION": "Sleep intervention",
+      "SOCIAL_RECONNECTION": "Reconnect socially",
+      "URGENT_REFERRAL_PSYCHIATRY": "Urgent referral to psychiatry",
+      "URGENT_THERAPY_REFERRAL": "Urgent referral to therapy",
+      "WEEKLY_MONITORING": "Weekly monitoring"
     }
   },
   "insights": {
