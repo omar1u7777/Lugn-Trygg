@@ -234,7 +234,8 @@
     "openBreathingExercise": "Åpne pusteøvelse",
     "openJournal": "Åpne journal",
     "openMeditation": "Åpne meditasjon",
-    "seeSleepTips": "Se søvntips"
+    "seeSleepTips": "Se søvntips",
+    "seeRecommendations": "Se anbefalinger"
   },
   "navLinks": {
     "dashboard": "Oversikt",
@@ -808,7 +809,8 @@
     "algorithm": "Algoritm",
     "trainingAccuracy": "Träningsnoggrannhet",
     "dataPoints": "Datapunkter",
-    "noData": "Ingen data tillgänglig för analys"
+    "noData": "Ingen data tillgänglig för analys",
+    "loading": "Laster analysen din…"
   },
   "moodLogger": {
     "howAreYou": "Hvordan føles det akkurat nå?",
@@ -1071,7 +1073,13 @@
       "downwardTrendDesc": "Ditt humör har sjunkit de senaste dagarna. Överväg att prata med någon.",
       "needSupport": "Behöver du stöd?",
       "needSupportDesc": "Ditt humör är lågt. Du är inte ensam - överväg professionell hjälp."
-    }
+    },
+    "trendStep1": "1. Vi tar dine 7 siste humørlogginger.",
+    "trendStep2": "2. Vi tar de 7 loggingene før dem.",
+    "trendStep3": "3. Vi regner ut gjennomsnittet for hver gruppe.",
+    "trendStep4": "4. Vi sammenligner de to gjennomsnittene.",
+    "trendStep5": "5. Forskjell over 0,5 regnes som opp, under −0,5 som ned, ellers stabilt.",
+    "trendStep6": "6. Terskelen 0,5 finnes for at vanlig dagsvariasjon ikke skal kalles en trend."
   },
   "worldDashboard": {
     "dashboardLoaded": "Dashboard laddad",
@@ -1490,7 +1498,8 @@
     "profile": "Profil",
     "settings": "Innstillinger",
     "theme": "Tema",
-    "language": "Språk"
+    "language": "Språk",
+    "logout": "Logg ut"
   },
   "password": {
     "strength": {

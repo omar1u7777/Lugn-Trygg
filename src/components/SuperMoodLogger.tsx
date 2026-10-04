@@ -33,6 +33,7 @@ import { TagSelector } from './mood/TagSelector';
 import { logger } from '../utils/logger';
 import { getMoodLabel } from '../features/mood/utils';
 import type { AxiosError } from 'axios';
+import { tagLabel } from '../utils/tagLabel';
 
 interface SuperMoodLoggerProps {
   onMoodLogged?: (mood?: number, note?: string) => void;
@@ -861,7 +862,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                                 <div className="flex flex-wrap gap-0.5 mt-0.5">
                                   {mood.tags.slice(0, 2).map((tag) => (
                                     <span key={tag} className="text-[8px] px-1 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full font-medium">
-                                      #{tag}
+                                      #{tagLabel(t, tag)}
                                     </span>
                                   ))}
                                   {mood.tags.length > 2 && (
