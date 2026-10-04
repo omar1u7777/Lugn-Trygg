@@ -421,8 +421,18 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
     ? "w-full min-h-[500px] flex flex-col bg-transparent"
     : "fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-xs p-4";
 
+  /*
+   * flex-1 min-h-0, not h-full.
+   *
+   * The embedded container sets min-h-[500px] and no height. `h-full` resolves
+   * against the parent's HEIGHT, which is auto — so the card collapsed to its
+   * own content and the flex-1 overflow-y-auto track list underneath it was
+   * left with whatever remained, a strip a few pixels tall that could not
+   * scroll. min-h-0 is what lets that inner list actually overflow rather than
+   * forcing its parent to grow.
+   */
   const cardClasses = embedded
-    ? "bg-transparent w-full flex flex-col h-full"
+    ? "bg-transparent w-full flex flex-col flex-1 min-h-0"
     : "bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 animate-fade-in max-h-[95vh] w-full max-w-6xl flex flex-col";
 
   return (
@@ -560,8 +570,24 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                         {currentPlaylist.map((track, index) => (
                           <div
                             key={track.id}
+                            role="button"
+                            tabIndex={0}
+                            aria-pressed={selectedTrack?.id === track.id}
+                            aria-label={getLocalizedText(track)}
                             onClick={() => selectTrack(track, index)}
-                            className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 ${selectedTrack?.id === track.id
+                            /*
+                              These were plain divs with an onClick: absent from
+                              the accessibility tree and unreachable by keyboard,
+                              so the whole library was mouse-only. Space and
+                              Enter are what a real button responds to.
+                            */
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                selectTrack(track, index);
+                              }
+                            }}
+                            className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${selectedTrack?.id === track.id
                               ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-600 shadow-md'
                               : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
                               }`}
@@ -593,12 +619,26 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                   <div className="lg:w-96 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700">
                     <div className={`p-6 h-full flex flex-col ${embedded ? 'px-4' : ''}`}>
                       <div className="text-center mb-6">
-                        <div
-                          className="w-20 h-20 mx-auto mb-4 bg-primary-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg cursor-pointer hover:bg-primary-600 transition-colors"
+                        {/*
+                          A div with an onClick, styled as the largest control
+                          on the page. It had no role, no keyboard access and no
+                          disabled state, so with nothing selected a click did
+                          nothing at all and said nothing about why —
+                          togglePlay returns early without a selectedTrack.
+
+                          The smaller transport button below always had
+                          disabled={!selectedTrack}; this one, the obvious thing
+                          to press, did not.
+                        */}
+                        <button
+                          type="button"
                           onClick={togglePlay}
+                          disabled={!selectedTrack}
+                          aria-label={isPlaying ? t('audio.pause', 'Pausa') : t('audio.play', 'Spela')}
+                          className="w-20 h-20 mx-auto mb-4 bg-primary-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg cursor-pointer hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                         >
                           {isPlaying ? '⏸️' : '▶️'}
-                        </div>
+                        </button>
                         {selectedTrack ? (
                           <div>
                             <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-1 truncate">
