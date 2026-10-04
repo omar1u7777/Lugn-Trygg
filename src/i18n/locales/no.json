@@ -692,7 +692,9 @@
       "activation": "Belønningen aktiveres når vennen din fullfører registreringen",
       "noCash": "Belønninger kan ikke veksles inn i kontanter",
       "changes": "Lugn & Trygg forbeholder seg retten til å endre vilkårene"
-    }
+    },
+    "weeksUnit_one": "uke",
+    "weeksUnit_other": "uker"
   },
   "healthIntegrations": {
     "title": "Helseintegrasjoner (OAuth)",
@@ -765,6 +767,20 @@
       "firstSyncBody": "Den første synkroniseringen kan ta 1–2 minutter. Prøv igjen om en liten stund.",
       "reconnectTitle": "Prøv å koble til på nytt:",
       "reconnectBody": "Klikk «Koble fra» og deretter «Koble til» igjen for å oppdatere autorisasjonen."
+    },
+    "providers": {
+      "google_fit": {
+        "description": "Synkroniser aktivitet, puls og søvndata fra Google Fit"
+      },
+      "fitbit": {
+        "description": "Koble til Fitbit-enheten din for fullstendig helsesporing"
+      },
+      "samsung": {
+        "description": "Synkroniser helsedata fra Samsung Health-appen"
+      },
+      "withings": {
+        "description": "Koble til Withings-enheter for vekt og helsemålinger"
+      }
     }
   },
   "relaxingSounds": {
@@ -2449,5 +2465,90 @@
     "continue": "Fortsett ({{selected}}/{{max}})",
     "save": "Lagre ({{selected}}/{{max}})",
     "close": "Lukk"
+  },
+  "rewardsCatalog": {
+    "ai_insights_pro": {
+      "title": "AI Insights Pro",
+      "description": "Avansert AI-analyse og prognoser"
+    },
+    "badge_collector": {
+      "title": "Merkesamler",
+      "description": "Eksklusivt merke for dedikerte brukere"
+    },
+    "custom_theme": {
+      "title": "Eget tema",
+      "description": "Lås opp eksklusive fargetemaer i appen"
+    },
+    "early_adopter": {
+      "title": "Tidlig bruker",
+      "description": "Eget merke for deg som var med fra starten"
+    },
+    "export_data": {
+      "title": "Dataeksport",
+      "description": "Eksporter alle dataene dine til PDF eller CSV"
+    },
+    "first_mood": {
+      "title": "Første steg",
+      "description": "Logg ditt første humør"
+    },
+    "journal_starter": {
+      "title": "Dagbokdebut",
+      "description": "Skriv ditt første dagbokinnlegg"
+    },
+    "meditation_guru": {
+      "title": "Meditasjonsguru",
+      "description": "Fullfør 50 meditasjoner"
+    },
+    "merch_tshirt": {
+      "title": "Lugn & Trygg T-skjorte",
+      "description": "Eksklusiv t-skjorte (gratis frakt)"
+    },
+    "month_streak": {
+      "title": "En måned med nærvær",
+      "description": "Logg humør 30 dager på rad"
+    },
+    "mood_master": {
+      "title": "Humørmester",
+      "description": "Logg humør 30 dager på rad"
+    },
+    "mood_warrior": {
+      "title": "Humørkjemper",
+      "description": "Logg 100 humørinnlegg"
+    },
+    "premium_1month": {
+      "title": "1 måned Premium",
+      "description": "Tilgang til alle premiumfunksjoner i én måned"
+    },
+    "premium_1week": {
+      "title": "1 uke Premium",
+      "description": "Tilgang til alle premiumfunksjoner i én uke"
+    },
+    "premium_3months": {
+      "title": "3 måneder Premium",
+      "description": "Tilgang til alle premiumfunksjoner i tre måneder"
+    },
+    "premium_month": {
+      "title": "1 måned Premium",
+      "description": "Lås opp alle premiumfunksjoner i 30 dager"
+    },
+    "premium_week": {
+      "title": "1 uke Premium",
+      "description": "Lås opp alle premiumfunksjoner i 7 dager"
+    },
+    "referral_hero": {
+      "title": "Vervehelt",
+      "description": "Inviter 5 venner"
+    },
+    "vip_support": {
+      "title": "VIP-støtte",
+      "description": "Prioritert støtte i én måned"
+    },
+    "week_streak": {
+      "title": "En uke med velvære",
+      "description": "Logg humør 7 dager på rad"
+    }
+  },
+  "aiMusic": {
+    "goodFor": "Passer for:"
   }
 }

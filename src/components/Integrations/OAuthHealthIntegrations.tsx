@@ -186,6 +186,7 @@ const OAuthHealthIntegrations: React.FC = () => {
 
                                 {isConnected && (
                                     <button
+                                        type="button"
                                         onClick={() => handleSync(provider.id)}
                                         disabled={isSyncing}
                                         className="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
@@ -196,8 +197,15 @@ const OAuthHealthIntegrations: React.FC = () => {
                             </div>
 
                             {/* Description */}
+                            {/*
+                              BUG-29: the four provider blurbs were English
+                              while the heading and buttons around them were
+                              Swedish. Translated by the provider's stable id,
+                              with the catalogue's own text as defaultValue so a
+                              provider added later still renders.
+                            */}
                             <p className="text-slate-600 dark:text-slate-400 mb-4">
-                                {provider.description}
+                                {t(`healthIntegrations.providers.${provider.id}.description`, { defaultValue: provider.description })}
                             </p>
 
                             {/* Scopes */}
@@ -233,6 +241,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                             <div className="flex space-x-3">
                                 {isConnected ? (
                                     <button
+                                        type="button"
                                         onClick={() => handleDisconnect(provider.id)}
                                         disabled={isLoading}
                                         className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
@@ -241,11 +250,14 @@ const OAuthHealthIntegrations: React.FC = () => {
                                     </button>
                                 ) : (
                                     <button
+                                        type="button"
                                         onClick={() => handleConnect(provider.id)}
                                         disabled={isLoading}
                                         className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
                                     >
-                                        {isLoading ? '⏳ Ansluter...' : '🔗 Anslut'}
+                                        {isLoading
+                                            ? t('healthIntegrations.connecting', '⏳ Ansluter…')
+                                            : t('healthIntegrations.connect', '🔗 Anslut')}
                                     </button>
                                 )}
                             </div>
@@ -306,6 +318,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                         </p>
                     </div>
                     <button
+                        type="button"
                         onClick={handleAnalyze}
                         disabled={analyzing}
                         className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50 font-medium"

@@ -456,8 +456,16 @@ const RewardsHub: React.FC = () => {
                         <div className="flex items-start justify-between mb-3 sm:mb-4">
                           <div className="flex items-center gap-3">
                             <span className="text-3xl">{reward.icon}</span>
+                            {/*
+                              BUG-30: the catalogue arrives from the backend
+                              with English display strings. The ids are stable,
+                              so it is translated by id — with the server's own
+                              value as defaultValue, so a reward added
+                              server-side still renders, in English, rather than
+                              printing a translation key.
+                            */}
                             <h4 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
-                              {reward.title}
+                              {t(`rewardsCatalog.${reward.id}.title`, { defaultValue: reward.title })}
                             </h4>
                           </div>
                           <span className={`px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-full whitespace-nowrap ml-2 ${affordable && !claimed
@@ -468,7 +476,7 @@ const RewardsHub: React.FC = () => {
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                          {reward.description}
+                          {t(`rewardsCatalog.${reward.id}.description`, { defaultValue: reward.description })}
                         </p>
                         <div className="flex items-center justify-between">
                           <span className="px-2 sm:px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
