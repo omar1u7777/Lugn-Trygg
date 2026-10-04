@@ -81,7 +81,7 @@ scipy==1.17.0
 stripe==15.4.0
 
 # Database & Storage
-google-cloud-firestore==2.23.0
+google-cloud-firestore==2.28.1
 # The gRPC transport under firestore was NOT pinned, so production silently
 # tracked whatever grpcio/google-api-core released last — the same failure the
 # CI tool versions had (see #163). On 2026-08-15 the retention sweep died with
