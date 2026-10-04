@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -21,6 +21,8 @@ import MoodList from './MoodList';
 import WorldClassAIChat from './WorldClassAIChat';
 import WorldClassGamification from './WorldClassGamification';
 import WellnessGoalsOnboarding from './Wellness/WellnessGoalsOnboarding';
+import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useFocusTrap } from './Accessibility/SkipLink';
 import { PremiumGate } from './PremiumGate';
 import { UsageLimitBanner } from './UsageLimitBanner';
 
@@ -122,6 +124,23 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
   const [activeView, setActiveView] = useState<'overview' | 'mood-basic' | 'mood-list' | 'chat' | 'analytics' | 'gamification'>('overview');
   const [showWellnessOnboarding, setShowWellnessOnboarding] = useState(false);
+
+  /*
+   * The goals dialog had role="dialog" and aria-modal="true" but none of what
+   * those promise: focus stayed on BODY, Tab walked out into the page behind,
+   * and Escape did nothing. useFocusTrap is the same hook the mobile menu uses.
+   */
+  const goalsDialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(goalsDialogRef, showWellnessOnboarding);
+
+  useEffect(() => {
+    if (!showWellnessOnboarding) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowWellnessOnboarding(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showWellnessOnboarding]);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -542,15 +561,37 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     <div className="world-class-dashboard relative" aria-busy={loading}>
       {showWellnessOnboarding && resolvedUserId && (
         <div className="fixed inset-0 z-1055 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/50" aria-hidden="true"></div>
+          {/* Clicking the backdrop closes, the same as Escape. */}
           <div
+            className="absolute inset-0 bg-black/50"
+            aria-hidden="true"
+            onClick={() => setShowWellnessOnboarding(false)}
+          ></div>
+          <div
+            ref={goalsDialogRef}
             className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900 rounded-2xl shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-label={t('worldDashboard.wellnessGoalsLabel')}
           >
+            <button
+              type="button"
+              onClick={() => setShowWellnessOnboarding(false)}
+              aria-label={t('wellnessGoals.close')}
+              className="absolute top-4 right-4 z-10 flex items-center justify-center min-h-[44px] min-w-[44px] rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
             <WellnessGoalsOnboarding
               userId={resolvedUserId}
+              /*
+               * "Ändra mål" opens this with goals already set. Without
+               * initialGoals the modal came up empty and told the user
+               * "Fortsätt (0/3)" while they had three — so saving would have
+               * silently replaced their selection with whatever they re-picked.
+               */
+              initialGoals={wellnessGoals}
+              mode={hasWellnessGoals ? 'edit' : 'onboarding'}
               onComplete={(goals) => {
                 logger.info('Wellness goals completed', { goals });
                 setShowWellnessOnboarding(false);

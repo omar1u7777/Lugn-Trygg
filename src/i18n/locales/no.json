@@ -2437,5 +2437,12 @@
     "loadFailed": "Kunne ikke laste personverninnstillingene",
     "exportFailed": "Eksporten mislyktes",
     "deleteFailed": "Slettingen mislyktes"
+  },
+  "wellnessGoals": {
+    "skip": "Hopp over",
+    "saving": "Lagrer…",
+    "continue": "Fortsett ({{selected}}/{{max}})",
+    "save": "Lagre ({{selected}}/{{max}})",
+    "close": "Lukk"
   }
 }

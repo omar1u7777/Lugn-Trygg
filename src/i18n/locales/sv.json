@@ -2437,5 +2437,12 @@
     "loadFailed": "Kunde inte ladda integritetsinställningarna",
     "exportFailed": "Exporten misslyckades",
     "deleteFailed": "Raderingen misslyckades"
+  },
+  "wellnessGoals": {
+    "skip": "Hoppa över",
+    "saving": "Sparar…",
+    "continue": "Fortsätt ({{selected}}/{{max}})",
+    "save": "Spara ({{selected}}/{{max}})",
+    "close": "Stäng"
   }
 }

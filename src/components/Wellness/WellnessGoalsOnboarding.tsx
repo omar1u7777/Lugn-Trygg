@@ -11,15 +11,26 @@ interface WellnessGoalsOnboardingProps {
   onComplete?: (goals: string[]) => void;
   onSkip?: () => void;
   initialGoals?: string[];
+  /**
+   * Onboarding shows first-run copy: "skip" and "continue".
+   * Editing shows "save" and no skip, because there is nothing to skip past —
+   * the user came here deliberately from "Ändra mål" with goals already set.
+   *
+   * An explicit mode rather than inferring from initialGoals.length: a user
+   * editing their goals down to zero is still editing, and would otherwise be
+   * told they were being onboarded.
+   */
+  mode?: 'onboarding' | 'edit';
 }
 
 const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
   userId,
   onComplete,
   onSkip,
-  initialGoals = []
+  initialGoals = [],
+  mode = 'onboarding'
 }) => {
-  const { t: _t } = useTranslation();
+  const { t } = useTranslation();
   const [selectedGoals, setSelectedGoals] = useState<string[]>(initialGoals);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -149,13 +160,13 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
       )}
 
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-        {onSkip && (
+        {onSkip && mode === 'onboarding' && (
           <button
             onClick={onSkip}
             disabled={loading}
             className="w-full sm:w-auto px-8 py-3 text-gray-500 dark:text-gray-400 font-medium hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-colors"
           >
-            Hoppa över
+            {t('wellnessGoals.skip')}
           </button>
         )}
         <button
@@ -168,7 +179,15 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
               : 'bg-linear-to-r from-primary-600 to-indigo-600 hover:scale-105 hover:shadow-xl hover:shadow-primary-500/40'}
           `}
         >
-          {loading ? 'Sparar...' : `Fortsätt (${selectedGoals.length}/${MAX_WELLNESS_GOALS})`}
+          {loading
+            ? t('wellnessGoals.saving')
+            : t(mode === 'edit' ? 'wellnessGoals.save' : 'wellnessGoals.continue', {
+                // Deliberately not named `count`: i18next treats that key as a
+                // pluralisation trigger and would look for _one/_other suffixes
+                // before falling back here.
+                selected: selectedGoals.length,
+                max: MAX_WELLNESS_GOALS,
+              })}
         </button>
       </div>
     </div>

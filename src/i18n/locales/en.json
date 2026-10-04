@@ -2437,5 +2437,12 @@
     "loadFailed": "Failed to load privacy settings",
     "exportFailed": "Export failed",
     "deleteFailed": "Deletion failed"
+  },
+  "wellnessGoals": {
+    "skip": "Skip",
+    "saving": "Saving…",
+    "continue": "Continue ({{selected}}/{{max}})",
+    "save": "Save ({{selected}}/{{max}})",
+    "close": "Close"
   }
 }
