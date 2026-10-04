@@ -290,7 +290,7 @@ export const ClinicalAssessment: React.FC = () => {
           {t('clinicalAssessment.subtitle')}
         </p>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 flex items-start gap-1.5">
-          <InformationCircleIcon className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" aria-hidden="true" />
+          <InformationCircleIcon className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden="true" />
           {t('clinicalAssessment.disclaimer')}
         </p>
       </div>
@@ -467,7 +467,7 @@ export const ClinicalAssessment: React.FC = () => {
                       <ul className="space-y-1">
                         {compositeRisk.risk_factors.map((factor, i) => (
                           <li key={i} className="text-xs text-orange-700 dark:text-orange-400 flex items-start gap-1.5">
-                            <ExclamationTriangleIcon className="w-3 h-3 mt-0.5 flex-shrink-0" /> {factor}
+                            <ExclamationTriangleIcon className="w-3 h-3 mt-0.5 shrink-0" /> {factor}
                           </li>
                         ))}
                       </ul>
@@ -479,7 +479,7 @@ export const ClinicalAssessment: React.FC = () => {
                       <ul className="space-y-1">
                         {compositeRisk.protective_factors.map((factor, i) => (
                           <li key={i} className="text-xs text-green-700 dark:text-green-400 flex items-start gap-1.5">
-                            <CheckCircleIcon className="w-3 h-3 mt-0.5 flex-shrink-0" /> {factor}
+                            <CheckCircleIcon className="w-3 h-3 mt-0.5 shrink-0" /> {factor}
                           </li>
                         ))}
                       </ul>
@@ -504,7 +504,7 @@ export const ClinicalAssessment: React.FC = () => {
                               exists, this degrades to the previous readable
                               form rather than printing a translation key.
                             */}
-                            <InformationCircleIcon className="w-3 h-3 mt-0.5 flex-shrink-0" /> {t(`clinicalAssessment.interventions.${intervention}`, {
+                            <InformationCircleIcon className="w-3 h-3 mt-0.5 shrink-0" /> {t(`clinicalAssessment.interventions.${intervention}`, {
                               defaultValue: intervention.replace(/_/g, ' ').toLowerCase(),
                             })}
                           </li>
@@ -664,7 +664,7 @@ export const ClinicalAssessment: React.FC = () => {
                   {'suicidal_ideation' in result && result.suicidal_ideation && (
                     <div className={`mt-4 p-3 border rounded-lg ${q9HighRisk ? 'bg-red-200 dark:bg-red-900/60 border-red-400 dark:border-red-600' : 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700'}`}>
                       <div className="flex items-start gap-2">
-                        <ExclamationTriangleIcon className="w-5 h-5 text-red-700 dark:text-red-300 mt-0.5 flex-shrink-0" />
+                        <ExclamationTriangleIcon className="w-5 h-5 text-red-700 dark:text-red-300 mt-0.5 shrink-0" />
                         <div>
                           <p className="font-semibold text-red-800 dark:text-red-200">
                             {q9HighRisk ? t('clinicalAssessment.q9HighRiskTitle') : t('clinicalAssessment.q9ModerateRiskTitle')}
@@ -697,7 +697,7 @@ export const ClinicalAssessment: React.FC = () => {
                   <ul className="space-y-2">
                     {result.recommendations.map((rec, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <CheckCircleIcon className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <CheckCircleIcon className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                         <span>{rec}</span>
                       </li>
                     ))}
@@ -708,7 +708,7 @@ export const ClinicalAssessment: React.FC = () => {
                 {'follow_up_timeframe' in result && result.follow_up_timeframe && (
                   <div className="px-5 pb-4">
                     <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 p-3 flex items-center gap-2">
-                      <InformationCircleIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                      <InformationCircleIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
                       <p className="text-sm text-indigo-700 dark:text-indigo-300">
                         {t('clinicalAssessment.followUp.title')}: {t(`clinicalAssessment.followUp.${result.follow_up_timeframe}`)}
                       </p>
@@ -729,7 +729,7 @@ export const ClinicalAssessment: React.FC = () => {
                       <ol className="space-y-2">
                         {[1, 2, 3, 4, 5].map(step => (
                           <li key={step} className="text-sm text-red-700 dark:text-red-300 flex items-start gap-2">
-                            <span className="flex-shrink-0">{t(`clinicalAssessment.safetyPlan.step${step}`)}</span>
+                            <span className="shrink-0">{t(`clinicalAssessment.safetyPlan.step${step}`)}</span>
                           </li>
                         ))}
                       </ol>
