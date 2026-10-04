@@ -71,7 +71,7 @@ const MoodChart: React.FC<MoodChartProps> = ({ data, className }) => {
             <XAxis dataKey="label" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
             <YAxis domain={[1, 10]} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} width={28} />
             <Tooltip
-              formatter={(value: number) => [value.toFixed(1), 'Humör']}
+              formatter={(value) => [Number(value).toFixed(1), 'Humör']}
               contentStyle={{
                 backgroundColor: 'rgba(15,23,42,0.95)',
                 border: '1px solid rgba(148,163,184,0.3)',

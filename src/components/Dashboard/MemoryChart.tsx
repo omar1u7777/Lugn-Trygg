@@ -62,7 +62,7 @@ const MemoryChart: React.FC<MemoryChartProps> = ({ data, className }) => {
             <XAxis dataKey="label" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
             <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} width={28} />
             <Tooltip
-              formatter={(value: number) => [value, 'Inlägg']}
+              formatter={(value) => [Number(value), 'Inlägg']}
               contentStyle={{
                 backgroundColor: 'rgba(15,23,42,0.95)',
                 border: '1px solid rgba(148,163,184,0.3)',

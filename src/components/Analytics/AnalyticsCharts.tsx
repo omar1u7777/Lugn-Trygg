@@ -110,13 +110,14 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
                   borderRadius: '0.5rem',
                   fontSize: '0.85rem',
                 }}
-                formatter={(value: number, name: string) => {
+                formatter={(value, name) => {
                   const labels: Record<string, string> = {
                     prediction: 'Prognos',
                     upper: 'Övre gräns',
                     lower: 'Undre gräns',
                   };
-                  return [value.toFixed(1), labels[name] ?? name];
+                  const key = String(name);
+                  return [Number(value).toFixed(1), labels[key] ?? key];
                 }}
               />
 
