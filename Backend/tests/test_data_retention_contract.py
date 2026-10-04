@@ -597,3 +597,56 @@ class TestGunicornWorkerExitHook:
         with patch.dict('sys.modules', {'src.services.data_retention_service': fake}):
             hook_module.worker_exit(MagicMock(), worker)
         worker.log.warning.assert_called_once()
+
+
+class TestTheUsersOwnRetentionChoiceIsHonoured:
+    """/profile → Integritet offers "Automatically delete data older than
+    retention period" with a 1-24 month slider. The choice was stored and
+    never read: the sweep kept everyone's data for seven years."""
+
+    def _settings_doc(self, settings, exists=True):
+        snap = MagicMock()
+        snap.exists = exists
+        snap.to_dict.return_value = {'privacy_settings': settings}
+        return snap
+
+    def _run(self, service, settings, exists=True):
+        with patch('src.services.data_retention_service.db') as mock_db, \
+             patch.object(service, '_delete_expired_data', return_value=0) as delete:
+            mock_db.collection.return_value.document.return_value.get.return_value = \
+                self._settings_doc(settings, exists)
+            service._process_user_retention('uid')
+        return {c.args[1]: c.args[2] for c in delete.call_args_list}
+
+    def test_opted_in_shortens_the_users_own_content(self, service):
+        periods = self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': 365})
+        for name in ('moods', 'conversations', 'journal_entries', 'voice_recordings', 'insights'):
+            assert periods[name] == 365, name
+
+    def test_records_that_are_not_their_content_keep_the_policy(self, service):
+        periods = self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': 365})
+        for name in ('achievements', 'referrals', 'feedback'):
+            assert periods[name] == service.gdpr_retention_days[name], name
+
+    def test_a_longer_choice_never_extends_the_policy(self, service):
+        periods = self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': 99999})
+        assert periods['notifications'] == service.gdpr_retention_days['notifications']
+        assert periods['moods'] == SEVEN_YEARS_DAYS
+
+    def test_not_opted_in_means_the_policy(self, service):
+        periods = self._run(service, {'autoDeleteOldData': False, 'dataRetentionDays': 30})
+        assert periods['moods'] == SEVEN_YEARS_DAYS
+
+    def test_a_tiny_or_malformed_period_is_bounded(self, service):
+        assert self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': 1})['moods'] == 30
+        assert self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': '30'})['moods'] \
+            == SEVEN_YEARS_DAYS
+        assert self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': True})['moods'] \
+            == SEVEN_YEARS_DAYS
+
+    def test_an_unreadable_preference_deletes_nothing_early(self, service):
+        with patch('src.services.data_retention_service.db') as mock_db, \
+             patch.object(service, '_delete_expired_data', return_value=0) as delete:
+            mock_db.collection.return_value.document.return_value.get.side_effect = RuntimeError('x')
+            service._process_user_retention('uid')
+        assert {c.args[1]: c.args[2] for c in delete.call_args_list}['moods'] == SEVEN_YEARS_DAYS

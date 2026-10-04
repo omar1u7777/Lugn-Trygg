@@ -473,13 +473,56 @@ class DataRetentionService:
                 return
             cursor = batch[-1].id
 
+    # The user's own content, which /profile → Integritet lets them choose to
+    # keep for less than the policy period. Gamification records, referrals
+    # and feedback are not "their data older than N months" in the sense the
+    # setting describes, and stay on the policy period.
+    USER_SHORTENABLE_COLLECTIONS = frozenset({
+        'moods', 'conversations', 'journal_entries', 'voice_recordings',
+        'wellness_activities', 'notifications', 'insights',
+    })
+
+    # The privacy tab's slider runs from one month to two years.
+    MIN_USER_RETENTION_DAYS = 30
+
+    def _user_retention_days(self, user_id: str) -> int | None:
+        """The shorter period the user chose, or None if they did not opt in.
+
+        The privacy tab has offered "Automatically delete data older than
+        retention period" with a 1-24 month slider, and the backend stored the
+        choice, but nothing read it: the sweep applied the seven-year policy to
+        everyone, so a user who turned it on had their data kept regardless.
+        """
+        try:
+            snap = db.collection('users').document(user_id).get(  # type: ignore
+                retry=self.QUERY_RETRY, timeout=self.QUERY_TIMEOUT_SECONDS)
+            if not snap.exists:
+                return None
+            settings = (snap.to_dict() or {}).get('privacy_settings') or {}
+        except Exception as e:
+            # Not knowing the preference means the policy period still applies,
+            # which is the longer one: nothing is deleted early on a guess.
+            logger.warning("Could not read privacy settings for %s: %s", user_id[:8], e)
+            return None
+        if settings.get('autoDeleteOldData') is not True:
+            return None
+        days = settings.get('dataRetentionDays')
+        if isinstance(days, bool) or not isinstance(days, int | float):
+            return None
+        return max(self.MIN_USER_RETENTION_DAYS, int(days))
+
     def _process_user_retention(self, user_id: str) -> dict[str, Any]:
         """Process data retention for a specific user"""
         total_deleted = 0
         collections = []
+        user_days = self._user_retention_days(user_id)
 
         # Process each collection with retention policy
-        for collection_name, retention_days in self.gdpr_retention_days.items():
+        for collection_name, policy_days in self.gdpr_retention_days.items():
+            # A user can shorten retention for their own content, never extend it.
+            retention_days = policy_days
+            if user_days is not None and collection_name in self.USER_SHORTENABLE_COLLECTIONS:
+                retention_days = min(policy_days, user_days)
             try:
                 deleted_count = self._delete_expired_data(user_id, collection_name, retention_days)
                 if deleted_count > 0:
