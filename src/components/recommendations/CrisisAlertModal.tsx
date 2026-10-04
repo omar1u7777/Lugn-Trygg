@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { CRISIS_NUMBERS, CRISIS_TEL } from '../../config/crisisResources';
 
 export const CrisisAlertModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { t } = useTranslation();
@@ -24,10 +25,10 @@ export const CrisisAlertModal: React.FC<{ onClose: () => void }> = ({ onClose })
               {t('recommendations.crisis.callEmergency', '🚨 Ring 112 (Akut)')}
             </a>
             <a
-              href="tel:0900011200"
+              href={CRISIS_TEL.suicideLine}
               className="block w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
             >
-              {t('recommendations.crisis.suicideHotline', '📞 Självmordslinjen: 0900-011 200')}
+              {t('recommendations.crisis.suicideHotline', { suicideLine: CRISIS_NUMBERS.suicideLine })}
             </a>
             <a
               href="tel:1177"

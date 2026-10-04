@@ -491,7 +491,22 @@ export const ClinicalAssessment: React.FC = () => {
                       <ul className="space-y-1">
                         {compositeRisk.suggested_interventions.map((intervention, i) => (
                           <li key={i} className="text-xs text-indigo-700 dark:text-indigo-400 flex items-start gap-1.5">
-                            <InformationCircleIcon className="w-3 h-3 mt-0.5 flex-shrink-0" /> {intervention.replace(/_/g, ' ').toLowerCase()}
+                            {/*
+                              The backend returns constants (CREATE_SAFETY_PLAN,
+                              IMMEDIATE_CRISIS_INTERVENTION…). Stripping the
+                              underscores rendered them as raw English — "create
+                              safety plan" — in a PHQ-9 crisis result, which is
+                              the last place to show a user untranslated
+                              machine output.
+
+                              The old transformation stays as the defaultValue:
+                              if the backend adds a constant before the key
+                              exists, this degrades to the previous readable
+                              form rather than printing a translation key.
+                            */}
+                            <InformationCircleIcon className="w-3 h-3 mt-0.5 flex-shrink-0" /> {t(`clinicalAssessment.interventions.${intervention}`, {
+                              defaultValue: intervention.replace(/_/g, ' ').toLowerCase(),
+                            })}
                           </li>
                         ))}
                       </ul>

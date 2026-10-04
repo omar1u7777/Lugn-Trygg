@@ -9,6 +9,7 @@ import { SparklesIcon, Bars3Icon } from "@heroicons/react/24/solid";
 import MobileMenu from "./MobileMenu";
 import ProfileDropdown from "./ProfileDropdown";
 import LoadingSpinner from "../ui/LoadingSpinner";
+import { FREE_NAV_ITEMS, PREMIUM_NAV_ITEMS, SECONDARY_LINKS } from "../../config/navItems";
 
 // 🎨 Theme Toggle Button - Separerad komponent för DRY-princip
 const ThemeToggleButton = memo<{ className?: string }>(({ className = "" }) => {
@@ -144,6 +145,83 @@ GuestNav.displayName = "GuestNav";
  * - Loading states för minskad osäkerhet
  * - Mobile menu istället för dold scroll
  */
+/**
+ * The sidebar's links, for the hamburger menu.
+ *
+ * The sidebar is `hidden lg:flex`, so below 1024px it is not rendered at all —
+ * and the hamburger held only an /upgrade link and the profile dropdown. Eight
+ * routes were therefore unreachable on a phone: /analytics, /crisis, /feedback,
+ * /integrations, /mood/advanced, /mood/forecast, /referral and /weekly-analysis.
+ *
+ * /crisis is why this is a defect rather than an inconvenience.
+ *
+ * Rendered from the same three arrays the sidebar renders, so a link added
+ * there appears here without anyone remembering to do it twice.
+ */
+const MobileNavLinks = memo<{ onNavigate: () => void }>(({ onNavigate }) => {
+  const { t } = useTranslation();
+  const { pathname } = useLocation();
+
+  const groups = [
+    { key: "free", items: FREE_NAV_ITEMS },
+    { key: "premium", items: PREMIUM_NAV_ITEMS },
+  ];
+
+  const linkClass = (active: boolean) =>
+    `flex items-center gap-3 px-3 py-3 rounded-xl font-medium transition-colors min-h-[44px] ${
+      active
+        ? "bg-[#2c8374] text-white"
+        : "text-[#6d645d] hover:bg-[#f2e4d4] hover:text-[#2f2a24] dark:text-gray-300 dark:hover:bg-slate-800 dark:hover:text-white"
+    }`;
+
+  return (
+    <nav className="flex flex-col gap-1 overflow-y-auto" aria-label={t("navigation.mainNav")}>
+      {groups.map(({ key, items }) => (
+        <React.Fragment key={key}>
+          {items.map((item) => {
+            const active = pathname === item.path;
+            const Icon = active ? item.iconActive : item.icon;
+            const label = t(item.labelKey, item.labelDefault);
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={onNavigate}
+                aria-current={active ? "page" : undefined}
+                className={linkClass(active)}
+              >
+                <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
+                <span className="truncate">{label}</span>
+              </Link>
+            );
+          })}
+        </React.Fragment>
+      ))}
+
+      <hr className="my-2 border-gray-200 dark:border-slate-700" />
+
+      {SECONDARY_LINKS.map((link) => {
+        const active = pathname === link.path;
+        const Icon = link.icon;
+        const label = t(link.labelKey, link.labelDefault);
+        return (
+          <Link
+            key={link.path}
+            to={link.path}
+            onClick={onNavigate}
+            aria-current={active ? "page" : undefined}
+            className={linkClass(active)}
+          >
+            <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+});
+MobileNavLinks.displayName = "MobileNavLinks";
+
 const Navigation: React.FC = () => {
   const { isLoggedIn } = useAuth();
   const { t } = useTranslation();
@@ -196,7 +274,15 @@ const Navigation: React.FC = () => {
 
       {/* Mobile Menu */}
       <MobileMenu isOpen={showMobileMenu} onClose={() => setShowMobileMenu(false)}>
-        {isLoggedIn ? <AuthenticatedNav /> : <GuestNav />}
+        {isLoggedIn ? (
+          <>
+            <MobileNavLinks onNavigate={() => setShowMobileMenu(false)} />
+            <hr className="my-2 border-gray-200 dark:border-slate-700" />
+            <AuthenticatedNav />
+          </>
+        ) : (
+          <GuestNav />
+        )}
       </MobileMenu>
     </>
   );
