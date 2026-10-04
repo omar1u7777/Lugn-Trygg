@@ -59,6 +59,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isPremium, planLabel 
     <div className="relative" ref={dropdownRef}>
       {/* Trigger Button */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:border-[#2c8374] dark:hover:border-[#2c8374] transition-all duration-200 min-h-[44px] ${focusRing}`}
         aria-expanded={isOpen}

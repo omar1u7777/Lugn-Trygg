@@ -846,7 +846,8 @@
       "exercise": "Exercise",
       "food": "Food",
       "weather": "Weather"
-    }
+    },
+    "selectMoodFirst": "Choose how you feel to log it."
   },
   "aiChat": {
     "sanctuary": "Your Sanctuary",

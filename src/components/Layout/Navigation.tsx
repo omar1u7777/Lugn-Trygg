@@ -264,6 +264,7 @@ const Navigation: React.FC = () => {
 
         {/* 📱 Mobile Hamburger Menu Button */}
         <button
+          type="button"
           onClick={() => setShowMobileMenu(true)}
           className={`lg:hidden flex items-center justify-center w-11 h-11 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 text-[#6d645d] dark:text-gray-400 rounded-xl transition-all duration-200 min-h-[44px] min-w-[44px] ${focusRing}`}
           aria-label={t('navigation.openMenu')}

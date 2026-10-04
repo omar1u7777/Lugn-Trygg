@@ -934,7 +934,8 @@
       "exercise": "Träning",
       "food": "Mat",
       "weather": "Väder"
-    }
+    },
+    "selectMoodFirst": "Välj hur du mår för att kunna logga."
   },
   "voiceRecorder": {
     "title": "🎤 Röstinspelning",

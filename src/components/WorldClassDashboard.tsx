@@ -767,7 +767,12 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                             navigate('/recommendations', { state: { goalFilter: goal } });
                           }
                         }}
-                        className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 shrink-0 leading-tight"
+                        /*
+                          Was a bare arrow glyph: 12x17 CSS px of hit area,
+                          against WCAG 2.5.5's 44x44. The arrow keeps its size;
+                          the target grows around it.
+                        */
+                        className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 shrink-0 leading-tight flex items-center justify-center min-w-[44px] min-h-[44px]"
                         title={featureLink ? featureLink.label : t('worldDashboard.seeRecommendations')}
                         aria-label={featureLink ? featureLink.label : t('worldDashboard.seeRecommendations')}
                       >
