@@ -35,6 +35,13 @@ const ReferralProgram: React.FC = () => {
     const [copied, setCopied] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const calculateTier = (referralCount: number): string => {
+        if (referralCount >= 30) return 'Platinum';
+        if (referralCount >= 15) return 'Gold';
+        if (referralCount >= 5) return 'Silver';
+        return 'Bronze';
+    };
+
     const fetchReferralData = useCallback(async () => {
         if (!user?.user_id) {
             setError('User not authenticated');
@@ -87,13 +94,6 @@ const ReferralProgram: React.FC = () => {
             void fetchReferralStats();
         }
     }, [fetchReferralData, fetchReferralStats, user?.user_id]);
-
-    const calculateTier = (referralCount: number): string => {
-        if (referralCount >= 30) return 'Platinum';
-        if (referralCount >= 15) return 'Gold';
-        if (referralCount >= 5) return 'Silver';
-        return 'Bronze';
-    };
 
     const handleCopyCode = () => {
         if (referralData?.referralCode) {

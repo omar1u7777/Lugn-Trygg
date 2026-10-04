@@ -26,6 +26,13 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // React Compiler advisories from react-hooks 7, kept visible as warnings.
+      // set-state-in-effect flags data loading that sets state from an effect,
+      // the pattern most screens here use; moving it to a query layer is a
+      // refactor per screen, not a lint fix. preserve-manual-memoization only
+      // reports where the compiler would skip optimising.
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/preserve-manual-memoization': 'warn',
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },

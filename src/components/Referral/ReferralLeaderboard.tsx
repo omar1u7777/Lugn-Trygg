@@ -21,10 +21,6 @@ const ReferralLeaderboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchLeaderboard();
-    }, []);
-
     const fetchLeaderboard = async () => {
         try {
             setLoading(true);
@@ -39,6 +35,10 @@ const ReferralLeaderboard: React.FC = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchLeaderboard();
+    }, []);
 
     const getRankBadge = (rank: number): string => {
         if (rank === 1) return '🥇';

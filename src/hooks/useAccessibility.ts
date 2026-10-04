@@ -39,6 +39,30 @@ export const useAccessibility = (): AccessibilityState & AccessibilityActions =>
   const liveRegionRef = useRef<HTMLDivElement | null>(null);
   const assertiveLiveRegionRef = useRef<HTMLDivElement | null>(null);
 
+  // Screen reader detection
+  const isScreenReaderActive = (): boolean => {
+    // Check for common screen reader indicators
+    const hasAriaLive = document.querySelector('[aria-live]') !== null;
+    const hasScreenReaderClass = document.body.classList.contains('screen-reader-active');
+
+    // Check for NVDA, JAWS, VoiceOver, etc.
+    const userAgent = navigator.userAgent.toLowerCase();
+    const screenReaderIndicators = [
+      'nvda',
+      'jaws',
+      'voiceover',
+      'talkback',
+      'narrator',
+      'orca'
+    ];
+
+    const hasScreenReaderUA = screenReaderIndicators.some(indicator =>
+      userAgent.includes(indicator)
+    );
+
+    return hasAriaLive || hasScreenReaderClass || hasScreenReaderUA;
+  };
+
   const detectAccessibilityFeatures = useCallback(() => {
     // CRITICAL: Check window exists to prevent TDZ errors in production
     if (typeof window === 'undefined') return;
@@ -163,30 +187,6 @@ export const useAccessibility = (): AccessibilityState & AccessibilityActions =>
       colorSchemeQuery.removeEventListener('change', handlePreferenceChange);
     };
   }, [detectAccessibilityFeatures, setupFocusManagement, setupKeyboardNavigation, setupLiveRegions]);
-
-  // Screen reader detection
-  const isScreenReaderActive = (): boolean => {
-    // Check for common screen reader indicators
-    const hasAriaLive = document.querySelector('[aria-live]') !== null;
-    const hasScreenReaderClass = document.body.classList.contains('screen-reader-active');
-
-    // Check for NVDA, JAWS, VoiceOver, etc.
-    const userAgent = navigator.userAgent.toLowerCase();
-    const screenReaderIndicators = [
-      'nvda',
-      'jaws',
-      'voiceover',
-      'talkback',
-      'narrator',
-      'orca'
-    ];
-
-    const hasScreenReaderUA = screenReaderIndicators.some(indicator =>
-      userAgent.includes(indicator)
-    );
-
-    return hasAriaLive || hasScreenReaderClass || hasScreenReaderUA;
-  };
 
   // Announce to screen reader
   const announceToScreenReader = useCallback((message: string, priority: 'polite' | 'assertive' = 'polite') => {

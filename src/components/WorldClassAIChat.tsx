@@ -273,6 +273,12 @@ const MessageBubble: React.FC<{
 // Main Component
 // ----------------------------------------------------------------------
 
+// Message ids are React keys. A timestamp alone repeats when two messages are
+// created in the same millisecond (a user message and an immediate error).
+let messageSeq = 0;
+const nextMessageId = (prefix: 'ai' | 'err' | 'user'): string =>
+  `${prefix}-${Date.now()}-${++messageSeq}`;
+
 const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const { t, i18n } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
@@ -284,7 +290,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
     onComplete: (fullMessage, crisisDetected) => {
       if (fullMessage.trim()) {
         const aiMsg: ChatMessage = {
-          id: `ai-${Date.now()}`,
+          id: nextMessageId('ai'),
           role: 'assistant',
           content: fullMessage,
           timestamp: new Date(),
@@ -305,7 +311,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
       logger.error('Streaming error:', error);
       clearStreamingMessage();
       setMessages(prev => [...prev, {
-        id: `err-${Date.now()}`,
+        id: nextMessageId('err'),
         role: 'assistant',
         content: t('aiChat.errorFallback'),
         timestamp: new Date()
@@ -398,50 +404,6 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load History
-  useEffect(() => {
-    analytics.page('World Class AI Chat', { component: 'WorldClassAIChat' });
-    loadChatHistory();
-    announceToScreenReader(t('aiChat.welcomeMessage'), 'polite');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Scroll to bottom on initial load after messages are loaded
-  useEffect(() => {
-    if (!loading && messages.length > 0) {
-      const scrollTimer = setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 150);
-      return () => clearTimeout(scrollTimer);
-    }
-  }, [loading, messages.length]);
-
-  // Safety timeout: always clear loading after 5 seconds max to prevent infinite spinner
-  useEffect(() => {
-    const safetyTimer = setTimeout(() => {
-      if (isMountedRef.current) {
-        setLoading(current => {
-          if (current) {
-            logger.warn('Loading safety timeout triggered - forcing loading state to false');
-            return false;
-          }
-          return current;
-        });
-      }
-    }, 5000); // 5 second max loading time
-
-    return () => clearTimeout(safetyTimer);
-  }, []);
-
-  // Auto-scroll - also triggers on currentMessage so streaming text scrolls live
-  useEffect(() => {
-    // Use setTimeout to ensure DOM has updated before scrolling
-    const scrollTimer = setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-    return () => clearTimeout(scrollTimer);
-  }, [messages, isTyping, currentMessage?.content]);
-
   const loadChatHistory = useCallback(async () => {
     if (!user?.user_id) { setLoading(false); return; }
     // getCachedMessages() guards isLoaded internally — returns [] until cache is ready,
@@ -516,6 +478,50 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
     }
   }, [user, getCachedMessages, isMountedRef, executeWithRecovery, isOnline, t, syncWithServer]);
 
+  // Load History
+  useEffect(() => {
+    analytics.page('World Class AI Chat', { component: 'WorldClassAIChat' });
+    loadChatHistory();
+    announceToScreenReader(t('aiChat.welcomeMessage'), 'polite');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Scroll to bottom on initial load after messages are loaded
+  useEffect(() => {
+    if (!loading && messages.length > 0) {
+      const scrollTimer = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [loading, messages.length]);
+
+  // Safety timeout: always clear loading after 5 seconds max to prevent infinite spinner
+  useEffect(() => {
+    const safetyTimer = setTimeout(() => {
+      if (isMountedRef.current) {
+        setLoading(current => {
+          if (current) {
+            logger.warn('Loading safety timeout triggered - forcing loading state to false');
+            return false;
+          }
+          return current;
+        });
+      }
+    }, 5000); // 5 second max loading time
+
+    return () => clearTimeout(safetyTimer);
+  }, []);
+
+  // Auto-scroll - also triggers on currentMessage so streaming text scrolls live
+  useEffect(() => {
+    // Use setTimeout to ensure DOM has updated before scrolling
+    const scrollTimer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+    return () => clearTimeout(scrollTimer);
+  }, [messages, isTyping, currentMessage?.content]);
+
   const handleSendMessage = useCallback(async () => {
     // Use transcript from voice if available, otherwise typed input
     const messageText = (isListening ? transcript : inputMessage).trim();
@@ -532,7 +538,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
     }
 
     const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
+      id: nextMessageId('user'),
       role: 'user',
       content: messageText,
       timestamp: new Date(),

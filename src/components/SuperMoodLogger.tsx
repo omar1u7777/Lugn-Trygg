@@ -204,6 +204,9 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   const [isLogging, setIsLogging] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [recentMoods, setRecentMoods] = useState<RecentMood[]>([]);
+  // When the list was loaded; "Idag"/"Igår" are judged against it, not
+  // against a clock read during render.
+  const [recentMoodsLoadedAt, setRecentMoodsLoadedAt] = useState(Date.now);
   const [isLoadingRecentMoods, setIsLoadingRecentMoods] = useState(false);
   const [limitError, setLimitError] = useState<string | null>(null);
   
@@ -283,6 +286,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
         .slice(0, maxRecentMoods);
 
       setRecentMoods(normalized);
+      setRecentMoodsLoadedAt(Date.now());
     } catch (err) {
       // Ignore abort errors
       if (err instanceof Error && err.name === 'AbortError') return;
@@ -545,10 +549,15 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   }, []);
 
   const groupedMoods = useMemo(() => {
+    const reference = new Date(recentMoodsLoadedAt);
+    const today = reference.toLocaleDateString(locale);
+    // setDate rather than subtracting 24 h, which lands on the wrong day
+    // across a daylight-saving change.
+    reference.setDate(reference.getDate() - 1);
+    const yesterday = reference.toLocaleDateString(locale);
+
     return recentMoods.reduce<RecentMoodGroup[]>((groups, mood) => {
       const dayKey = mood.timestamp.toLocaleDateString(locale);
-      const today = new Date().toLocaleDateString(locale);
-      const yesterday = new Date(Date.now() - 86400000).toLocaleDateString(locale);
 
       let label = dayKey;
       if (dayKey === today) label = t('moodLogger.today', 'Idag');
@@ -562,7 +571,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       group.entries.push(mood);
       return groups;
     }, []);
-  }, [recentMoods, t, locale]);
+  }, [recentMoods, recentMoodsLoadedAt, t, locale]);
 
   const canSubmit = selectedMood !== null;
   const reflectionPrompt = selectedMood !== null ? getReflectionPrompt(selectedMood, t) : '';

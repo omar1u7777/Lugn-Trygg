@@ -152,7 +152,9 @@ export const AIMusicGenerator: React.FC = () => {
   // ── Audio events ──────────────────────────────────────────────────────────
 
   // Keep ref in sync for unmount cleanup
-  trackRef.current = track;
+  useEffect(() => {
+    trackRef.current = track;
+  }, [track]);
 
   const savePlaybackSession = useCallback(() => {
     if (!playbackStartRef.current || !trackRef.current) return;

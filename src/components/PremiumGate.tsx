@@ -5,7 +5,7 @@
  * komma åt premium-funktioner.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSubscription, type SubscriptionFeatures, type SubscriptionTier } from '@/contexts/SubscriptionContext';
 import { LockClosedIcon, SparklesIcon, CheckIcon } from '@heroicons/react/24/outline';
@@ -73,14 +73,17 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
 }) => {
   const { hasFeature, plan, loading, isTrial } = useSubscription();
   const navigate = useNavigate();
+  // Read the clock once per mount rather than on every render, so the
+  // trial countdown cannot flip between renders of the same screen.
+  const [now] = useState(Date.now);
   const trialEndTime =
     plan.trialEndsAt && typeof plan.trialEndsAt.getTime === 'function'
       ? plan.trialEndsAt.getTime()
       : 0;
-  const remainingMs = Math.max(0, trialEndTime - Date.now());
+  const remainingMs = Math.max(0, trialEndTime - now);
   const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
   const hasTrialEndDate = Boolean(plan.trialEndsAt);
-  const hasTrialExpired = hasTrialEndDate && trialEndTime > 0 && trialEndTime <= Date.now();
+  const hasTrialExpired = hasTrialEndDate && trialEndTime > 0 && trialEndTime <= now;
 
   // Visa laddningsindikator medan vi kollar prenumeration
   if (loading) {

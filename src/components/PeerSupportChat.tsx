@@ -177,14 +177,14 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
     };
   }, [session, selectedRoom, pollMessages, updatePresence]);
 
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   // Scroll to bottom on new messages
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   const handleJoinRoom = async (room: ChatRoom) => {
     setLoadingMessages(true);

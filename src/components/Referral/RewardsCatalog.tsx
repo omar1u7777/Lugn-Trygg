@@ -27,10 +27,6 @@ const RewardsCatalog: React.FC<RewardsCatalogProps> = ({ availableWeeks, onRedem
     const [redeeming, setRedeeming] = useState<string | null>(null);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-    useEffect(() => {
-        fetchRewards();
-    }, []);
-
     const fetchRewards = async () => {
         try {
             setLoading(true);
@@ -43,6 +39,10 @@ const RewardsCatalog: React.FC<RewardsCatalogProps> = ({ availableWeeks, onRedem
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchRewards();
+    }, []);
 
     const handleRedeem = async (rewardId: string, cost: number) => {
         if (!user?.user_id) return;

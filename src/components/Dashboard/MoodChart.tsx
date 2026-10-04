@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useId, useMemo } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -20,8 +20,9 @@ interface MoodChartProps {
 }
 
 const MoodChart: React.FC<MoodChartProps> = ({ data, className }) => {
-  // Generate a stable unique gradient ID for this component instance
-  const gradientId = useMemo(() => `moodGradient-${Math.random().toString(36).substring(7)}`, []);
+  // Unique per instance and identical on every render. useId's colons are
+  // stripped so the id is also valid inside url(#...).
+  const gradientId = `moodGradient-${useId().replace(/:/g, '')}`;
 
   const chartData = useMemo(() => {
     // Validate data is an array

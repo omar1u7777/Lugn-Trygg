@@ -135,7 +135,9 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
   }, [timerRemaining, clearTimerInterval, restoreVolume]);
 
   // Keep ref in sync for unmount cleanup
-  selectedTrackRef.current = selectedTrack;
+  useEffect(() => {
+    selectedTrackRef.current = selectedTrack;
+  }, [selectedTrack]);
 
   const savePlaybackSession = useCallback(() => {
     if (!playbackStartRef.current || !selectedTrackRef.current) return;
@@ -258,6 +260,14 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
       }
     }, [audioLoadingFallback, isPlaying, t]);
 
+  const selectTrack = (track: AudioTrack, index: number) => {
+    savePlaybackSession();
+    playbackStartRef.current = new Date();
+    setSelectedTrack(track);
+    setCurrentTrackIndex(index);
+    setAudioError(null);
+  };
+
   const handleNextTrack = useCallback(() => {
     if (currentPlaylist.length === 0) return;
     const nextIndex = (currentTrackIndex + 1) % currentPlaylist.length;
@@ -310,14 +320,6 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
       }
     }
   }, [isPlaying, selectedTrack, t]);
-
-  const selectTrack = (track: AudioTrack, index: number) => {
-    savePlaybackSession();
-    playbackStartRef.current = new Date();
-    setSelectedTrack(track);
-    setCurrentTrackIndex(index);
-    setAudioError(null);
-  };
 
   // Point the player at the chosen track.
   //

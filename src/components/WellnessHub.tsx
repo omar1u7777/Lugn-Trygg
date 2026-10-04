@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   SparklesIcon,
@@ -412,6 +412,17 @@ const WellnessHub: React.FC = () => {
   // Timer Logic
   // ----------------------------------------------------------------------
 
+  const resetMeditationState = () => {
+    meditationTimer.stop();
+    meditationAudio.stop();
+    setIsMeditationActive(false);
+    setSelectedMeditation(null);
+    setMeditationStartTime(null);
+    setIsPaused(false);
+    pausedDurationMsRef.current = 0;
+    pauseStartTimeRef.current = null;
+  };
+
   const completeMeditation = async () => {
     if (!selectedMeditation || !meditationStartTime || !user?.user_id) return;
     if (isSavingMeditationRef.current) return;
@@ -448,22 +459,12 @@ const WellnessHub: React.FC = () => {
     resetMeditationState();
   };
 
-  // Keep ref in sync for unmount cleanup
-  selectedMeditationRef.current = selectedMeditation;
-
-  // Keep ref current so interval callback always calls latest completeMeditation
-  completeMeditationRef.current = completeMeditation;
-
-  const resetMeditationState = () => {
-    meditationTimer.stop();
-    meditationAudio.stop();
-    setIsMeditationActive(false);
-    setSelectedMeditation(null);
-    setMeditationStartTime(null);
-    setIsPaused(false);
-    pausedDurationMsRef.current = 0;
-    pauseStartTimeRef.current = null;
-  };
+  // Keep refs in sync after commit: selectedMeditation for unmount cleanup,
+  // completeMeditation so the interval callback always calls the latest one.
+  useLayoutEffect(() => {
+    selectedMeditationRef.current = selectedMeditation;
+    completeMeditationRef.current = completeMeditation;
+  });
 
   const stopMeditation = async () => {
     // Save partial session if user started and at least some time elapsed
@@ -566,7 +567,9 @@ const WellnessHub: React.FC = () => {
   }, [sleepStoryAudio, sleepStoryTimer]);
 
   // Timer onComplete fires from inside the hook — keep the latest closure.
-  stopSleepStoryRef.current = stopSleepStory;
+  useLayoutEffect(() => {
+    stopSleepStoryRef.current = stopSleepStory;
+  }, [stopSleepStory]);
 
   const playSleepStory = useCallback((story: MeditationOption) => {
     stopSleepStory(true);
@@ -604,23 +607,27 @@ const WellnessHub: React.FC = () => {
     };
   }, []);
 
-  // Save sleep story session to backend when story stops/completes
-  selectedSleepStoryRef.current = selectedSleepStory;
-  sleepStorySaveRef.current = () => {
-    if (!selectedSleepStory || !user?.user_id) return;
-    const story = selectedSleepStory;
-    const elapsedSeconds = story.duration * 60 - sleepStoryTimer.timeLeft;
-    if (elapsedSeconds < 60) return;
-    const durationMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
-    saveMeditationSession({
-      type: 'soundscape',
-      duration: durationMinutes,
-      technique: story.title,
-      completedCycles: 1,
-      notes: 'Completed sleep story'
-    }).catch(e => logger.error('Failed to save sleep story session:', e));
-    setWellnessStats(prev => applySessionCompletionStats(prev, 'soundscape', durationMinutes));
-  };
+  // Save sleep story session to backend when story stops/completes. Both
+  // refs are read from cleanup and stop handlers, so they are refreshed
+  // after every commit rather than during render.
+  useLayoutEffect(() => {
+    selectedSleepStoryRef.current = selectedSleepStory;
+    sleepStorySaveRef.current = () => {
+      if (!selectedSleepStory || !user?.user_id) return;
+      const story = selectedSleepStory;
+      const elapsedSeconds = story.duration * 60 - sleepStoryTimer.timeLeft;
+      if (elapsedSeconds < 60) return;
+      const durationMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
+      saveMeditationSession({
+        type: 'soundscape',
+        duration: durationMinutes,
+        technique: story.title,
+        completedCycles: 1,
+        notes: 'Completed sleep story'
+      }).catch(e => logger.error('Failed to save sleep story session:', e));
+      setWellnessStats(prev => applySessionCompletionStats(prev, 'soundscape', durationMinutes));
+    };
+  });
 
   // ----------------------------------------------------------------------
   // Render

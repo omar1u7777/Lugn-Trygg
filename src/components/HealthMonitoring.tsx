@@ -34,6 +34,50 @@ interface HealthMetrics {
   riskLevel: 'low' | 'medium' | 'high' | 'unknown';
 }
 
+// Static color map to avoid dynamic Tailwind classes that get purged by JIT
+const colorClasses: Record<string, string> = {
+  primary: 'text-primary-600 dark:text-primary-400',
+  secondary: 'text-secondary-600 dark:text-secondary-400',
+  success: 'text-success-600 dark:text-success-400',
+  error: 'text-error-600 dark:text-error-400',
+  warning: 'text-warning-600 dark:text-warning-400',
+  info: 'text-info-600 dark:text-info-400',
+};
+
+// Defined at module scope: declared inside HealthMonitoring it was a new
+// component type on every render, so React remounted each card.
+const MetricCard: React.FC<{
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  icon: React.ReactNode;
+  color?: string;
+  /** Source for this metric could not be reached — show a dash, not a zero. */
+  unavailable?: boolean;
+  loading?: boolean;
+}> = ({ title, value, subtitle, icon, color = 'primary', unavailable, loading }) => (
+  <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+          {title}
+        </p>
+        <p className="text-3xl font-bold text-gray-900 dark:text-white">
+          {loading || unavailable ? '—' : typeof value === 'number' ? value.toLocaleString() : value}
+        </p>
+        {subtitle && (
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {subtitle}
+          </p>
+        )}
+      </div>
+      <div className={colorClasses[color] ?? colorClasses.primary}>
+        {icon}
+      </div>
+    </div>
+  </div>
+);
+
 const HealthMonitoring: React.FC = () => {
   const [metrics, setMetrics] = useState<HealthMetrics>({
     totalUsers: 0,
@@ -81,7 +125,7 @@ const HealthMonitoring: React.FC = () => {
       const systemStatus = health?.status ?? 'unknown';
 
       // Calculate average mood from backend data if available
-      const avgMood = stats?.moods?.averageMood ?? 0;
+      const avgMood = stats?.moods?.averageScore ?? 0;
 
       // Determine risk level from system health
       let riskLevel: HealthMetrics['riskLevel'] = 'low';
@@ -197,47 +241,6 @@ const HealthMonitoring: React.FC = () => {
     });
   };
 
-  // Static color map to avoid dynamic Tailwind classes that get purged by JIT
-  const colorClasses: Record<string, string> = {
-    primary: 'text-primary-600 dark:text-primary-400',
-    secondary: 'text-secondary-600 dark:text-secondary-400',
-    success: 'text-success-600 dark:text-success-400',
-    error: 'text-error-600 dark:text-error-400',
-    warning: 'text-warning-600 dark:text-warning-400',
-    info: 'text-info-600 dark:text-info-400',
-  };
-
-  const MetricCard: React.FC<{
-    title: string;
-    value: string | number;
-    subtitle?: string;
-    icon: React.ReactNode;
-    color?: string;
-    /** Source for this metric could not be reached — show a dash, not a zero. */
-    unavailable?: boolean;
-  }> = ({ title, value, subtitle, icon, color = 'primary', unavailable }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-            {title}
-          </p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">
-            {loading || unavailable ? '—' : typeof value === 'number' ? value.toLocaleString() : value}
-          </p>
-          {subtitle && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              {subtitle}
-            </p>
-          )}
-        </div>
-        <div className={colorClasses[color] ?? colorClasses.primary}>
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="space-y-6 p-4 sm:p-6">
       {/* Admin Dashboard Banner */}
@@ -330,6 +333,7 @@ const HealthMonitoring: React.FC = () => {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
+          loading={loading}
           title="Active Monitoring"
           value={metrics.activeMonitoring}
           subtitle="Users under active health monitoring"
@@ -339,6 +343,7 @@ const HealthMonitoring: React.FC = () => {
         />
 
         <MetricCard
+          loading={loading}
           title="Crisis Alerts"
           value={metrics.crisisAlerts}
           subtitle="Require immediate attention"
@@ -347,6 +352,7 @@ const HealthMonitoring: React.FC = () => {
         />
 
         <MetricCard
+          loading={loading}
           title="Safety Checks"
           value={metrics.safetyChecks}
           subtitle="Completed this week"
@@ -356,6 +362,7 @@ const HealthMonitoring: React.FC = () => {
         />
 
         <MetricCard
+          loading={loading}
           title="Average Mood"
           value={`${metrics.averageMood}/10`}
           subtitle="Community mood score"

@@ -78,10 +78,6 @@ export const AIChatInsights: React.FC = () => {
   // having no insights yet. Track per-tab failures to tell the two apart.
   const [failedTabs, setFailedTabs] = useState({ framework: false, quality: false, progress: false });
 
-  useEffect(() => {
-    fetchInsights();
-  }, []);
-
   const fetchInsights = async () => {
     setLoading(true);
     setError(null);
@@ -131,6 +127,10 @@ export const AIChatInsights: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchInsights();
+  }, []);
 
   const getFrameworkLabel = (fw: string): string => {
     const labels: Record<string, string> = {

@@ -21,13 +21,6 @@ const OAuthHealthIntegrations: React.FC = () => {
     const [success, setSuccess] = useState<string | null>(null);
     const [analysisResult, setAnalysisResult] = useState<HealthMoodAnalysisResult | null>(null);
 
-    useEffect(() => {
-        if (user?.user_id) {
-            loadAllStatuses();
-        }
-         
-    }, [user]);
-
     const loadAllStatuses = async () => {
         try {
             const allStatuses = await oauthHealthService.checkAllStatuses();
@@ -36,6 +29,13 @@ const OAuthHealthIntegrations: React.FC = () => {
             logger.error('Failed to load OAuth statuses:', err);
         }
     };
+
+    useEffect(() => {
+        if (user?.user_id) {
+            loadAllStatuses();
+        }
+         
+    }, [user]);
 
     const handleConnect = async (providerId: string) => {
         setError(null);

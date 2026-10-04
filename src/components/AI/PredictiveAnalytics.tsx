@@ -148,21 +148,25 @@ const PredictionCard = React.memo(({ prediction }: { prediction: PredictionData 
 ));
 PredictionCard.displayName = 'PredictionCard';
 
-const InsightCard = React.memo(({ insight }: { insight: InsightData }) => {
-  const getIcon = () => {
-    switch (insight.type) {
-      case 'trend':
-        return insight.title.toLowerCase().includes('upp') ? ArrowTrendingUpIcon : ArrowTrendingDownIcon;
-      case 'pattern':
-        return LightBulbIcon;
-      case 'recommendation':
-        return ExclamationTriangleIcon;
-      default:
-        return LightBulbIcon;
-    }
-  };
+const insightIconType = (insight: InsightData) => {
+  switch (insight.type) {
+    case 'trend':
+      return insight.title.toLowerCase().includes('upp') ? ArrowTrendingUpIcon : ArrowTrendingDownIcon;
+    case 'pattern':
+      return LightBulbIcon;
+    case 'recommendation':
+      return ExclamationTriangleIcon;
+    default:
+      return LightBulbIcon;
+  }
+};
 
-  const Icon = getIcon();
+// Returns an element, not a component: a component chosen during render is
+// indistinguishable to React from a new component type on every render.
+const renderInsightIcon = (insight: InsightData) =>
+  React.createElement(insightIconType(insight), { className: 'w-5 h-5 flex-shrink-0 mt-0.5' });
+
+const InsightCard = React.memo(({ insight }: { insight: InsightData }) => {
 
   const getSeverityColor = () => {
     switch (insight.severity) {
@@ -178,7 +182,7 @@ const InsightCard = React.memo(({ insight }: { insight: InsightData }) => {
   return (
     <div className={`rounded-lg p-4 border ${getSeverityColor()}`}>
       <div className="flex items-start gap-3">
-        <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
+        {renderInsightIcon(insight)}
         <div>
           <h4 className="font-medium text-gray-900 dark:text-white mb-1">
             {insight.title}

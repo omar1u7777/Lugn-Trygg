@@ -16,10 +16,6 @@ export const ClinicalFlaggingBanner: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => {
-    loadFlags();
-  }, []);
-
   const loadFlags = async () => {
     try {
       setLoading(true);
@@ -31,6 +27,10 @@ export const ClinicalFlaggingBanner: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadFlags();
+  }, []);
 
   if (loading || !flags || !flags.flagged || dismissed) {
     return null;
