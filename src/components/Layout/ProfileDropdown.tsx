@@ -103,9 +103,10 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isPremium, planLabel 
               <span>{t('navigation.profile')}</span>
             </Link>
 
-            {/* Settings Link */}
+            {/* Settings Link: the settings tab, not the same page as "Profil"
+                above (UI audit N-3). */}
             <Link
-              to="/profile"
+              to="/profile?tab=appearance"
               className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               onClick={() => setIsOpen(false)}
               role="menuitem"

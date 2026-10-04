@@ -431,8 +431,16 @@ export const ClinicalAssessment: React.FC = () => {
                     {entry.total_score} {t('clinicalAssessment.points')} — {severityLabel(entry.severity, t)}
                   </span>
                   {entry.type === 'phq9' && (entry as AssessmentHistoryEntry).suicidal_ideation && (
-                    <span className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400 font-medium">
-                      <ExclamationTriangleIcon className="w-3 h-3" /> {t('clinicalAssessment.risk')}
+                    // Marks any answer above 0 on question 9, whatever the
+                    // total: a 3-point "Minimal" result can be that one answer
+                    // alone. Labelled "Risk" with no explanation, it sat next
+                    // to "Minimal" and read as a contradiction (UI audit S-3).
+                    <span
+                      className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400 font-medium"
+                      title={t('clinicalAssessment.q9BadgeHint')}
+                    >
+                      <ExclamationTriangleIcon className="w-3 h-3" aria-hidden="true" /> {t('clinicalAssessment.q9Badge')}
+                      <span className="sr-only">{t('clinicalAssessment.q9BadgeHint')}</span>
                     </span>
                   )}
                 </div>

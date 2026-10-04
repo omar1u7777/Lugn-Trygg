@@ -654,8 +654,10 @@
     "errors": {
       "notLoggedIn": "Du må være innlogget for å sende tilbakemelding",
       "emptyMessage": "Vennligst skriv en melding",
-      "submitFailed": "Noe gikk galt under innsendingen. Prøv igjen."
-    }
+      "submitFailed": "Noe gikk galt under innsendingen. Prøv igjen.",
+      "noRating": "Velg hvor fornøyd du er"
+    },
+    "ratingStar": "{{count}} av 5"
   },
   "referral": {
     "title": "Vervprogram",
@@ -2362,7 +2364,9 @@
       "SOCIAL_ISOLATION": "Ingen sosial kontakt på mer enn 3 dager",
       "LOW_PHQ9": "Lav PHQ-9: {{score}} poeng",
       "LOW_GAD7": "Lav GAD-7: {{score}} poeng"
-    }
+    },
+    "q9Badge": "Spørsmål 9 besvart",
+    "q9BadgeHint": "Du svarte at du har hatt tanker om å skade deg selv (spørsmål 9). Dette markeres uansett totalpoeng."
   },
   "insights": {
     "loading": "Analyserer mønstrene dine…",

@@ -57,22 +57,34 @@ describe('the feedback page does not send users to developer resources', () => {
   });
 });
 
-describe('Live Chat goes to the chat', () => {
-  it('navigates to /ai-chat, a route that exists', () => {
+describe('no Live Chat card (UI audit L-10)', () => {
+  // It opened the mental-health companion at /ai-chat as if it were product
+  // support. Its earlier target, /chatbot, did not exist at all.
+  it('offers no chat button', () => {
+    render(<FeedbackForm />);
+    expect(screen.queryByRole('button', { name: /Starta chatt/i })).toBeNull();
+    expect(screen.queryByText(/support-team/i)).toBeNull();
+  });
+});
+
+describe('the rating starts unchosen (UI audit L-9)', () => {
+  it('does not submit until the user picks a rating', async () => {
+    const api = (await import('../../../api/api')).default;
     render(<FeedbackForm />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Starta chatt/i }));
+    fireEvent.change(screen.getByRole('textbox', { name: /Ditt meddelande/i }), {
+      target: { value: 'Bra app' },
+    });
+    fireEvent.submit(screen.getByRole('textbox', { name: /Ditt meddelande/i }).closest('form')!);
 
-    expect(navigateMock).toHaveBeenCalledWith('/ai-chat');
+    expect(await screen.findByText('Välj hur nöjd du är')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
   });
 
-  it('never navigates to /chatbot', () => {
-    // The dead route. Asserted by name because it is the kind of string that
-    // gets pasted back in from an old branch.
+  it('shows every star unpressed at first', () => {
     render(<FeedbackForm />);
-
-    fireEvent.click(screen.getByRole('button', { name: /Starta chatt/i }));
-
-    expect(navigateMock).not.toHaveBeenCalledWith('/chatbot');
+    const stars = screen.getAllByRole('button', { pressed: false })
+      .filter((b) => /ratingStar|av 5/.test(b.getAttribute('aria-label') ?? ''));
+    expect(stars).toHaveLength(5);
   });
 });

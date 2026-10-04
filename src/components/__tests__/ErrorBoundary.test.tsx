@@ -172,7 +172,7 @@ describe('ErrorBoundary Component', () => {
       </ErrorBoundary>
     );
 
-    expect(screen.getByRole('link', { name: /support/i })).toHaveAttribute('href', 'mailto:support@lugntrygg.se');
+    expect(screen.getByRole('link', { name: /support/i })).toHaveAttribute('href', 'mailto:support@lugn-trygg.se');
   });
 
   it('logs error to console', () => {

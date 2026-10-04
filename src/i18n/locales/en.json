@@ -610,8 +610,10 @@
     "errors": {
       "notLoggedIn": "You must be signed in to send feedback",
       "emptyMessage": "Please write a message",
-      "submitFailed": "Something went wrong while submitting. Please try again."
-    }
+      "submitFailed": "Something went wrong while submitting. Please try again.",
+      "noRating": "Choose how satisfied you are"
+    },
+    "ratingStar": "{{count}} of 5"
   },
   "referral": {
     "title": "Referral programme",
@@ -2416,7 +2418,9 @@
       "SOCIAL_ISOLATION": "No social contact for more than 3 days",
       "LOW_PHQ9": "Low PHQ-9: {{score}} points",
       "LOW_GAD7": "Low GAD-7: {{score}} points"
-    }
+    },
+    "q9Badge": "Question 9 answered",
+    "q9BadgeHint": "You answered that you have had thoughts of harming yourself (question 9). This is marked regardless of the total score."
   },
   "insights": {
     "loading": "Analyzing your patterns…",

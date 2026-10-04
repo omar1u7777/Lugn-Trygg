@@ -654,8 +654,10 @@
     "errors": {
       "notLoggedIn": "Du måste vara inloggad för att skicka feedback",
       "emptyMessage": "Vänligen skriv ett meddelande",
-      "submitFailed": "Något gick fel vid inlämnandet. Försök igen."
-    }
+      "submitFailed": "Något gick fel vid inlämnandet. Försök igen.",
+      "noRating": "Välj hur nöjd du är"
+    },
+    "ratingStar": "{{count}} av 5"
   },
   "referral": {
     "title": "Referensprogram",
@@ -2416,7 +2418,9 @@
       "SOCIAL_ISOLATION": "Ingen social kontakt på mer än 3 dagar",
       "LOW_PHQ9": "Låg PHQ-9: {{score}} poäng",
       "LOW_GAD7": "Låg GAD-7: {{score}} poäng"
-    }
+    },
+    "q9Badge": "Fråga 9 besvarad",
+    "q9BadgeHint": "Du svarade att du haft tankar på att skada dig själv (fråga 9). Det markeras oavsett totalpoäng."
   },
   "insights": {
     "loading": "Analyserar dina mönster…",

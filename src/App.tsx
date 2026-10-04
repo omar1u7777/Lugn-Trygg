@@ -133,6 +133,8 @@ function App() {
 
                     {/* Redirect old /voice-chat to unified /ai-chat */}
                     <Route path="/voice-chat" element={<Navigate to="/ai-chat" replace />} />
+                    {/* /settings was a 404 that people typed or followed (UI audit N-3, N-5). */}
+                    <Route path="/settings" element={<Navigate to="/profile?tab=appearance" replace />} />
 
                     <Route path="*" element={<NotFoundPage />} />
                 </Routes>

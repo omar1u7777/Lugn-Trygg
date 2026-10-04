@@ -6,6 +6,7 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
+import { SUPPORT_EMAIL } from '../config/contact';
 
 
 interface Props {
@@ -242,11 +243,11 @@ class ErrorBoundary extends Component<Props, State> {
                   Om problemet kvarstår, kontakta vår support:
                 </p>
                 <a
-                  href="mailto:support@lugntrygg.se"
+                  href={`mailto:${SUPPORT_EMAIL}`}
                   className="text-primary-600 dark:text-primary-400 hover:underline font-medium"
                   aria-label="Skicka e-post till support"
                 >
-                  📧 support@lugntrygg.se
+                  📧 {SUPPORT_EMAIL}
                 </a>
               </div>
             </div>
