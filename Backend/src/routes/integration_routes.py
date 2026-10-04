@@ -9,15 +9,16 @@ from flask import Blueprint, g, redirect, request
 from google.cloud.firestore import FieldFilter
 
 from src.firebase_config import db
+from src.services import health_sync_service
 from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.health_analytics_service import health_analytics_service
-from src.services.health_data_service import health_data_service
 from src.services.oauth_service import oauth_service
 from src.services.rate_limiting import rate_limit_by_endpoint
 from src.utils.input_sanitization import input_sanitizer
 from src.utils.response_utils import APIResponse
 from src.utils.timestamp_utils import parse_iso_timestamp
+from src.utils.token_crypto import TokenCryptoError, seal, unseal
 
 # Environment detection
 IS_PRODUCTION = os.getenv('FLASK_ENV', 'development').lower() == 'production'
@@ -264,8 +265,9 @@ def oauth_callback(provider):
         token_ref.set({
             'user_id': user_id,
             'provider': provider_clean,
-            'access_token': token_data.get('access_token'),
-            'refresh_token': token_data.get('refresh_token'),
+            # Sealed at rest: these grant ongoing access to health data.
+            'access_token': seal(token_data.get('access_token')),
+            'refresh_token': seal(token_data.get('refresh_token')),
             'expires_in': token_data.get('expires_in'),
             'token_type': token_data.get('token_type'),
             'scope': token_data.get('scope'),
@@ -327,7 +329,10 @@ def oauth_disconnect(provider):
 
         if token_doc.exists:
             token_data = token_doc.to_dict()
-            access_token = token_data.get('access_token')
+            try:
+                access_token = unseal(token_data.get('access_token'))
+            except TokenCryptoError:
+                access_token = None
 
             # Revoke token with provider
             try:
@@ -438,91 +443,24 @@ def sync_health_data_oauth(provider):
         if provider_clean not in sync_providers:
             return APIResponse.bad_request(f'Unsupported provider: {provider_clean}. Must be one of: {", ".join(sync_providers)}')
 
-        logger.info(f"🔵 HEALTH DATA SYNC STARTED for {provider_clean.upper()} (user: {user_id})")
-
-        # Get OAuth token
-        token_ref = db.collection('oauth_tokens').document(f"{user_id}_{provider_clean}")
-        token_doc = token_ref.get()
-
-        if not token_doc.exists:
-            logger.error(f"❌ No OAuth token found for {provider_clean.upper()} (user: {user_id})")
-            return APIResponse.unauthorized(
-                message=f'Not connected to {provider_clean}. Please authorize access first'
-            )
-
-        token_data = token_doc.to_dict()
-        access_token = token_data.get('access_token')
-        refresh_token = token_data.get('refresh_token')
-
-        logger.info(f"✅ OAuth token found for {provider_clean.upper()}")
-
-        if not access_token:
-            logger.error(f"❌ Invalid access token for {provider_clean.upper()}")
-            return APIResponse.unauthorized(
-                message=f'Invalid token for {provider_clean}. Please reconnect to continue'
-            )
-
-        expires_at = parse_iso_timestamp(token_data.get('expires_at'), default_to_now=True)
-
-        # Refresh token if expired
-        if datetime.now(UTC) > expires_at and refresh_token:
-            logger.info(f"🔄 Token expired for {provider_clean.upper()}, refreshing...")
-            new_token_data = oauth_service.refresh_access_token(provider_clean, refresh_token)
-
-            # Update stored token
-            token_ref.update({
-                'access_token': new_token_data.get('access_token'),
-                'expires_in': new_token_data.get('expires_in'),
-                'refreshed_at': datetime.now(UTC).isoformat(),
-                'expires_at': (datetime.now(UTC) + timedelta(seconds=new_token_data.get('expires_in', 3600))).isoformat()
-            })
-
-            logger.info(f"✅ Token refreshed for {provider_clean.upper()}")
-            access_token = new_token_data.get('access_token') or access_token
-
         # Get date range from request - validate
         data = request.get_json(silent=True) or {}
         days_back = data.get('days', 7)
-        if not isinstance(days_back, int) or days_back < 1 or days_back > 90:
+        if not isinstance(days_back, int) or isinstance(days_back, bool) or days_back < 1 or days_back > 90:
             days_back = 7
 
-        end_date = datetime.now(UTC)
-        start_date = end_date - timedelta(days=days_back)
-
-        # Fetch health data based on provider
-        logger.info(f"🔵 Fetching real health data from {provider_clean.upper()} API (days_back={days_back})")
-
-        if provider_clean == 'google_fit':
-            health_data = health_data_service.fetch_google_fit_data(
-                access_token, start_date, end_date
+        logger.info(f"🔵 HEALTH DATA SYNC STARTED for {provider_clean.upper()} (user: {user_id})")
+        try:
+            result = health_sync_service.sync_provider(user_id, provider_clean, days_back)
+        except health_sync_service.NotConnected:
+            return APIResponse.unauthorized(
+                message=f'Not connected to {provider_clean}. Please authorize access first'
             )
-        elif provider_clean == 'fitbit':
-            health_data = health_data_service.fetch_fitbit_data(
-                access_token, start_date, end_date
+        except (health_sync_service.TokenUnusable, TokenCryptoError):
+            return APIResponse.unauthorized(
+                message=f'Invalid token for {provider_clean}. Please reconnect to continue'
             )
-        elif provider_clean == 'samsung':
-            health_data = health_data_service.fetch_samsung_health_data(
-                access_token, start_date, end_date
-            )
-        else:
-            return APIResponse.bad_request(f'Unsupported provider: {provider_clean}')
-
-        logger.info(f"✅ Real health data FETCHED from {provider_clean.upper()}: {list(health_data.keys()) if health_data else 'no data'}")
-
-        # Store health data in Firestore
-        health_ref = db.collection('health_data').document(user_id).collection(provider_clean).document()
-        health_ref.set({
-            'user_id': user_id,
-            'provider': provider_clean,
-            'data': health_data,
-            'synced_at': datetime.now(UTC).isoformat(),
-            'date_range': {
-                'start': start_date.isoformat(),
-                'end': end_date.isoformat()
-            }
-        })
-
-        logger.info(f"✅ Real health data STORED in Firestore for user {user_id} ({provider_clean.upper()})")
+        health_data = result['data']
 
         audit_log(
             event_type="HEALTH_DATA_SYNCED",
@@ -538,7 +476,7 @@ def sync_health_data_oauth(provider):
             data={
                 'provider': provider_clean,
                 'data': health_data,
-                'syncedAt': datetime.now(UTC).isoformat()
+                'syncedAt': result['synced_at']
             },
             message=f'Successfully synced data from {provider_clean}'
         )

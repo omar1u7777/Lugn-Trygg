@@ -37,7 +37,9 @@ class TestIntegrationRoutes:
         data = response.get_json()
         assert 'error' in data
 
-    def test_oauth_callback_stores_tokens(self, client, mock_db, mocker):
+    def test_oauth_callback_stores_tokens(self, client, mock_db, mocker, monkeypatch):
+        from cryptography.fernet import Fernet
+        monkeypatch.setenv('API_KEY_ENCRYPTION_KEY', Fernet.generate_key().decode())
         mocker.patch(
             'src.services.oauth_service.oauth_service._get_state',
             return_value={'provider': 'google_fit', 'user_id': 'testuserid123456789012',
@@ -64,6 +66,12 @@ class TestIntegrationRoutes:
         assert 'success=true' in location or response.status_code in (301, 302)
         token_doc = mock_db.collection('oauth_tokens').document('testuserid123456789012_google_fit')
         token_doc.set.assert_called_once()
+        stored = token_doc.set.call_args.args[0]
+        # Grants to health data are sealed at rest, never stored readable.
+        from src.utils.token_crypto import unseal
+        assert stored['access_token'].startswith('enc:v1:')
+        assert stored['refresh_token'].startswith('enc:v1:')
+        assert unseal(stored['refresh_token']) == 'refresh-token'
 
     def test_oauth_status_connected(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         token_doc = mock_db.collection('oauth_tokens').document('test-user-id_google_fit')
