@@ -7,8 +7,9 @@ import { logger } from '../../utils/logger';
 
 interface LeaderboardEntry {
     rank: number;
-    userId: string;
+    /** A stable pseudonym; the board never carries real names or user ids. */
     name: string;
+    isCurrentUser?: boolean;
     successfulReferrals: number;
     rewardsEarned: number;
     tier: string;
@@ -95,8 +96,9 @@ const ReferralLeaderboard: React.FC = () => {
                 <div className="space-y-4">
                     {leaderboard.map((entry) => (
                         <div
-                            key={entry.userId}
-                            className={`p-4 rounded-lg ${
+                            key={entry.rank}
+                            aria-current={entry.isCurrentUser ? 'true' : undefined}
+                            className={`p-4 rounded-lg ${entry.isCurrentUser ? 'ring-2 ring-primary-500 ' : ''}${
                                 isTopThree(entry.rank)
                                     ? 'bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 shadow-md'
                                     : 'bg-gray-50 dark:bg-gray-800/50'

@@ -295,6 +295,34 @@
       }
 
       var inlineHero = typeof document !== 'undefined' ? document.getElementById('inline-hero') : null;
+
+      /*
+       * The crisis route skips the warm-up entirely.
+       *
+       * #inline-hero is a pre-hydration splash shown on every route until React
+       * mounts — around five seconds, carrying marketing copy ("Hitta lugn,
+       * logga humör och få AI-stöd redan innan appen är helt igång"). On /crisis
+       * that puts a five-second advert in front of a page whose only purpose is
+       * reaching a helpline quickly. The delay is a safety defect there and a
+       * perceived-performance win everywhere else, so it is removed by route
+       * rather than removed outright.
+       *
+       * Done here, before first paint, so the hero never becomes visible at all
+       * — hiding it from React would already be too late.
+       */
+      var isCrisisRoute = typeof location !== 'undefined'
+        && /^\/crisis(\/|$)/.test(location.pathname || '');
+      if (isCrisisRoute) {
+        if (inlineHero && inlineHero.parentNode) {
+          inlineHero.parentNode.removeChild(inlineHero);
+        }
+        inlineHero = null;
+        var crisisLoader = document.getElementById('initial-loader');
+        if (crisisLoader && crisisLoader.parentNode) {
+          crisisLoader.parentNode.removeChild(crisisLoader);
+        }
+      }
+
       var inlineHeroRemoved = !inlineHero;
       var automationFlag = typeof document !== 'undefined' && document.documentElement.classList.contains('no-initial-loader');
       var userAgent = (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent : '';

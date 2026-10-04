@@ -354,6 +354,79 @@ describe('response interceptor', () => {
       getSpy.mockRestore();
     });
 
+    // A wrong current password is not an expired session. Refreshing and
+    // replaying re-sends the same wrong password, and both endpoints carry
+    // @rate_limit_by_endpoint on the backend — so one typo spent two attempts
+    // against the lockout allowance.
+    it.each([
+      '/api/v1/auth/change-password',
+      '/api/v1/auth/change-email',
+    ])('does not refresh or replay a 401 from %s', async (url) => {
+      const { rejected } = getResponseInterceptorHandlers();
+      const postSpy = vi.spyOn(api, 'post');
+      const error = {
+        config: { url, method: 'post', headers: {}, startTime: undefined },
+        response: {
+          status: 401,
+          statusText: 'Unauthorized',
+          // APIResponse.unauthorized — the shape a handler returns.
+          data: { success: false, error: 'UNAUTHORIZED', message: 'Current password is incorrect' },
+          headers: {},
+        },
+        request: {},
+        message: '401',
+        isAxiosError: true,
+      };
+
+      await expect(rejected(error)).rejects.toBeDefined();
+      expect(postSpy).not.toHaveBeenCalled();
+      postSpy.mockRestore();
+    });
+
+    // The other half of the rule, and the more expensive one to get wrong.
+    // Both endpoints sit behind @jwt_required, so a 401 from them can equally
+    // mean the 15-minute access token expired while the user was reading the
+    // settings page. Matching on the URL alone would suppress the refresh
+    // here too, and tell someone with the RIGHT password that it was wrong.
+    it.each([
+      ['Token expired'],
+      ['Missing or invalid Authorization header'],
+    ])('still refreshes when change-password 401s with %s', async (message) => {
+      const postSpy = vi.spyOn(api, 'post').mockResolvedValueOnce({
+        data: { data: { accessToken: 'refreshed-token' } },
+      } as any);
+      vi.spyOn(api, 'request').mockResolvedValueOnce({ data: { ok: true } } as any);
+
+      const { rejected } = getResponseInterceptorHandlers();
+      const error = {
+        config: {
+          url: '/api/v1/auth/change-password',
+          method: 'post',
+          headers: {},
+          startTime: undefined,
+          _retry: false,
+        },
+        response: {
+          status: 401,
+          statusText: 'Unauthorized',
+          // jwt_required — a bare message, no machine-readable code.
+          data: { error: message },
+          headers: {},
+        },
+        request: {},
+        message: '401',
+        isAxiosError: true,
+      };
+
+      try {
+        await rejected(error);
+      } catch {
+        // The refresh chain is not fully mocked; only that it was ENTERED matters.
+      }
+      expect(postSpy).toHaveBeenCalled();
+      postSpy.mockRestore();
+    });
+
     it('skips 401 handling for auth/refresh endpoint', async () => {
       const { rejected } = getResponseInterceptorHandlers();
       const error = {
@@ -391,6 +464,20 @@ describe('request interceptor edge cases', () => {
     // Authorization header from token storage should be set
     expect(result.headers['Authorization']).toBe('Bearer mock-access-token');
     getSpy.mockRestore();
+  });
+
+  // The tempting fix for the 401 replay was to add these two to
+  // SESSION_ENDPOINTS. That list also drives the CSRF bypass, so it would have
+  // stripped the token from the only two endpoints that change credentials.
+  it('still sends a CSRF token to change-password', async () => {
+    const fulfilled = getRequestInterceptorFulfilled();
+    const config = {
+      url: '/api/v1/auth/change-password',
+      method: 'post',
+      headers: new axios.AxiosHeaders(),
+    };
+    const result = await fulfilled(config as any);
+    expect(result.headers['X-CSRF-Token']).toBeDefined();
   });
 
   it('skips CSRF header when already set', async () => {
