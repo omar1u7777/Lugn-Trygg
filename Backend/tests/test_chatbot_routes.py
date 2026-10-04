@@ -10,6 +10,8 @@ Response envelope:
 """
 from unittest.mock import Mock, patch
 
+import pytest
+
 from src.services.subscription_service import SubscriptionLimitError
 
 # ---------------------------------------------------------------------------
@@ -1153,8 +1155,10 @@ class TestUserProfileContext:
         assert "GAD-7" in result
 
     @patch('src.firebase_config.db')
-    def test_fetch_user_profile_context_empty_when_no_data(self, mock_db):
-        """Test that _fetch_user_profile_context returns empty string when no user data."""
+    def test_fetch_user_profile_context_without_scores_forbids_citing_any(self, mock_db):
+        """No stored assessments used to produce an empty block, and the model
+        filled the gap with scores quoted by its own earlier replies."""
+        from src.services.ai.conversation_engine import CLINICAL_SCORES_ABSENT_RULE
         from src.services.ai_service import AIServices
 
         mock_user_doc = Mock()
@@ -1165,7 +1169,33 @@ class TestUserProfileContext:
         ai = AIServices.__new__(AIServices)
         result = ai._fetch_user_profile_context("nonexistent_user")
 
-        assert result == ""
+        assert CLINICAL_SCORES_ABSENT_RULE in result
+        assert "Senaste PHQ-9" not in result
+
+    @patch('src.firebase_config.db')
+    def test_fetch_user_profile_context_marks_scores_authoritative_and_dated(self, mock_db):
+        """The chat told a user whose latest PHQ-9 was 3 that it was 7: the
+        older score lived on in the conversation history. The profile block
+        must date the score and outrank anything quoted earlier."""
+        from src.services.ai.conversation_engine import CLINICAL_SCORES_AUTHORITY_RULE
+        from src.services.ai_service import AIServices
+
+        mock_user_doc = Mock()
+        mock_user_doc.exists = True
+        mock_user_doc.to_dict.return_value = {"name": "Test User"}
+        mock_db.collection.return_value.document.return_value.get.return_value = mock_user_doc
+        phq9 = Mock()
+        phq9.to_dict.return_value = {
+            "type": "phq9", "total_score": 3, "severity": "Minimal",
+            "timestamp": "2026-08-23T22:12:00+00:00",
+        }
+        mock_db.collection.return_value.document.return_value.collection.return_value.order_by.return_value.limit.return_value.stream.return_value = [phq9]
+
+        ai = AIServices.__new__(AIServices)
+        result = ai._fetch_user_profile_context("test_user_id")
+
+        assert "Senaste PHQ-9 (depression): 3 p — Minimal (ifylld 2026-08-23)" in result
+        assert CLINICAL_SCORES_AUTHORITY_RULE in result
 
     @patch('src.firebase_config.db')
     def test_build_enhanced_system_prompt_includes_profile(self, mock_db):
@@ -1194,3 +1224,22 @@ class TestUserProfileContext:
         assert "Namn" in prompt
         assert "svenska" in prompt
 
+
+
+class TestAssessmentDate:
+    @pytest.mark.parametrize("value,expected", [
+        ("2026-08-23T22:12:00+00:00", "2026-08-23"),
+        ("2026-08-23", "2026-08-23"),
+        ("not a date", ""),
+        (None, ""),
+        (12345, ""),
+    ])
+    def test_formats_stored_timestamps(self, value, expected):
+        from src.services.ai.conversation_engine import _assessment_date
+        assert _assessment_date(value) == expected
+
+    def test_accepts_native_datetimes(self):
+        from datetime import UTC, datetime
+
+        from src.services.ai.conversation_engine import _assessment_date
+        assert _assessment_date(datetime(2026, 7, 8, 9, 0, tzinfo=UTC)) == "2026-07-08"

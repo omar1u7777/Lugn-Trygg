@@ -25,6 +25,7 @@ crisis-queue poll loop can never leak into a pytest session.
 import logging
 import os
 import sys
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -90,27 +91,52 @@ def start_background_services(context: str) -> list[str]:
     return started
 
 
-def run_worker_bootstrap(worker_pid: int | None = None) -> None:
+def run_worker_bootstrap(worker_pid: int | None = None) -> threading.Thread | None:
     """Per-worker bootstrap, called from Gunicorn's post_worker_init hook.
 
     Runs INSIDE the forked worker process, after the (preloaded) app has been
     inherited. Everything Firestore-touching that used to run at import time
     in the arbiter happens here instead, per process.
+
+    The work runs on a background thread and this returns at once. A worker
+    serves nothing until post_worker_init returns, and this used to block it
+    on a Firestore warmup (up to 10 s) and a seeding transaction (no deadline
+    at all). With one worker per instance that is an outage on every
+    max_requests recycle and every deploy, as long as Firestore takes to
+    answer. Nothing here has to finish before the first request: the warmup
+    only saves the first query's channel setup, and the seeding is
+    non-critical.
     """
     if is_test_environment():
-        return
+        return None
 
-    # 1. Per-process Firestore warmup — first RPC creates THIS process's own
-    #    gRPC channel (the arbiter never issued one, so nothing fork-tainted
-    #    is inherited).
+    # Long-running consumers first, on the calling thread: starting them only
+    # spawns threads, and they must not wait behind the Firestore calls below.
+    # The crisis queue's transactional claims and the schedulers' distributed
+    # locks make N concurrent instances safe, and worker recycling gets
+    # automatic replacement consumers.
+    start_background_services(context=f"gunicorn-worker-{worker_pid}")
+
+    thread = threading.Thread(
+        target=_warm_and_seed, args=(worker_pid,),
+        name='worker-bootstrap', daemon=True,
+    )
+    thread.start()
+    return thread
+
+
+def _warm_and_seed(worker_pid: int | None) -> None:
+    # Per-process Firestore warmup — first RPC creates THIS process's own
+    # gRPC channel (the arbiter never issued one, so nothing fork-tainted is
+    # inherited).
     try:
         from src.firebase_config import warmup_firestore
         warmup_firestore()
     except Exception as e:
         logger.warning("Worker %s Firestore warmup failed: %s", worker_pid, e)
 
-    # 2. One-off data seeding, claimed by exactly one worker per 6h window so
-    #    N workers don't all replay it on every deploy.
+    # One-off data seeding, claimed by exactly one worker per 6h window so N
+    # workers don't all replay it on every deploy.
     try:
         from src.services.distributed_lock import FirestoreLeaseLock
         if FirestoreLeaseLock("challenges_seed").try_claim_period(6 * 3600):
@@ -120,8 +146,3 @@ def run_worker_bootstrap(worker_pid: int | None = None) -> None:
     except Exception as e:
         logger.warning("Worker %s challenge seeding failed (non-critical): %s", worker_pid, e)
 
-    # 3. Long-running consumers — every worker runs them; the crisis queue's
-    #    transactional claims and the schedulers' distributed locks make N
-    #    concurrent instances safe, and worker recycling gets automatic
-    #    replacement consumers.
-    start_background_services(context=f"gunicorn-worker-{worker_pid}")

@@ -15,6 +15,7 @@ import {
   UsersIcon
 } from '@heroicons/react/24/outline';
 import api from '@/api/api';
+import { API_ENDPOINTS } from '@/api/constants';
 import useAuth from '@/hooks/useAuth';
 import { logger } from '@/utils/logger';
 
@@ -86,10 +87,14 @@ export const AIChatInsights: React.FC = () => {
     setError(null);
     try {
       // Fetch all three types of analysis in parallel
+      // Paths come from API_ENDPOINTS, not raw strings. These three were
+      // written without the /api/v1 prefix every route has carried since the
+      // versioning move, so all three 404'd and the panel showed "Kunde inte
+      // hämta insikter" permanently.
       const [frameworkRes, qualityRes, progressRes] = await Promise.allSettled([
-        api.get('/chatbot/analysis/framework'),
-        api.get('/chatbot/analysis/quality'),
-        api.get('/chatbot/analysis/progress')
+        api.get(API_ENDPOINTS.CHATBOT.ANALYSIS_FRAMEWORK),
+        api.get(API_ENDPOINTS.CHATBOT.ANALYSIS_QUALITY),
+        api.get(API_ENDPOINTS.CHATBOT.ANALYSIS_PROGRESS)
       ]);
 
       const frameworkOk = frameworkRes.status === 'fulfilled' && frameworkRes.value.data?.success;

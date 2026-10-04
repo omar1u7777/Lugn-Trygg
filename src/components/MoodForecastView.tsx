@@ -22,6 +22,7 @@ import {
 } from '@heroicons/react/24/outline';
 import useAuth from '../hooks/useAuth';
 import api from '../api/api';
+import { API_ENDPOINTS } from '../api/constants';
 import { logger } from '../utils/logger';
 import { format } from 'date-fns';
 import { sv } from 'date-fns/locale';
@@ -64,7 +65,12 @@ export const MoodForecastView: React.FC = () => {
     setError(null);
     
     try {
-      const response = await api.get(`/advanced-mood/forecast?days=${days}&include_patterns=true`);
+      // Was `/advanced-mood/forecast` — missing the /api/v1 prefix every route
+      // carries, so it 404'd and the page rendered the raw API error string
+      // "Resursen kunde inte hittas" as its heading.
+      const response = await api.get(
+        `${API_ENDPOINTS.ADVANCED_MOOD.FORECAST}?days=${days}&include_patterns=true`
+      );
       
       if (response.data?.success) {
         const data = response.data.data;

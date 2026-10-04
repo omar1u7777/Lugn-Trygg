@@ -328,8 +328,9 @@ class AIServices:
             user_message, conversation_history, user_id
         )
 
-    def _build_enhanced_system_prompt(self, user_message: str, user_id: str | None = None) -> str:
-        return self._conversation.build_enhanced_system_prompt(user_message, user_id)
+    def _build_enhanced_system_prompt(self, user_message: str, user_id: str | None = None,
+                                      conversation_history: list[dict] | None = None) -> str:
+        return self._conversation.build_enhanced_system_prompt(user_message, user_id, conversation_history)
 
     def _fetch_user_profile_context(self, user_id: str) -> str:
         return self._conversation.fetch_user_profile_context(user_id)

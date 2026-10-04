@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 
 const AnalyticsChartsLazy = lazy(() => import('../Analytics/AnalyticsCharts'));
 const PredictiveAnalyticsLazy = lazy(() => import('../AI/PredictiveAnalytics'));
