@@ -318,7 +318,7 @@
     "negative": "Negative",
     "positive": "Positive",
     "valence": {
-      "label": "Valence (Pleasant ↔ Unpleasant)",
+      "label": "Valence (Unpleasant ↔ Pleasant)",
       "min": "Unpleasant",
       "max": "Pleasant",
       "unpleasant": "Unpleasant",

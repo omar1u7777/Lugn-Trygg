@@ -280,7 +280,14 @@ const FeedbackForm: React.FC = () => {
                         type="submit"
                         variant="primary"
                         size="lg"
-                        disabled={loading}
+                        /*
+                          Was disabled={loading} alone, so "Skicka feedback"
+                          offered to submit an empty message. The handler
+                          already refuses one — this just stops the button
+                          from promising otherwise. Same shape as BUG-38 on
+                          the registration form.
+                        */
+                        disabled={loading || !feedback.message.trim()}
                         className="flex items-center gap-2 px-8"
                     >
                         {loading ? (

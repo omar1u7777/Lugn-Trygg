@@ -318,7 +318,7 @@
     "negative": "Negativ",
     "positive": "Positiv",
     "valence": {
-      "label": "Valens (Behagelig ↔ Ubehagelig)",
+      "label": "Valens (Ubehagelig ↔ Behagelig)",
       "min": "Ubehagelig",
       "max": "Behagelig",
       "unpleasant": "Ubehagelig",

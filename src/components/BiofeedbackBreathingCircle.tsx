@@ -154,7 +154,7 @@ export const BiofeedbackBreathingCircle: React.FC<BiofeedbackBreathingCircleProp
         </button>
         {showDisclaimer && (
           <div className="px-4 pb-4 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
-            {t('breathing.medical_disclaimer', 'Andningsövningar är ett komplement till medicinsk behandling, inte en ersättning. Om du känner dig oroad, matt, yrsel eller andra symtom under övningen - AVBRYT OMEDELBAR och konsultera en läkare.')}
+            {t('breathing.medical_disclaimer')}
           </div>
         )}
       </div>

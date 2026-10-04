@@ -358,6 +358,19 @@ const LoginForm = () => {
                   🔒
                 </span>
                 {t('loginForm.passwordLabel', 'Lösenord')}
+                {/*
+                  The e-mail field goes through the shared Input, which renders
+                  this marker from its `required` prop. The password field is a
+                  hand-written label and had none — so the form marked one of
+                  two mandatory fields, which reads as the other being optional.
+                  Same markup as Input's, deliberately.
+                */}
+                <span
+                  className="text-error-500 ml-1"
+                  aria-label={t('common.requiredField', 'obligatoriskt fält')}
+                >
+                  *
+                </span>
               </label>
               <PasswordInput
                 id="password"
