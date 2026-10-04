@@ -2385,7 +2385,9 @@
     "generate": "Generera insikter",
     "recommendation": "Rekommendation",
     "retryLater": "Försök igen senare",
-    "error": "Kunde inte hämta insikter just nu. Försök igen."
+    "error": "Kunde inte hämta insikter just nu. Försök igen.",
+    "allHandled": "Du har hanterat alla dina insikter",
+    "allHandledHint": "Nya insikter dyker upp allteftersom du fortsätter logga ditt mående."
   },
   "dailyInsights": {
     "minMoodsRequired": "Minst 3 mood-loggar behövs för att generera insikter.",

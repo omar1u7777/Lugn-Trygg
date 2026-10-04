@@ -2385,7 +2385,9 @@
     "generate": "Generate insights",
     "recommendation": "Recommendation",
     "retryLater": "Try again later",
-    "error": "Could not fetch insights right now. Please try again."
+    "error": "Could not fetch insights right now. Please try again.",
+    "allHandled": "You have handled all your insights",
+    "allHandledHint": "New insights appear as you keep logging how you feel."
   },
   "dailyInsights": {
     "minMoodsRequired": "At least 3 mood logs are needed to generate insights.",

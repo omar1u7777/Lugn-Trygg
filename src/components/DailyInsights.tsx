@@ -70,6 +70,17 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [insights, setInsights] = useState<BackendInsight[]>([]);
+  /*
+   * "No insights right now" and "not enough data yet" are different states, and
+   * this view showed the second one for both.
+   *
+   * Dismissing the last insight dropped the user into an empty state asserting
+   * "Minst 3 mood-loggar behövs" — to someone who had just been reading
+   * insights generated from those very logs, and moments after the page itself
+   * had said "Du har loggat ditt mående tre gånger". Three different answers to
+   * the same question within seconds.
+   */
+  const [dismissedAny, setDismissedAny] = useState(false);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -174,6 +185,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
     setActionStates(s => ({ ...s, [insightId]: 'loading' }));
     try {
       await dismissInsight(insightId, abortControllerRef.current?.signal);
+      setDismissedAny(true);
       setInsights(prev => prev.filter(i => i.insight_id !== insightId));
       trackEvent('insight_dismissed', { userId, insightId });
     } catch (err) {
@@ -201,7 +213,8 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
       // Remove after short delay to show confirmation
       const timeoutId = setTimeout(() => {
         if (isMounted.current) {
-          setInsights(prev => prev.filter(i => i.insight_id !== insightId));
+          setDismissedAny(true);
+      setInsights(prev => prev.filter(i => i.insight_id !== insightId));
           setActionStates(s => { const n = { ...s }; delete n[insightId]; return n; });
         }
         delete timeoutRef.current[insightId];
@@ -250,14 +263,23 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
       <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 text-center space-y-4">
         <LightBulbIcon className="w-10 h-10 text-teal-300 mx-auto" />
         <p className="text-base font-semibold text-gray-700 dark:text-gray-200">
-          {t('insights.noInsights', 'Inga insikter just nu')}
+          {dismissedAny
+            ? t('insights.allHandled')
+            : t('insights.noInsights', 'Inga insikter just nu')}
         </p>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          {t('insights.noInsightsHint', 'Logga ditt mående regelbundet så genereras personliga insikter efter hand.')}
+          {dismissedAny
+            ? t('insights.allHandledHint')
+            : t('insights.noInsightsHint', 'Logga ditt mående regelbundet så genereras personliga insikter efter hand.')}
         </p>
-        <p className="text-xs text-gray-400 dark:text-gray-500">
-          {t('dailyInsights.minMoodsRequired')}
-        </p>
+        {/*
+          dailyInsights.minMoodsRequired ("Minst 3 mood-loggar behövs") used to
+          sit here unconditionally. This component receives only a userId — it
+          has no idea how many logs the user has, so it was asserting a
+          requirement it could not check, and contradicting the backend's own
+          message when it was wrong. Removed rather than made conditional:
+          there is nothing here to make it conditional ON.
+        */}
         <button
           onClick={loadInsights}
           disabled={generating}
