@@ -18,6 +18,13 @@ vi.mock('../../services/analytics.lazy', () => ({
   },
 }));
 
+// The logger reports asynchronously; a report still pending when this file
+// finished made Vitest close the worker mid-log ("EnvironmentTeardownError:
+// Closing rpc while onUserConsoleLog was pending") and fail the whole run.
+vi.mock('../../utils/logger', () => ({
+  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}));
+
 // Mock console.error to avoid test output pollution
 const originalConsoleError = console.error;
 beforeAll(() => {
