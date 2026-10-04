@@ -121,7 +121,7 @@ const ReferralProgram: React.FC = () => {
         const shareUrls: { [key: string]: string } = {
             whatsapp: `https://wa.me/?text=${encodedMessage}%20${encodedLink}`,
             facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedLink}`,
-            twitter: `https://twitter.com/intent/tweet?text=${encodedMessage}&url=${encodedLink}`,
+            twitter: `https://x.com/intent/tweet?text=${encodedMessage}&url=${encodedLink}`,
             email: `mailto:?subject=${encodeURIComponent(t('referral.shareSubject', 'Gå med i Lugn & Trygg'))}&body=${encodedMessage}%20${encodedLink}`
         };
 
@@ -362,8 +362,9 @@ const ReferralProgram: React.FC = () => {
                             onClick={() => handleShare('twitter')}
                             className="flex flex-col items-center gap-2 p-4 rounded-lg bg-sky-50 dark:bg-sky-900/20 hover:bg-sky-100 dark:hover:bg-sky-900/30 text-sky-700 dark:text-sky-300 transition-colors"
                         >
-                            <span className="text-3xl">🐦</span>
-                            <span className="font-semibold">Twitter</span>
+                            {/* Renamed to X in 2023. The bird went with it. */}
+                            <span className="text-3xl">𝕏</span>
+                            <span className="font-semibold">X</span>
                         </button>
                         <button
                             onClick={() => handleShare('email')}
