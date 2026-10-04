@@ -108,9 +108,9 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
       >
         <div className={`${bgClass} border rounded-lg shadow-lg p-4 flex items-start gap-3`}>
           {isSyncing ? (
-            <CloudArrowUpIcon className={`h-6 w-6 ${iconClass} flex-shrink-0`} aria-hidden="true" />
+            <CloudArrowUpIcon className={`h-6 w-6 ${iconClass} shrink-0`} aria-hidden="true" />
           ) : (
-            <CloudIcon className={`h-6 w-6 ${iconClass} flex-shrink-0`} aria-hidden="true" />
+            <CloudIcon className={`h-6 w-6 ${iconClass} shrink-0`} aria-hidden="true" />
           )}
           
           <div className="flex-1 text-sm text-gray-900 dark:text-white">
@@ -134,7 +134,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
           {!isOffline && (
             <button
               onClick={() => setShowAlert(false)}
-              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 flex-shrink-0"
+              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-sm transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 shrink-0"
               aria-label="Close notification"
             >
               <XMarkIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   SparklesIcon,
@@ -214,14 +214,14 @@ const BentoCard: React.FC<{
   <div
     onClick={onClick}
     className={`
-      group relative overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800 border border-gray-100 dark:border-gray-700/50 shadow-sm hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-slate-900/50 transition-all duration-500 cursor-pointer
+      group relative overflow-hidden rounded-4xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-gray-700/50 shadow-xs hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-slate-900/50 transition-all duration-500 cursor-pointer
       ${className}
     `}
   >
     {imageHtml && (
       <div className="absolute inset-0 z-0 transition-transform duration-700 group-hover:scale-110 opacity-90">
         {imageHtml}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent" />
       </div>
     )}
 
@@ -230,7 +230,7 @@ const BentoCard: React.FC<{
         <div className="mb-auto w-full flex justify-between items-start">
           {icon && (
             <div className={`w-10 h-10 rounded-2xl ${imageHtml ? 'bg-white/20 backdrop-blur-md' : accentColor + ' bg-opacity-10 text-primary-600'} flex items-center justify-center mb-4 transition-transform duration-300 group-hover:rotate-6`}>
-              {React.cloneElement(icon as React.ReactElement, { className: `w-5 h-5 ${imageHtml ? 'text-white' : ''}` })}
+              {React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: `w-5 h-5 ${imageHtml ? 'text-white' : ''}` })}
             </div>
           )}
         </div>
@@ -286,7 +286,7 @@ const WellnessHub: React.FC = () => {
   const [meditationAudioFailed, setMeditationAudioFailed] = useState(false);
   const pausedDurationMsRef = useRef<number>(0);
   const pauseStartTimeRef = useRef<Date | null>(null);
-  const completeMeditationRef = useRef<() => Promise<void>>();
+  const completeMeditationRef = useRef<(() => Promise<void>) | undefined>(undefined);
   const isSavingMeditationRef = useRef(false);
   const selectedMeditationRef = useRef<MeditationOption | null>(null);
   const sleepSectionRef = useRef<HTMLElement | null>(null);
@@ -412,6 +412,17 @@ const WellnessHub: React.FC = () => {
   // Timer Logic
   // ----------------------------------------------------------------------
 
+  const resetMeditationState = () => {
+    meditationTimer.stop();
+    meditationAudio.stop();
+    setIsMeditationActive(false);
+    setSelectedMeditation(null);
+    setMeditationStartTime(null);
+    setIsPaused(false);
+    pausedDurationMsRef.current = 0;
+    pauseStartTimeRef.current = null;
+  };
+
   const completeMeditation = async () => {
     if (!selectedMeditation || !meditationStartTime || !user?.user_id) return;
     if (isSavingMeditationRef.current) return;
@@ -448,22 +459,12 @@ const WellnessHub: React.FC = () => {
     resetMeditationState();
   };
 
-  // Keep ref in sync for unmount cleanup
-  selectedMeditationRef.current = selectedMeditation;
-
-  // Keep ref current so interval callback always calls latest completeMeditation
-  completeMeditationRef.current = completeMeditation;
-
-  const resetMeditationState = () => {
-    meditationTimer.stop();
-    meditationAudio.stop();
-    setIsMeditationActive(false);
-    setSelectedMeditation(null);
-    setMeditationStartTime(null);
-    setIsPaused(false);
-    pausedDurationMsRef.current = 0;
-    pauseStartTimeRef.current = null;
-  };
+  // Keep refs in sync after commit: selectedMeditation for unmount cleanup,
+  // completeMeditation so the interval callback always calls the latest one.
+  useLayoutEffect(() => {
+    selectedMeditationRef.current = selectedMeditation;
+    completeMeditationRef.current = completeMeditation;
+  });
 
   const stopMeditation = async () => {
     // Save partial session if user started and at least some time elapsed
@@ -566,7 +567,9 @@ const WellnessHub: React.FC = () => {
   }, [sleepStoryAudio, sleepStoryTimer]);
 
   // Timer onComplete fires from inside the hook — keep the latest closure.
-  stopSleepStoryRef.current = stopSleepStory;
+  useLayoutEffect(() => {
+    stopSleepStoryRef.current = stopSleepStory;
+  }, [stopSleepStory]);
 
   const playSleepStory = useCallback((story: MeditationOption) => {
     stopSleepStory(true);
@@ -604,23 +607,27 @@ const WellnessHub: React.FC = () => {
     };
   }, []);
 
-  // Save sleep story session to backend when story stops/completes
-  selectedSleepStoryRef.current = selectedSleepStory;
-  sleepStorySaveRef.current = () => {
-    if (!selectedSleepStory || !user?.user_id) return;
-    const story = selectedSleepStory;
-    const elapsedSeconds = story.duration * 60 - sleepStoryTimer.timeLeft;
-    if (elapsedSeconds < 60) return;
-    const durationMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
-    saveMeditationSession({
-      type: 'soundscape',
-      duration: durationMinutes,
-      technique: story.title,
-      completedCycles: 1,
-      notes: 'Completed sleep story'
-    }).catch(e => logger.error('Failed to save sleep story session:', e));
-    setWellnessStats(prev => applySessionCompletionStats(prev, 'soundscape', durationMinutes));
-  };
+  // Save sleep story session to backend when story stops/completes. Both
+  // refs are read from cleanup and stop handlers, so they are refreshed
+  // after every commit rather than during render.
+  useLayoutEffect(() => {
+    selectedSleepStoryRef.current = selectedSleepStory;
+    sleepStorySaveRef.current = () => {
+      if (!selectedSleepStory || !user?.user_id) return;
+      const story = selectedSleepStory;
+      const elapsedSeconds = story.duration * 60 - sleepStoryTimer.timeLeft;
+      if (elapsedSeconds < 60) return;
+      const durationMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
+      saveMeditationSession({
+        type: 'soundscape',
+        duration: durationMinutes,
+        technique: story.title,
+        completedCycles: 1,
+        notes: 'Completed sleep story'
+      }).catch(e => logger.error('Failed to save sleep story session:', e));
+      setWellnessStats(prev => applySessionCompletionStats(prev, 'soundscape', durationMinutes));
+    };
+  });
 
   // ----------------------------------------------------------------------
   // Render
@@ -669,7 +676,7 @@ const WellnessHub: React.FC = () => {
   return (
     <div className="min-h-screen pb-20 bg-[#f8fafc] dark:bg-[#0f172a]">
       {/* 1. Header / Hero Section */}
-      <div className="relative bg-white dark:bg-slate-900 pb-12 pt-8 sm:pt-12 px-4 sm:px-6 lg:px-8 shadow-sm rounded-b-[2.5rem]">
+      <div className="relative bg-white dark:bg-slate-900 pb-12 pt-8 sm:pt-12 px-4 sm:px-6 lg:px-8 shadow-xs rounded-b-[2.5rem]">
         <div className="max-w-7xl mx-auto">
           <header className="flex items-center justify-between mb-8">
             <div>
@@ -716,7 +723,7 @@ const WellnessHub: React.FC = () => {
             {/* Stats & Goals */}
             <div className="flex flex-col gap-6 h-full md:col-span-1 lg:col-span-1">
               <BentoCard
-                className="flex-1 bg-gradient-to-br from-teal-50 to-green-50 dark:from-teal-900/20 dark:to-green-900/20"
+                className="flex-1 bg-linear-to-br from-teal-50 to-green-50 dark:from-teal-900/20 dark:to-green-900/20"
                 title={`${wellnessStats.meditationMinutes}m`}
                 subtitle={t('wellnessHub.mindfulness')}
                 icon={<HeartIcon />}
@@ -734,7 +741,7 @@ const WellnessHub: React.FC = () => {
                 </div>
               </BentoCard>
               <BentoCard
-                className="flex-1 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20"
+                className="flex-1 bg-linear-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20"
                 title={t('wellnessHub.sleepTitle')}
                 subtitle={t('wellnessHub.sleepSub')}
                 icon={<MoonIcon />}
@@ -746,7 +753,7 @@ const WellnessHub: React.FC = () => {
             {/* My Goals Card */}
             <div className="md:col-span-3 lg:col-span-1 h-full">
               <BentoCard
-                className="h-full bg-gradient-to-br from-sky-50 to-blue-50 dark:from-sky-900/20 dark:to-blue-900/20 border-sky-100 dark:border-sky-800/30"
+                className="h-full bg-linear-to-br from-sky-50 to-blue-50 dark:from-sky-900/20 dark:to-blue-900/20 border-sky-100 dark:border-sky-800/30"
                 title={t('wellnessHub.myGoals')}
                 subtitle={userGoals.length > 0 ? t('wellnessHub.activeGoals', { count: userGoals.length }) : t('wellnessHub.setGoals')}
                 icon={<PencilSquareIcon />}
@@ -756,7 +763,7 @@ const WellnessHub: React.FC = () => {
                 <div className="mt-4 space-y-2" data-testid="wellness-goals-card">
                   {userGoals.length > 0 ? (
                     userGoals.slice(0, 3).map((goal) => (
-                      <div key={goal} className="flex items-center gap-2 p-2 bg-white/60 dark:bg-slate-800/60 rounded-lg text-sm text-slate-700 dark:text-slate-300 shadow-sm">
+                      <div key={goal} className="flex items-center gap-2 p-2 bg-white/60 dark:bg-slate-800/60 rounded-lg text-sm text-slate-700 dark:text-slate-300 shadow-xs">
                         <span className="text-lg" aria-hidden="true">{getWellnessGoalIcon(goal)}</span>
                         {goal}
                       </div>
@@ -816,7 +823,7 @@ const WellnessHub: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('wellnessHub.search', 'Sök övningar...')}
-            className="w-full max-w-md pl-12 pr-4 py-2.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full max-w-md pl-12 pr-4 py-2.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-sm text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500"
           />
         </div>
         <div className="flex gap-3 pb-2 overflow-x-auto scrollbar-hide">
@@ -839,7 +846,7 @@ const WellnessHub: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Active Player Overlay */}
         {isMeditationActive && selectedMeditation && (
-          <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-opacity duration-300">
+          <div className="fixed inset-0 z-1100 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-opacity duration-300">
             <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-white/20">
               <div className="flex justify-between items-center mb-8">
                 <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">{t('wellnessHub.nowPlaying')}</h3>
@@ -849,9 +856,9 @@ const WellnessHub: React.FC = () => {
               </div>
 
               <div className="flex flex-col items-center mb-8">
-                <div className="w-40 h-40 rounded-full bg-gradient-to-tr from-primary-200 to-primary-100 dark:from-primary-900/40 dark:to-primary-800/30 flex items-center justify-center mb-6 relative">
+                <div className="w-40 h-40 rounded-full bg-linear-to-tr from-primary-200 to-primary-100 dark:from-primary-900/40 dark:to-primary-800/30 flex items-center justify-center mb-6 relative">
                   <div className={`absolute inset-0 rounded-full border-4 border-primary-100 ${!isPaused ? 'animate-ping' : ''} opacity-20`} />
-                  {selectedMeditation.icon ? React.cloneElement(selectedMeditation.icon as React.ReactElement, { className: 'w-16 h-16 text-primary-600' }) : <SparklesIcon className="w-16 h-16 text-primary-600" />}
+                  {selectedMeditation.icon ? React.cloneElement(selectedMeditation.icon as React.ReactElement<{ className?: string }>, { className: 'w-16 h-16 text-primary-600' }) : <SparklesIcon className="w-16 h-16 text-primary-600" />}
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">{selectedMeditation.title}</h2>
                 <p className="text-gray-500 dark:text-gray-400 text-center">{selectedMeditation.description}</p>
@@ -889,7 +896,7 @@ const WellnessHub: React.FC = () => {
 
         {/* Goals Modal */}
         {showGoalsModal && (
-          <div className="fixed inset-0 z-[1100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="fixed inset-0 z-1100 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
               <button
                 onClick={() => setShowGoalsModal(false)}
@@ -903,6 +910,7 @@ const WellnessHub: React.FC = () => {
                 <WellnessGoalsOnboarding
                   {...(user?.user_id ? { userId: user.user_id } : {})}
                   initialGoals={userGoals}
+                  mode={userGoals.length > 0 ? 'edit' : 'onboarding'}
                   onComplete={(goals) => {
                     setUserGoals(goals);
                     setShowGoalsModal(false);
@@ -915,7 +923,7 @@ const WellnessHub: React.FC = () => {
 
         {/* Breathing Exercise Modal */}
         {activeBreathingExercise && (
-          <div className="fixed inset-0 z-[1100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="fixed inset-0 z-1100 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative">
               <button
                 onClick={() => setActiveBreathingExercise(null)}
@@ -977,7 +985,7 @@ const WellnessHub: React.FC = () => {
                   )}
                   <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-primary-50 dark:bg-primary-900/10 group-hover:scale-150 transition-transform duration-500" />
                   <div className="relative flex items-start justify-between mb-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-100 to-primary-50 dark:from-primary-900/30 dark:to-primary-800/20 text-primary-600 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-sm">
+                    <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-primary-100 to-primary-50 dark:from-primary-900/30 dark:to-primary-800/20 text-primary-600 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-xs">
                       {m.icon}
                     </div>
                     <span className="text-xs font-semibold px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-400 flex items-center gap-1">
@@ -1005,7 +1013,7 @@ const WellnessHub: React.FC = () => {
                 <div key={b.id} role="button" tabIndex={0} onClick={() => setActiveBreathingExercise(b)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveBreathingExercise(b); } }} className="group relative bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-accent-300 dark:hover:border-accent-700/50 hover:shadow-xl hover:shadow-accent-100/50 dark:hover:shadow-slate-900/30 transition-all duration-300 cursor-pointer overflow-hidden">
                   <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-accent-50 dark:bg-accent-900/10 group-hover:scale-150 transition-transform duration-500" />
                   <div className="relative flex items-start justify-between mb-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-100 to-accent-50 dark:from-accent-900/30 dark:to-accent-800/20 text-accent-600 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-sm">
+                    <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-accent-100 to-accent-50 dark:from-accent-900/30 dark:to-accent-800/20 text-accent-600 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-xs">
                       {b.icon}
                     </div>
                     <span className="text-xs font-semibold px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-400 flex items-center gap-1">
@@ -1026,7 +1034,7 @@ const WellnessHub: React.FC = () => {
               <div className="w-1.5 h-8 rounded-full bg-teal-500" />
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('wellnessHub.relaxingSoundsTitle')}</h2>
             </div>
-            <div className="bg-white dark:bg-slate-800 rounded-[2rem] p-6 border border-gray-100 dark:border-gray-700/50 shadow-sm hover:shadow-md transition-shadow duration-300">
+            <div className="bg-white dark:bg-slate-800 rounded-4xl p-6 border border-gray-100 dark:border-gray-700/50 shadow-xs hover:shadow-md transition-shadow duration-300">
               <RelaxingSounds onClose={() => { }} embedded />
             </div>
           </section>
@@ -1053,7 +1061,7 @@ const WellnessHub: React.FC = () => {
                 >
                   <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-indigo-50 dark:bg-indigo-900/10 group-hover:scale-150 transition-transform duration-500" />
                   <div className="relative flex items-start justify-between mb-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-100 to-indigo-50 dark:from-indigo-900/30 dark:to-indigo-800/20 text-indigo-600 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-sm">
+                    <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-indigo-100 to-indigo-50 dark:from-indigo-900/30 dark:to-indigo-800/20 text-indigo-600 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-xs">
                       {story.icon}
                     </div>
                     <span className="text-xs font-semibold px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-400 flex items-center gap-1">
@@ -1071,7 +1079,7 @@ const WellnessHub: React.FC = () => {
 
       {/* Sleep Story Player Modal */}
       {selectedSleepStory && (
-        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+        <div className="fixed inset-0 z-1100 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
           <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-white/20">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">{t('wellnessHub.sleepStory', 'Sovsaga')}</h3>
@@ -1081,9 +1089,9 @@ const WellnessHub: React.FC = () => {
             </div>
 
             <div className="flex flex-col items-center mb-8">
-              <div className="w-40 h-40 rounded-full bg-gradient-to-tr from-indigo-200 to-indigo-100 dark:from-indigo-900/40 dark:to-indigo-800/30 flex items-center justify-center mb-6 relative">
+              <div className="w-40 h-40 rounded-full bg-linear-to-tr from-indigo-200 to-indigo-100 dark:from-indigo-900/40 dark:to-indigo-800/30 flex items-center justify-center mb-6 relative">
                 <div className="absolute inset-0 rounded-full border-4 border-indigo-100 dark:border-indigo-900/40 animate-ping opacity-20" />
-                {selectedSleepStory.icon ? React.cloneElement(selectedSleepStory.icon as React.ReactElement, { className: 'w-16 h-16 text-indigo-600' }) : <MoonIcon className="w-16 h-16 text-indigo-600" />}
+                {selectedSleepStory.icon ? React.cloneElement(selectedSleepStory.icon as React.ReactElement<{ className?: string }>, { className: 'w-16 h-16 text-indigo-600' }) : <MoonIcon className="w-16 h-16 text-indigo-600" />}
               </div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">{selectedSleepStory.title}</h2>
               <p className="text-gray-500 dark:text-gray-400 text-center">{selectedSleepStory.description}</p>

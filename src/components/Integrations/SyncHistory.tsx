@@ -113,8 +113,8 @@ const SyncHistory: React.FC<SyncHistoryProps> = ({ userId, providerFilter }) => 
       <div className="space-y-3">
         {[1, 2, 3].map(i => (
           <div key={i} className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 animate-pulse">
-            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-2/3 mb-2"></div>
-            <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div>
+            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-sm w-2/3 mb-2"></div>
+            <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded-sm w-1/2"></div>
           </div>
         ))}
       </div>
@@ -208,7 +208,7 @@ const SyncHistory: React.FC<SyncHistoryProps> = ({ userId, providerFilter }) => 
                     {entry.dataTypes.map(type => (
                       <span
                         key={type}
-                        className="px-2 py-1 bg-white/50 dark:bg-slate-900/30 rounded text-xs font-medium"
+                        className="px-2 py-1 bg-white/50 dark:bg-slate-900/30 rounded-sm text-xs font-medium"
                       >
                         {type === 'steps' && '👣 Steg'}
                         {type === 'heart_rate' && '❤️ Puls'}
@@ -237,7 +237,7 @@ const SyncHistory: React.FC<SyncHistoryProps> = ({ userId, providerFilter }) => 
                       <button
                         onClick={() => handleRetry(entry.id)}
                         disabled={retryingId === entry.id}
-                        className="ml-auto px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-medium disabled:opacity-50"
+                        className="ml-auto px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-sm text-xs font-medium disabled:opacity-50"
                       >
                         {retryingId === entry.id ? '⏳ Försöker...' : '🔄 Försök igen'}
                       </button>

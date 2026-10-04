@@ -31,7 +31,7 @@ export const JournalingPrompt: React.FC<JournalingPromptProps> = ({ onClose, use
   });
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-blue-200 dark:border-blue-800">
+    <div className="bg-linear-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-blue-200 dark:border-blue-800">
       <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-center">
         📝 Journaling för Mental Klarhet
       </h3>
@@ -153,7 +153,7 @@ export const JournalingPrompt: React.FC<JournalingPromptProps> = ({ onClose, use
                   {entry.tags && entry.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {entry.tags.map((tag: string) => (
-                        <span key={tag} className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
+                        <span key={tag} className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-sm">
                           {tag}
                         </span>
                       ))}

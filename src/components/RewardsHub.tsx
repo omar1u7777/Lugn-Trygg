@@ -204,16 +204,16 @@ const RewardsHub: React.FC = () => {
       <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
         <div className="text-center mb-6 sm:mb-8">
           <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-4 animate-pulse" />
-          <div className="h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded mx-auto mb-3 animate-pulse" />
-          <div className="h-5 w-64 bg-gray-200 dark:bg-gray-700 rounded mx-auto animate-pulse" />
+          <div className="h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded-sm mx-auto mb-3 animate-pulse" />
+          <div className="h-5 w-64 bg-gray-200 dark:bg-gray-700 rounded-sm mx-auto animate-pulse" />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i} className="p-4 sm:p-6">
               <div className="space-y-3">
-                <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                <div className="h-8 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse" />
+                <div className="h-8 w-20 bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse" />
+                <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse" />
               </div>
             </Card>
           ))}
@@ -362,7 +362,7 @@ const RewardsHub: React.FC = () => {
                 key={tab.index}
                 onClick={() => setActiveTab(tab.index)}
                 role="tab"
-                className={`flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${activeTab === tab.index
+                className={`flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${activeTab === tab.index
                   ? 'border-primary-600 text-primary-600'
                   : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                   }`}
@@ -410,7 +410,7 @@ const RewardsHub: React.FC = () => {
               )}
 
               {/* Current XP Display */}
-              <div className="mb-6 p-4 bg-gradient-to-r from-primary-50 to-secondary-50 dark:from-primary-900/20 dark:to-secondary-900/20 rounded-lg border border-primary-200 dark:border-primary-800">
+              <div className="mb-6 p-4 bg-linear-to-r from-primary-50 to-secondary-50 dark:from-primary-900/20 dark:to-secondary-900/20 rounded-lg border border-primary-200 dark:border-primary-800">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <StarIcon className="w-8 h-8 text-warning-600" aria-hidden="true" />
@@ -456,8 +456,16 @@ const RewardsHub: React.FC = () => {
                         <div className="flex items-start justify-between mb-3 sm:mb-4">
                           <div className="flex items-center gap-3">
                             <span className="text-3xl">{reward.icon}</span>
+                            {/*
+                              BUG-30: the catalogue arrives from the backend
+                              with English display strings. The ids are stable,
+                              so it is translated by id — with the server's own
+                              value as defaultValue, so a reward added
+                              server-side still renders, in English, rather than
+                              printing a translation key.
+                            */}
                             <h4 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
-                              {reward.title}
+                              {t(`rewardsCatalog.${reward.id}.title`, { defaultValue: reward.title })}
                             </h4>
                           </div>
                           <span className={`px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-full whitespace-nowrap ml-2 ${affordable && !claimed
@@ -468,7 +476,7 @@ const RewardsHub: React.FC = () => {
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                          {reward.description}
+                          {t(`rewardsCatalog.${reward.id}.description`, { defaultValue: reward.description })}
                         </p>
                         <div className="flex items-center justify-between">
                           <span className="px-2 sm:px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">

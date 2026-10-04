@@ -285,7 +285,7 @@ const BadgeDisplay: React.FC = () => {
               whileHover={{ scale: 1.02 }}
               className={`relative bg-white dark:bg-slate-800 rounded-xl p-6 shadow-soft border-2 transition-all duration-300 hover:shadow-large hover:-translate-y-1 ${
                 badge.earned
-                  ? `border-yellow-400 dark:border-yellow-500 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20`
+                  ? `border-yellow-400 dark:border-yellow-500 bg-linear-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20`
                   : 'border-slate-200 dark:border-slate-700'
               }`}
             >
@@ -300,7 +300,7 @@ const BadgeDisplay: React.FC = () => {
               <div className="text-center">
                 <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center text-2xl ${
                   badge.earned
-                    ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white shadow-lg'
+                    ? 'bg-linear-to-br from-yellow-400 to-orange-500 text-white shadow-lg'
                     : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
                 }`}>
                   {badge.earned ? badge.icon : <LockClosedIcon className="w-5 h-5" />}
@@ -339,7 +339,7 @@ const BadgeDisplay: React.FC = () => {
                     <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full transition-all duration-500 ${
-                          badge.earned ? 'bg-gradient-to-r from-yellow-400 to-orange-500' : 'bg-slate-400'
+                          badge.earned ? 'bg-linear-to-r from-yellow-400 to-orange-500' : 'bg-slate-400'
                         }`}
                         style={{ width: `${(badge.progress / badge.maxProgress) * 100}%` }}
                       ></div>
@@ -363,7 +363,7 @@ const BadgeDisplay: React.FC = () => {
         </div>
 
         {/* Achievement Summary */}
-        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700 rounded-xl p-6 border border-slate-200 dark:border-slate-600">
+        <div className="bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700 rounded-xl p-6 border border-slate-200 dark:border-slate-600">
           <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
             <span className="text-primary-500">📊</span>
             {t('badges.summary', 'Achievement Summary')}

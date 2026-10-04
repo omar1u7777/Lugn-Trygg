@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -21,6 +21,8 @@ import MoodList from './MoodList';
 import WorldClassAIChat from './WorldClassAIChat';
 import WorldClassGamification from './WorldClassGamification';
 import WellnessGoalsOnboarding from './Wellness/WellnessGoalsOnboarding';
+import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useFocusTrap } from './Accessibility/SkipLink';
 import { PremiumGate } from './PremiumGate';
 import { UsageLimitBanner } from './UsageLimitBanner';
 
@@ -35,6 +37,7 @@ import { analytics } from '../services/analytics';
 import { logger } from '../utils/logger';
 import useAuth from '../hooks/useAuth';
 import { extractDisplayName } from '../utils/nameUtils';
+import type { TFunction } from 'i18next';
 
 interface WorldClassDashboardProps {
   userId?: string;
@@ -51,7 +54,7 @@ const FeatureViewFallback = ({ label }: { label: string }) => (
 
 const RecommendationsSkeleton = () => (
   <div className="space-y-4" aria-hidden="true">
-    <div className="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+    <div className="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse"></div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {[1, 2, 3, 4].map((placeholder) => (
         <div
@@ -84,8 +87,21 @@ const RecommendationsSkeleton = () => (
  * - NO MUI - Pure Tailwind CSS
  */
 // Helper function för implementation intentions (nästa steg per mål)
-const getNextStepForGoal = (goal: string, t: (key: string) => unknown): string => {
-  const steps = t('dashboard.goalSteps') as Record<string, string[]> | undefined;
+const getNextStepForGoal = (goal: string, t: TFunction): string => {
+  /*
+   * returnObjects is what makes this work at all.
+   *
+   * dashboard.goalSteps has held real per-goal step lists in all three locale
+   * files the whole time — fifteen of them. But i18next refuses to hand back an
+   * object without being asked, and returns the KEY STRING instead. Indexing a
+   * string by a goal name gives undefined, so every lookup fell through to
+   * dashboard.defaultGoalStep and all three goals showed the same task:
+   * "Logga ditt humör idag".
+   *
+   * The cast below said Record<string, string[]> and it was a string. That is
+   * why nothing failed loudly: the type was a promise nobody kept.
+   */
+  const steps = t('dashboard.goalSteps', { returnObjects: true }) as Record<string, string[]> | undefined;
   const goalSteps: string[] = (steps && steps[goal]) || (steps?.['default'] as string[]) || [t('dashboard.defaultGoalStep') as string];
   // Deterministic selection: hash goal name + current day to avoid flicker on re-render
   // while still rotating the suggestion daily
@@ -96,42 +112,7 @@ const getNextStepForGoal = (goal: string, t: (key: string) => unknown): string =
   return goalSteps[index] || ((steps?.['fallback'] as string[])?.[0] || (t('dashboard.continueGoal') as string));
 };
 
-// Helper function för att mappa steg till direkta feature-länkar
-const getFeatureLinkForStep = (stepText: string, t: (key: string) => string): { route: string; label: string } | null => {
-  const stepLower = stepText.toLowerCase();
-
-  // Andningsövningar
-  if (stepLower.includes('andnings') || stepLower.includes('andetag') || stepLower.includes('breathe')) {
-    return { route: '/recommendations', label: t('dashboard.openBreathingExercise') };
-  }
-
-  // Journaling/Tacksamhet
-  if (stepLower.includes('skriv') || stepLower.includes('tacksam') || stepLower.includes('journal')) {
-    return { route: '/journal', label: t('dashboard.openJournal') };
-  }
-
-  // Meditation
-  if (stepLower.includes('meditation') || stepLower.includes('mindfulness')) {
-    return { route: '/recommendations', label: t('dashboard.openMeditation') };
-  }
-
-  // Sömn (om sleep tracking finns)
-  if (stepLower.includes('sömn') || stepLower.includes('lägg dig') || stepLower.includes('sleep')) {
-    return { route: '/recommendations', label: t('dashboard.seeSleepTips') };
-  }
-
-  // Humör/Mood logging
-  if (stepLower.includes('humör') || stepLower.includes('mood') || stepLower.includes('logga')) {
-    return { route: '/', label: t('dashboard.openMoodLogger') };
-  }
-
-  // Promenad/Fysisk aktivitet
-  if (stepLower.includes('promenad') || stepLower.includes('walk') || stepLower.includes('stretching') || stepLower.includes('vatten')) {
-    return { route: '/recommendations', label: t('dashboard.seeRecommendations') };
-  }
-
-  return null;
-};
+import { getFeatureLinkForStep } from '../utils/goalStepLinks';
 
 const DASHBOARD_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
@@ -157,6 +138,23 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
   const [activeView, setActiveView] = useState<'overview' | 'mood-basic' | 'mood-list' | 'chat' | 'analytics' | 'gamification'>('overview');
   const [showWellnessOnboarding, setShowWellnessOnboarding] = useState(false);
+
+  /*
+   * The goals dialog had role="dialog" and aria-modal="true" but none of what
+   * those promise: focus stayed on BODY, Tab walked out into the page behind,
+   * and Escape did nothing. useFocusTrap is the same hook the mobile menu uses.
+   */
+  const goalsDialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(goalsDialogRef, showWellnessOnboarding);
+
+  useEffect(() => {
+    if (!showWellnessOnboarding) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowWellnessOnboarding(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showWellnessOnboarding]);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -576,16 +574,38 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   return (
     <div className="world-class-dashboard relative" aria-busy={loading}>
       {showWellnessOnboarding && resolvedUserId && (
-        <div className="fixed inset-0 z-[1055] flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/50" aria-hidden="true"></div>
+        <div className="fixed inset-0 z-1055 flex items-center justify-center px-4">
+          {/* Clicking the backdrop closes, the same as Escape. */}
           <div
+            className="absolute inset-0 bg-black/50"
+            aria-hidden="true"
+            onClick={() => setShowWellnessOnboarding(false)}
+          ></div>
+          <div
+            ref={goalsDialogRef}
             className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900 rounded-2xl shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-label={t('worldDashboard.wellnessGoalsLabel')}
           >
+            <button
+              type="button"
+              onClick={() => setShowWellnessOnboarding(false)}
+              aria-label={t('wellnessGoals.close')}
+              className="absolute top-4 right-4 z-10 flex items-center justify-center min-h-[44px] min-w-[44px] rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
             <WellnessGoalsOnboarding
               userId={resolvedUserId}
+              /*
+               * "Ändra mål" opens this with goals already set. Without
+               * initialGoals the modal came up empty and told the user
+               * "Fortsätt (0/3)" while they had three — so saving would have
+               * silently replaced their selection with whatever they re-picked.
+               */
+              initialGoals={wellnessGoals}
+              mode={hasWellnessGoals ? 'edit' : 'onboarding'}
               onComplete={(goals) => {
                 logger.info('Wellness goals completed', { goals });
                 setShowWellnessOnboarding(false);
@@ -642,7 +662,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         {shouldRenderWellnessSkeleton && (
           <Card className="mb-6 animate-pulse" aria-hidden="true">
             <div className="p-6 sm:p-8 space-y-4">
-              <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+              <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-sm w-1/3"></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[1, 2, 3, 4].map((skeleton) => (
                   <div
@@ -651,7 +671,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   ></div>
                 ))}
               </div>
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-sm w-1/2"></div>
             </div>
           </Card>
         )}
@@ -676,6 +696,19 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   {t('dashboard.changeGoals', 'Ändra mål')}
                 </button>
               </div>
+              {/*
+                BUG-24: the row scrolls (scrollWidth 959 vs clientWidth 678 on
+                the tested width) and gave no sign of it — the third goal was
+                simply cut off. The wrapper adds a fade on the right edge, which
+                is the conventional cue that there is more sideways.
+                pointer-events-none so it cannot swallow a tap on the card
+                underneath it.
+              */}
+              <div className="relative">
+                <div
+                  className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-linear-to-l from-white dark:from-slate-900 to-transparent rounded-r-lg"
+                  aria-hidden="true"
+                />
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {safeDashboardStats.wellnessGoals.map((goal) => {
                   const nextStep = goalStepsMap[goal] || (t('dashboard.defaultGoalStep') as string);
@@ -688,15 +721,15 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                       key={goal}
                       className="flex items-center gap-2 p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800 hover:shadow-md transition-shadow flex-nowrap"
                     >
-                      <span className="text-xs flex-shrink-0">
+                      <span className="text-xs shrink-0">
                         {getWellnessGoalIcon(goal)}
                       </span>
-                      <span className="text-xs font-medium text-gray-900 dark:text-white flex-shrink-0 leading-tight whitespace-nowrap">
+                      <span className="text-xs font-medium text-gray-900 dark:text-white shrink-0 leading-tight whitespace-nowrap">
                         {goal}
                       </span>
 
                       {/* Step completion indicator (per-goal) */}
-                      <div className="flex-shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">
+                      <div className="shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">
                         {isStepCompleted ? '✓' : '○'}
                       </div>
 
@@ -706,7 +739,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                         id={`step-${goal}`}
                         checked={isStepCompleted}
                         onChange={() => handleGoalStepToggle(goal, nextStep, isStepCompleted)}
-                        className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer flex-shrink-0"
+                        className="w-4 h-4 text-primary-600 border-gray-300 rounded-sm focus:ring-primary-500 cursor-pointer shrink-0"
                         aria-label={t('dashboard.markStepComplete', { step: nextStep })}
                       />
                       <label
@@ -714,7 +747,17 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                         className="text-xs text-gray-500 dark:text-gray-400 cursor-pointer flex-1 leading-tight truncate whitespace-nowrap"
                         title={nextStep}
                       >
-                        {nextStep.length > 20 ? nextStep.substring(0, 20) + '...' : nextStep}
+                        {/*
+                          The label already carries `truncate whitespace-nowrap`
+                          — CSS text-overflow: ellipsis — so this substring cut
+                          the text a second time, at a fixed 20 characters, with
+                          no idea how much room there actually was. Measured at
+                          122px of text in a 323px card: "Logga ditt humör ida…"
+                          where the whole sentence fit.
+
+                          CSS knows the width; a string length does not.
+                        */}
+                        {nextStep}
                       </label>
                       <button
                         onClick={() => {
@@ -724,7 +767,12 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                             navigate('/recommendations', { state: { goalFilter: goal } });
                           }
                         }}
-                        className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex-shrink-0 leading-tight"
+                        /*
+                          Was a bare arrow glyph: 12x17 CSS px of hit area,
+                          against WCAG 2.5.5's 44x44. The arrow keeps its size;
+                          the target grows around it.
+                        */
+                        className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 shrink-0 leading-tight flex items-center justify-center min-w-[44px] min-h-[44px]"
                         title={featureLink ? featureLink.label : t('worldDashboard.seeRecommendations')}
                         aria-label={featureLink ? featureLink.label : t('worldDashboard.seeRecommendations')}
                       >
@@ -733,6 +781,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                     </div>
                   );
                 })}
+              </div>
               </div>
               <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
                 {t('worldDashboard.goalRecommendations')}

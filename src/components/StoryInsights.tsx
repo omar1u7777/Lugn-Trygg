@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type JSX } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, Typography, Button, Chip, Alert } from './ui/tailwind';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
-import { getMoods, getWeeklyAnalysis, getChatHistory } from '../api/api';
+import { getAllMoods, getWeeklyAnalysis, getChatHistory } from '../api/api';
 import useAuth from '../hooks/useAuth';
 import { logger } from '../utils/logger';
 import {
@@ -69,7 +69,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
 
       // Load real data from backend APIs
       const [moodsDataRaw, _weeklyAnalysisData, chatHistoryDataRaw] = await Promise.all([
-        getMoods(user.user_id).catch((error) => { logger.error('Failed to fetch moods', error); return []; }),
+        getAllMoods(user.user_id).catch((error) => { logger.error('Failed to fetch moods', error); return []; }),
         getWeeklyAnalysis(user.user_id).catch((error) => { logger.error('Failed to fetch weekly analysis', error); return {}; }),
         getChatHistory(user.user_id).catch((error) => { logger.error('Failed to fetch chat history', error); return { conversation: [] }; }),
       ]);
@@ -309,7 +309,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
           >
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   {insight.badge ? (
                     <div className="text-4xl">{insight.badge}</div>
                   ) : (
@@ -376,7 +376,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
       {renderContent()}
 
       {/* Summary Card */}
-      <Card className="mt-8 bg-gradient-to-r from-primary-500 to-secondary-500 text-white">
+      <Card className="mt-8 bg-linear-to-r from-primary-500 to-secondary-500 text-white">
         <CardContent className="p-6">
           <div className="flex items-center gap-3 mb-4">
             <StarIcon className="text-yellow-300 w-6 h-6" />

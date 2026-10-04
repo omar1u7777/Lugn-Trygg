@@ -126,7 +126,10 @@ const PremiumUpsell: React.FC<PremiumUpsellProps> = ({
 
       case 'streak':
         return {
-          title: t('premiumUpsell.streakTitle', '{{days}} dagar av kontinuitet!'),
+          // Based on account age, not a streak: the title used to claim
+          // "{{days}} dagar av kontinuitet" and was rendered without the
+          // number, showing the placeholder itself.
+          title: t('premiumUpsell.streakTitle', { count: stats.accountAge }),
           subtitle: t('premiumUpsell.streakSubtitle', 'Bryt inte kedjan'),
           message: t('premiumUpsell.streakMessage', 'Du har byggt en vana. Se till att du kan fortsätta.'),
           benefits: [
@@ -182,7 +185,7 @@ const PremiumUpsell: React.FC<PremiumUpsellProps> = ({
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+            <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-xs">
               {getIcon()}
             </div>
             <div>
@@ -216,7 +219,7 @@ const PremiumUpsell: React.FC<PremiumUpsellProps> = ({
         <div className="space-y-2 mb-4">
           {content.benefits.map((benefit, index) => (
             <div key={index} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0" />
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full shrink-0" />
               {benefit}
             </div>
           ))}
@@ -232,7 +235,7 @@ const PremiumUpsell: React.FC<PremiumUpsellProps> = ({
               {[...Array(3)].map((_, i) => (
                 <div
                   key={i}
-                  className="w-6 h-6 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-white text-xs font-bold"
+                  className="w-6 h-6 bg-linear-to-br from-amber-400 to-amber-600 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-white text-xs font-bold"
                 >
                   {String.fromCharCode(65 + i)}
                 </div>
@@ -244,7 +247,7 @@ const PremiumUpsell: React.FC<PremiumUpsellProps> = ({
         {/* CTA Button */}
         <Button
           variant="primary"
-          className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+          className="w-full bg-linear-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
           onClick={() => navigate('/upgrade')}
         >
           {content.cta}

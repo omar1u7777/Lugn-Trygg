@@ -23,10 +23,10 @@
     "no": "Nej",
     "ok": "OK",
     "status": "Status",
-    "offlineTitle": " Du är offline!",
+    "offlineTitle": "Du är offline!",
     "offlineMessage": "Kontrollera din internetanslutning och försök igen.",
     "retry": "Försök igen",
-    "pageNotFound": " Sidan hittades inte!",
+    "pageNotFound": "Sidan hittades inte!",
     "skipToContent": "Hoppa till huvudinnehåll",
     "skipToNavigation": "Hoppa till navigation",
     "skipToSearch": "Hoppa till sök",
@@ -105,20 +105,20 @@
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Välkommen",
-    "reminder": " Påminnelse:",
+    "reminder": "Påminnelse:",
     "moodReminder": "Du har inte loggat ditt humör idag. Ta en stund att reflektera över din dag!",
     "moodTrends": "Humörtrender (senaste veckan)",
     "memoryFrequency": "Minnesfrekvens (senaste veckan)",
     "logMood": "Logga Humör",
-    "openMoodLogger": " Öppna Humörloggning",
+    "openMoodLogger": "Öppna Humörloggning",
     "yourMoodLogs": "Dina Humörloggar",
-    "viewMoodLogs": " Visa Humörloggar",
+    "viewMoodLogs": "Visa Humörloggar",
     "recordMemory": "Spela in Minne",
-    "openRecording": " Öppna Inspelning",
+    "openRecording": "Öppna Inspelning",
     "yourMemories": "Dina Minnen",
-    "viewMemories": " Visa Minnen",
+    "viewMemories": "Visa Minnen",
     "aiTherapist": "AI-terapeut",
-    "openChat": " Öppna Chatt",
+    "openChat": "Öppna Chatt",
     "todayMood": "Dagens humör",
     "weeklyStats": "Veckostatistik",
     "recentMemories": "Senaste minnen",
@@ -127,9 +127,9 @@
     "chatWithAI": "Prata med AI",
     "viewAnalytics": "Se analys",
     "weeklyMoodAnalysis": "Veckans Måendeanalys",
-    "loadingAnalysis": " Laddar analys...",
-    "analysisError": " Fel: {error}",
-    "noDataAvailable": " Ingen data tillgänglig.",
+    "loadingAnalysis": "Laddar analys...",
+    "analysisError": "Fel: {error}",
+    "noDataAvailable": "Ingen data tillgänglig.",
     "moodDistribution": "Humörfördelning",
     "moodLogs": "Humörloggar",
     "average": "Genomsnitt",
@@ -141,7 +141,7 @@
     "badges": "Prestationer",
     "relaxingSounds": "Avslappnande Ljud",
     "weeklyMemoryActivity": "Veckovis Minnesaktivitet",
-    "noMemoryData": " Ingen minnesdata tillgänglig.",
+    "noMemoryData": "Ingen minnesdata tillgänglig.",
     "goalSteps": {
       "Bättre sömn": [
         "Gå och lägg dig 22:00 idag",
@@ -234,7 +234,8 @@
     "openBreathingExercise": "Öppna andningsövning",
     "openJournal": "Öppna journal",
     "openMeditation": "Öppna meditation",
-    "seeSleepTips": "Se sömntips"
+    "seeSleepTips": "Se sömntips",
+    "seeRecommendations": "Se rekommendationer"
   },
   "navLinks": {
     "dashboard": "Översikt",
@@ -299,8 +300,8 @@
     "greeting": "Hej, hur mår du idag?",
     "sadResponse": "Jag hör att du kanske känner dig lite nere. Vill du lyssna på lugnande musik?",
     "recording": "Spelar in...",
-    "startRecording": " Börja Logga",
-    "close": " Stäng",
+    "startRecording": "Börja Logga",
+    "close": "Stäng",
     "errorRecording": "Ett fel uppstod vid inspelning. Försök igen.",
     "errorSave": "Kunde inte spara humöret. Försök igen senare.",
     "veryBad": "Mycket dåligt",
@@ -317,7 +318,7 @@
     "negative": "Negativ",
     "positive": "Positiv",
     "valence": {
-      "label": "Valens (Behaglig ↔ Obehaglig)",
+      "label": "Valens (Obehaglig ↔ Behaglig)",
       "min": "Obehaglig",
       "max": "Behaglig",
       "unpleasant": "Obehaglig",
@@ -362,7 +363,9 @@
         "alone": "Ensam",
         "nature": "Natur",
         "creative": "Kreativt"
-      }
+      },
+      "errorEmpty": "Skriv något innan du lägger till taggen",
+      "errorDuplicate": "Taggen är redan vald"
     }
   },
   "memories": {
@@ -426,7 +429,8 @@
     "crisisSos": "📞 SOS Alarm: 112",
     "crisisMind": "💙 Mind: 90101 (dygnet runt)",
     "crisisDisclaimer": "Lugn & Trygg ersätter inte professionell vård. Sök hjälp om du mår dåligt.",
-    "voicePremium": "Röst är en Premium-funktion"
+    "voicePremium": "Röst är en Premium-funktion",
+    "voicePremiumAction": "Röst är en Premium-funktion — uppgradera"
   },
   "subscription": {
     "title": "Uppgradera till Premium",
@@ -650,8 +654,10 @@
     "errors": {
       "notLoggedIn": "Du måste vara inloggad för att skicka feedback",
       "emptyMessage": "Vänligen skriv ett meddelande",
-      "submitFailed": "Något gick fel vid inlämnandet. Försök igen."
-    }
+      "submitFailed": "Något gick fel vid inlämnandet. Försök igen.",
+      "noRating": "Välj hur nöjd du är"
+    },
+    "ratingStar": "{{count}} av 5"
   },
   "referral": {
     "title": "Referensprogram",
@@ -663,7 +669,6 @@
     "topTier": "Högsta nivån uppnådd! 🎉",
     "totalInvited": "Totalt bjudna",
     "activeUsers": "Aktiva användare",
-    "weeks": "{{count}} veckor",
     "premiumReward": "Premium-belöning",
     "referralLink": "Referenslänk",
     "copy": "Kopiera",
@@ -688,7 +693,11 @@
       "activation": "Belöningen aktiveras när din vän slutför registreringen",
       "noCash": "Belöningar kan inte växlas till kontanter",
       "changes": "Lugn & Trygg förbehåller sig rätten att ändra villkoren"
-    }
+    },
+    "weeksUnit_one": "vecka",
+    "weeksUnit_other": "veckor",
+    "weeks_one": "{{count}} vecka",
+    "weeks_other": "{{count}} veckor"
   },
   "healthIntegrations": {
     "title": "Hälsointegreringar (OAuth)",
@@ -761,6 +770,20 @@
       "firstSyncBody": "Den första synkroniseringen kan ta 1–2 minuter. Försök igen efter en stund.",
       "reconnectTitle": "Försök att återansluta:",
       "reconnectBody": "Klicka på ”Koppla från” och sedan ”Anslut” igen för att uppdatera auktoriseringen."
+    },
+    "providers": {
+      "google_fit": {
+        "description": "Synka aktivitet, puls och sömndata från Google Fit"
+      },
+      "fitbit": {
+        "description": "Anslut din Fitbit-enhet för heltäckande hälsospårning"
+      },
+      "samsung": {
+        "description": "Synka hälsodata från appen Samsung Health"
+      },
+      "withings": {
+        "description": "Anslut Withings-enheter för vikt och hälsomått"
+      }
     }
   },
   "relaxingSounds": {
@@ -808,7 +831,8 @@
     "algorithm": "Algoritm",
     "trainingAccuracy": "Träningsnoggrannhet",
     "dataPoints": "Datapunkter",
-    "noData": "Ingen data tillgänglig för analys"
+    "noData": "Ingen data tillgänglig för analys",
+    "loading": "Laddar din analys…"
   },
   "moodLogger": {
     "title": "Hur mår du?",
@@ -817,12 +841,12 @@
     "loading": "Laddar...",
     "checkInProgress": "Check-in progress",
     "selectMood": "Välj ditt humör",
-    "keyboardTip": "Tips: Tryck 1-6 på tangentbordet för snabbval ",
+    "keyboardTip": "Tips: Tryck 1-6 på tangentbordet för snabbval",
     "selectedMood": "Valt humör: {{mood}}",
-    "readyToLog": " Perfekt! Redo att logga ",
-    "hardDaySupport": "Det är okej att ha svåra dagar. Du gör ditt bäst. ",
+    "readyToLog": "Perfekt! Redo att logga",
+    "hardDaySupport": "Det är okej att ha svåra dagar. Du gör ditt bäst.",
     "addNote": "Lägg till en anteckning (valfritt)",
-    "notePlaceholder": "Vad får dig att känna så här idag? ",
+    "notePlaceholder": "Vad får dig att känna så här idag?",
     "reflectionAdded": "Reflektion tillagd",
     "characterTip": "Tips: 15+ tecken ger bättre personlig uppföljning",
     "characters": "tecken kvar",
@@ -832,7 +856,7 @@
     "dailyLimitReached": "Daglig gräns nådd",
     "upgradeForUnlimited": "Uppgradera till Premium för obegränsade loggningar",
     "recentMoods": "Dina senaste humör",
-    "logsThisWeek": "{{count}} loggningar denna vecka ",
+    "logsThisWeek": "{{count}} loggningar denna vecka",
     "noMoodsYet": "Inga humör loggade ännu",
     "startLogging": "Börja logga dina humör för att se historik här",
     "connecting": "Ansluter till server...",
@@ -913,7 +937,8 @@
       "exercise": "Träning",
       "food": "Mat",
       "weather": "Väder"
-    }
+    },
+    "selectMoodFirst": "Välj hur du mår för att kunna logga."
   },
   "voiceRecorder": {
     "title": "🎤 Röstinspelning",
@@ -1071,7 +1096,13 @@
       "downwardTrendDesc": "Ditt humör har sjunkit de senaste dagarna. Överväg att prata med någon.",
       "needSupport": "Behöver du stöd?",
       "needSupportDesc": "Ditt humör är lågt. Du är inte ensam - överväg professionell hjälp."
-    }
+    },
+    "trendStep1": "1. Vi tar dina 7 senaste humörloggningar.",
+    "trendStep2": "2. Vi tar de 7 loggningarna dessförinnan.",
+    "trendStep3": "3. Vi räknar ut medelvärdet för varje grupp.",
+    "trendStep4": "4. Vi jämför de två medelvärdena.",
+    "trendStep5": "5. Skillnad över 0,5 räknas som uppåt, under −0,5 som nedåt, annars stabilt.",
+    "trendStep6": "6. Tröskeln 0,5 finns för att vanlig dagsvariation inte ska kallas en trend."
   },
   "worldDashboard": {
     "dashboardLoaded": "Dashboard laddad",
@@ -1161,10 +1192,10 @@
     "progressOngoing": "Pågår",
     "allUnlocked": "Alla upplåsta!",
     "nextMilestone": "Nästa milestone:",
-    "almostThere": " Nästan där! En aktivitet kvar!",
-    "activitiesToNext": " {{count}} aktiviteter till nästa nivå",
-    "startJourney": " Börja din resa! Logga ditt första humör för att låsa upp din första prestation.",
-    "allAchievementsUnlocked": " Alla prestationer upplåsta!",
+    "almostThere": "Nästan där! En aktivitet kvar!",
+    "activitiesToNext": "{{count}} aktiviteter till nästa nivå",
+    "startJourney": "Börja din resa! Logga ditt första humör för att låsa upp din första prestation.",
+    "allAchievementsUnlocked": "Alla prestationer upplåsta!",
     "naturallyVarying": "Naturligt varierande",
     "positiveDevelopment": "Positiv utveckling",
     "stable": "Stabilt",
@@ -1187,7 +1218,7 @@
     "nextLevel": "Nästa nivå: {{level}}",
     "activitiesRemaining": "{{count}} aktiviteter kvar",
     "keepGoing": "Håll dig igång!",
-    "almostThere": " Nästan där!"
+    "almostThere": "Nästan där!"
   },
   "safetyBlock": {
     "title": "Säkerhetsblock",
@@ -1270,7 +1301,9 @@
     "networkError": "Kunde inte ansluta till servern. Kontrollera internetanslutningen.",
     "popupBlocked": "Popup blockerad. Tillåt popups för denna webbplats.",
     "popupClosed": "Inloggningsfönstret stängdes. Försök igen.",
-    "popupCancelled": "Inloggningsfönstret avbröts. Försök igen."
+    "popupCancelled": "Inloggningsfönstret avbröts. Försök igen.",
+    "loginTitle": "Logga in",
+    "welcomeBack": "Välkommen tillbaka"
   },
   "forgotPassword": {
     "title": "Återställ Lösenord",
@@ -1488,7 +1521,8 @@
     "profile": "Profil",
     "settings": "Inställningar",
     "theme": "Tema",
-    "language": "Språk"
+    "language": "Språk",
+    "logout": "Logga ut"
   },
   "password": {
     "strength": {
@@ -1519,7 +1553,6 @@
     "engagementMessage": "Med {{moods}} loggade stämningar och {{chats}} samtal är du på god väg.",
     "engagementUrgency": "Begränsat erbjudande för engagerade användare",
     "engagementCta": "Fortsätt din resa",
-    "streakTitle": "{{days}} dagar av kontinuitet!",
     "streakSubtitle": "Bryt inte kedjan",
     "streakMessage": "Du har byggt en vana. Se till att du kan fortsätta.",
     "streakUrgency": "{{streakUsers}} användare har skyddat sin streak",
@@ -1539,7 +1572,9 @@
     "benefitReminders": "Smartare påminnelser",
     "benefitGoals": "Personliga mål och utmaningar",
     "remaining": "{{remaining}} kvar",
-    "trust": "Ingen bindningstid. Avbryt när som helst."
+    "trust": "Ingen bindningstid. Avbryt när som helst.",
+    "streakTitle_one": "{{count}} dag med Lugn & Trygg!",
+    "streakTitle_other": "{{count}} dagar med Lugn & Trygg!"
   },
   "recommendations": {
     "preferences": {
@@ -1641,6 +1676,12 @@
     },
     "crisis": {
       "suicideHotline": "📞 Självmordslinjen: {{suicideLine}}"
+    },
+    "streakDays_one": "{{count}} dag i rad",
+    "streakDays_other": "{{count}} dagar i rad",
+    "compact": {
+      "streakDays_one": "🔥 {{count}} dag",
+      "streakDays_other": "🔥 {{count}} dagar"
     }
   },
   "wellnessHub": {
@@ -1693,7 +1734,6 @@
     "guest": "Gäst",
     "manageJourney": "Hantera din personliga resa, inställningar och säkerhet.",
     "loginToSave": "Logga in för att spara din data.",
-    "memberForDays": "Medlem i {{days}} dagar",
     "upgradeNow": "Uppgradera nu",
     "moodLogs": "Humörloggar",
     "aiChats": "AI-samtal",
@@ -1760,7 +1800,9 @@
     "deleteItem5": "Wellness-mål och framsteg",
     "deleteNote": "Din data kommer att raderas permanent inom 30 dagar. Du kan avbryta genom att kontakta support inom den tiden.",
     "deleting": "Raderar...",
-    "settingsLoadFailed": "Kunde inte hämta dina sparade inställningar. Ladda om sidan innan du ändrar något."
+    "settingsLoadFailed": "Kunde inte hämta dina sparade inställningar. Ladda om sidan innan du ändrar något.",
+    "memberForDays_one": "Medlem i {{count}} dag",
+    "memberForDays_other": "Medlem i {{count}} dagar"
   },
   "wellnessGoalLabels": {
     "Hantera stress": {
@@ -1821,8 +1863,8 @@
     "resonance": "Resonans",
     "hideMetrics": "Dölj mätvärden",
     "showMetrics": "Visa mätvärden",
-    "medical_disclaimer_title": "⚠️ Viktig medicinsk ansvarsfriskravning",
-    "medical_disclaimer": "Andningsövningar är ett komplement till medicinsk behandling, inte en ersättning. Om du känner dig oroad, matt, yrsel eller andra symtom under övningen - AVBRYT OMEDELBAR och konsultera en läkare.",
+    "medical_disclaimer_title": "⚠️ Viktig medicinsk ansvarsfriskrivning",
+    "medical_disclaimer": "Andningsövningar är ett komplement till medicinsk behandling, inte en ersättning. Om du känner dig orolig eller matt, får yrsel eller andra symtom under övningen – AVBRYT OMEDELBART och kontakta läkare.",
     "inhale": "Andas in",
     "hold": "Håll",
     "exhale": "Andas ut",
@@ -2340,7 +2382,17 @@
       "protectiveFactors": "Skyddsfaktorer",
       "interventions": "Rekommenderade åtgärder",
       "loading": "Beräknar kombinerad risk…",
-      "error": "Kunde inte beräkna kombinerad risk"
+      "error": "Kunde inte beräkna kombinerad risk",
+      "crisisTitle": "Du behöver inte vara ensam med det här",
+      "crisisText": "Ditt senaste svar visar tankar på att skada dig själv. Prata med någon nu – det finns hjälp dygnet runt.",
+      "callEmergency": "Ring {{number}}",
+      "callSuicideLine": "Självmordslinjen {{number}}",
+      "openCrisisPage": "Fler sätt att få hjälp",
+      "careTitle": "Prata med vården",
+      "careText": "Ditt resultat tyder på att du kan behöva stöd. Ring {{number}} (Vårdguiden) eller kontakta din vårdcentral.",
+      "callHealthcare": "Ring {{number}}",
+      "stale": "Din senaste {{type}} är från {{date}}. Resultat som är äldre än {{days}} dagar räknas inte in i bedömningen.",
+      "retake": "Gör en ny {{type}}"
     },
     "interventions": {
       "BEHAVIORAL_ACTIVATION": "Beteendeaktivering – planera in meningsfulla aktiviteter",
@@ -2360,8 +2412,24 @@
       "SOCIAL_RECONNECTION": "Återknyt sociala kontakter",
       "URGENT_REFERRAL_PSYCHIATRY": "Akut remiss till psykiatrin",
       "URGENT_THERAPY_REFERRAL": "Akut remiss till terapi",
-      "WEEKLY_MONITORING": "Veckovis uppföljning"
-    }
+      "WEEKLY_MONITORING": "Veckovis uppföljning",
+      "CONTACT_CRISIS_SUPPORT": "Kontakta krisstöd – numren finns ovan",
+      "CONTACT_HEALTHCARE": "Kontakta 1177 eller din vårdcentral"
+    },
+    "factors": {
+      "SUICIDAL_IDEATION": "Tankar på att skada dig själv (PHQ-9 fråga 9: {{q9}})",
+      "PHQ9_SCORE": "PHQ-9: {{score}} poäng ({{severity}})",
+      "GAD7_SCORE": "GAD-7: {{score}} poäng ({{severity}})",
+      "MOOD_DECLINING": "Sjunkande humör den senaste veckan",
+      "NEGATIVE_STREAK_one": "{{count}} dag med lågt humör",
+      "NEGATIVE_STREAK_other": "{{count}} dagar i rad med lågt humör",
+      "SLEEP_DEPRIVATION": "Mindre än 5 timmars sömn",
+      "SOCIAL_ISOLATION": "Ingen social kontakt på mer än 3 dagar",
+      "LOW_PHQ9": "Låg PHQ-9: {{score}} poäng",
+      "LOW_GAD7": "Låg GAD-7: {{score}} poäng"
+    },
+    "q9Badge": "Fråga 9 besvarad",
+    "q9BadgeHint": "Du svarade att du haft tankar på att skada dig själv (fråga 9). Det markeras oavsett totalpoäng."
   },
   "insights": {
     "loading": "Analyserar dina mönster…",
@@ -2371,7 +2439,9 @@
     "generate": "Generera insikter",
     "recommendation": "Rekommendation",
     "retryLater": "Försök igen senare",
-    "error": "Kunde inte hämta insikter just nu. Försök igen."
+    "error": "Kunde inte hämta insikter just nu. Försök igen.",
+    "allHandled": "Du har hanterat alla dina insikter",
+    "allHandledHint": "Nya insikter dyker upp allteftersom du fortsätter logga ditt mående."
   },
   "dailyInsights": {
     "minMoodsRequired": "Minst 3 mood-loggar behövs för att generera insikter.",
@@ -2389,5 +2459,134 @@
   },
   "moodList": {
     "shown": "Visade"
+  },
+  "privacy": {
+    "title": "Integritet och säkerhet",
+    "commitment": "Din integritet är vår högsta prioritet. All data krypteras och lagras säkert.",
+    "encryption": "Datakryptering",
+    "encryptLocalStorage": "Kryptera lokal data",
+    "encryptLocalStorageDesc": "All känslig data som lagras lokalt krypteras",
+    "dataRetention": "Datalagring",
+    "dataRetentionDesc": "Hur länge ska vi spara dina uppgifter?",
+    "months_one": "månad",
+    "months_other": "månader",
+    "autoDelete": "Radera automatiskt data som är äldre än lagringstiden",
+    "sharing": "Analys och delning",
+    "allowAnalytics": "Tillåt användningsanalys",
+    "allowAnalyticsDesc": "Hjälp oss förbättra appen genom att dela anonym användningsdata",
+    "shareAnonymized": "Dela anonymiserad data",
+    "shareAnonymizedDesc": "Bidra till forskning om psykisk hälsa (helt anonymt)",
+    "yourRights": "Dina rättigheter",
+    "gdprInfo": "Enligt GDPR och dataskyddslagstiftningen har du rätt att få tillgång till, exportera och radera dina personuppgifter.",
+    "exportData": "Exportera mina uppgifter",
+    "exportDataTitle": "Exportera dina uppgifter",
+    "exportDataDesc": "Vi skapar en JSON-fil med alla dina personuppgifter, inklusive humörloggar, minnen och inställningar.",
+    "exportDataNote": "Filen laddas ned till din enhet och kan användas för att säkerhetskopiera dina uppgifter eller flytta dem till en annan tjänst.",
+    "exporting": "Exporterar…",
+    "exportSuccess": "Uppgifterna exporterades!",
+    "downloadData": "Ladda ned data",
+    "deleteData": "Radera alla mina uppgifter",
+    "deleteDataTitle": "Radera alla dina uppgifter",
+    "deleteDataWarning": "Åtgärden är permanent och kan inte ångras. Alla dina humörloggar, minnen och personuppgifter raderas för alltid.",
+    "deleteDataConfirm": "Skriv \"radera mina uppgifter\" nedan för att bekräfta:",
+    "confirmDelete": "Radera permanent",
+    "confirmTextMismatch": "Skriv bekräftelsetexten exakt",
+    "deleting": "Raderar…",
+    "loading": "Laddar integritetsinställningar…",
+    "loadFailed": "Kunde inte ladda integritetsinställningarna",
+    "exportFailed": "Exporten misslyckades",
+    "deleteFailed": "Raderingen misslyckades"
+  },
+  "wellnessGoals": {
+    "skip": "Hoppa över",
+    "saving": "Sparar…",
+    "continue": "Fortsätt ({{selected}}/{{max}})",
+    "save": "Spara ({{selected}}/{{max}})",
+    "close": "Stäng"
+  },
+  "rewardsCatalog": {
+    "ai_insights_pro": {
+      "title": "AI Insights Pro",
+      "description": "Avancerad AI-analys och prognoser"
+    },
+    "badge_collector": {
+      "title": "Märkessamlare",
+      "description": "Exklusivt märke för hängivna användare"
+    },
+    "custom_theme": {
+      "title": "Eget tema",
+      "description": "Lås upp exklusiva färgteman i appen"
+    },
+    "early_adopter": {
+      "title": "Tidig användare",
+      "description": "Särskilt märke för dig som var med från början"
+    },
+    "export_data": {
+      "title": "Dataexport",
+      "description": "Exportera all din data till PDF eller CSV"
+    },
+    "first_mood": {
+      "title": "Första steget",
+      "description": "Logga ditt första humör"
+    },
+    "journal_starter": {
+      "title": "Dagboksdebut",
+      "description": "Skriv ditt första dagboksinlägg"
+    },
+    "meditation_guru": {
+      "title": "Meditationsguru",
+      "description": "Slutför 50 meditationer"
+    },
+    "merch_tshirt": {
+      "title": "Lugn & Trygg T-shirt",
+      "description": "Exklusiv t-shirt (fri frakt)"
+    },
+    "month_streak": {
+      "title": "En månad av närvaro",
+      "description": "Logga humör 30 dagar i rad"
+    },
+    "mood_master": {
+      "title": "Humörmästare",
+      "description": "Logga humör 30 dagar i rad"
+    },
+    "mood_warrior": {
+      "title": "Humörkämpe",
+      "description": "Logga 100 humörinlägg"
+    },
+    "premium_1month": {
+      "title": "1 månad Premium",
+      "description": "Tillgång till alla premiumfunktioner i en månad"
+    },
+    "premium_1week": {
+      "title": "1 vecka Premium",
+      "description": "Tillgång till alla premiumfunktioner i en vecka"
+    },
+    "premium_3months": {
+      "title": "3 månader Premium",
+      "description": "Tillgång till alla premiumfunktioner i tre månader"
+    },
+    "premium_month": {
+      "title": "1 månad Premium",
+      "description": "Lås upp alla premiumfunktioner i 30 dagar"
+    },
+    "premium_week": {
+      "title": "1 vecka Premium",
+      "description": "Lås upp alla premiumfunktioner i 7 dagar"
+    },
+    "referral_hero": {
+      "title": "Värvarhjälte",
+      "description": "Bjud in 5 vänner"
+    },
+    "vip_support": {
+      "title": "VIP-support",
+      "description": "Prioriterad support i en månad"
+    },
+    "week_streak": {
+      "title": "En vecka av välmående",
+      "description": "Logga humör 7 dagar i rad"
+    }
+  },
+  "aiMusic": {
+    "goodFor": "Passar för:"
   }
 }

@@ -100,12 +100,12 @@ const ScrollableTabs: React.FC<ScrollableTabsProps> = ({
     <div className="relative">
       {/* Left shadow indicator */}
       {showLeftShadow && (
-        <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent dark:from-slate-900 z-10 pointer-events-none" />
+        <div className="absolute left-0 top-0 bottom-0 w-8 bg-linear-to-r from-white to-transparent dark:from-slate-900 z-10 pointer-events-none" />
       )}
       
       {/* Right shadow indicator */}
       {showRightShadow && (
-        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent dark:from-slate-900 z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-8 bg-linear-to-l from-white to-transparent dark:from-slate-900 z-10 pointer-events-none" />
       )}
 
       {/* Left scroll button */}
@@ -144,7 +144,7 @@ const ScrollableTabs: React.FC<ScrollableTabsProps> = ({
             data-tab-index={tab.index}
             onClick={() => onTabChange(tab.index)}
             role="tab"
-            className={`flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-all duration-200 whitespace-nowrap min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
+            className={`flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-all duration-200 whitespace-nowrap min-h-[44px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
               activeTab === tab.index
                 ? 'border-primary-600 text-primary-600 bg-primary-50 dark:bg-primary-900/20'
                 : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
@@ -165,7 +165,7 @@ const ScrollableTabs: React.FC<ScrollableTabsProps> = ({
 
       {/* Scroll hint for mobile */}
       {showRightShadow && (
-        <div className="absolute bottom-0 right-0 flex items-center gap-1 px-2 py-1 bg-gradient-to-l from-gray-100 dark:from-slate-800 to-transparent">
+        <div className="absolute bottom-0 right-0 flex items-center gap-1 px-2 py-1 bg-linear-to-l from-gray-100 dark:from-slate-800 to-transparent">
           <div className="flex gap-0.5">
             <div className="w-1 h-1 bg-gray-400 rounded-full animate-pulse" />
             <div className="w-1 h-1 bg-gray-400 rounded-full animate-pulse delay-75" />

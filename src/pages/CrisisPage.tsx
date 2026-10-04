@@ -55,7 +55,7 @@ const CrisisPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       {/*
         112 first, above everything, and sticky.
         Previously 112 appeared only inside the body text of the "Jourhavande

@@ -15,7 +15,7 @@ import { FREE_NAV_ITEMS, PREMIUM_NAV_ITEMS, SECONDARY_LINKS } from "../../config
 const ThemeToggleButton = memo<{ className?: string }>(({ className = "" }) => {
   const { isDarkMode, toggleTheme } = useTheme();
   const { t } = useTranslation();
-  const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2c8374] focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900";
+  const focusRing = "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-500 focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900";
   
   return (
     <button
@@ -38,7 +38,7 @@ const AuthenticatedNav = memo(() => {
   const { plan, loading: subscriptionLoading } = useSubscription();
   const { t } = useTranslation();
   
-  const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2c8374] focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900";
+  const focusRing = "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-500 focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900";
   
   // ✅ useMemo för prestanda - förhindra onödiga beräkningar
   const isPremium = useMemo(() => 
@@ -89,7 +89,7 @@ AuthenticatedNav.displayName = "AuthenticatedNav";
 const GuestNav = memo(() => {
   const { t } = useTranslation();
   const location = useLocation();
-  const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2c8374] focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900";
+  const focusRing = "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-500 focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900";
   
   const isActive = (path: string) => location.pathname === path;
 
@@ -98,7 +98,7 @@ const GuestNav = memo(() => {
       {/* 🔑 Logga in */}
       <Link
         to="/login"
-        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 text-sm flex-shrink-0 whitespace-nowrap min-h-[44px] ${focusRing} ${isActive("/login")
+        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 text-sm shrink-0 whitespace-nowrap min-h-[44px] ${focusRing} ${isActive("/login")
           ? "bg-[#2c8374] text-white"
           : "text-[#6d645d] dark:text-gray-400 hover:text-[#2f2a24] dark:hover:text-white hover:bg-[#f2e4d4] dark:hover:bg-slate-800"
         }`}
@@ -111,7 +111,7 @@ const GuestNav = memo(() => {
       {/* ✨ Registrera */}
       <Link
         to="/register"
-        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 text-sm flex-shrink-0 whitespace-nowrap min-h-[44px] ${focusRing} ${isActive("/register")
+        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 text-sm shrink-0 whitespace-nowrap min-h-[44px] ${focusRing} ${isActive("/register")
           ? "bg-[#2c8374] text-white"
           : "text-[#6d645d] dark:text-gray-400 hover:text-[#2f2a24] dark:hover:text-white hover:bg-[#f2e4d4] dark:hover:bg-slate-800"
         }`}
@@ -122,10 +122,10 @@ const GuestNav = memo(() => {
       </Link>
 
       {/* 🌙 Tema */}
-      <ThemeToggleButton className="flex-shrink-0" />
+      <ThemeToggleButton className="shrink-0" />
 
       {/* 🌍 Språk */}
-      <div className="flex-shrink-0">
+      <div className="shrink-0">
         <LanguageSwitcher />
       </div>
     </>
@@ -226,7 +226,7 @@ const Navigation: React.FC = () => {
   const { isLoggedIn } = useAuth();
   const { t } = useTranslation();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2c8374] focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900';
+  const focusRing = 'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-500 focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900';
 
   // Header width: full for auth pages, offset for authenticated pages with sidebar.
   // left-0 has to be set at the base breakpoint, not only at lg. A fixed element
@@ -244,7 +244,7 @@ const Navigation: React.FC = () => {
         id="navigation"
         role="navigation"
         aria-label={t('navigation.mainNav')}
-        className={`flex justify-between items-center bg-[#fff7f0]/95 dark:bg-slate-900/95 px-3 md:px-4 lg:px-5 py-3 w-full fixed top-0 z-[120] shadow-sm border-b border-[#f2e4d4] dark:border-slate-700 backdrop-blur-md transition-colors duration-300 ${headerWidthClass}`}
+        className={`flex justify-between items-center bg-[#fff7f0]/95 dark:bg-slate-900/95 px-3 md:px-4 lg:px-5 py-3 w-full fixed top-0 z-120 shadow-xs border-b border-[#f2e4d4] dark:border-slate-700 backdrop-blur-md transition-colors duration-300 ${headerWidthClass}`}
       >
         {/* 🧘 Logo - Alltid synlig */}
         <Link
@@ -264,6 +264,7 @@ const Navigation: React.FC = () => {
 
         {/* 📱 Mobile Hamburger Menu Button */}
         <button
+          type="button"
           onClick={() => setShowMobileMenu(true)}
           className={`lg:hidden flex items-center justify-center w-11 h-11 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 text-[#6d645d] dark:text-gray-400 rounded-xl transition-all duration-200 min-h-[44px] min-w-[44px] ${focusRing}`}
           aria-label={t('navigation.openMenu')}

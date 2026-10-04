@@ -94,6 +94,43 @@ const getRealMemory = (): number => {
   return 0;
 };
 
+const getStatusClasses = (status: 'good' | 'warning' | 'error') => {
+  switch (status) {
+    case 'good': return { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', label: 'Bra' };
+    case 'warning': return { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', label: 'Varning' };
+    case 'error': return { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', label: 'Dålig' };
+  }
+};
+
+
+// Module scope: declared inside PerformanceDashboard it was a new component
+// type on every render, so React remounted every card.
+const MetricCard: React.FC<{
+  title: string; value: string | number; unit?: string;
+  status?: 'good' | 'warning' | 'error'; icon: React.ReactNode; subtitle?: string;
+}> = ({ title, value, unit, status = 'good', icon, subtitle }) => {
+  const s = getStatusClasses(status);
+  return (
+    <Card>
+      <CardContent>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            {icon}
+            <Typography variant="body2" color="text.secondary">{title}</Typography>
+          </div>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.bg} ${s.text}`}>{s.label}</span>
+        </div>
+        <Typography variant="h4" component="div">
+          {typeof value === 'number' ? value.toFixed(value < 1 ? 3 : 0) : value}
+          {unit && <span className="text-base text-slate-400 ml-1">{unit}</span>}
+        </Typography>
+        {subtitle && <Typography variant="body2" color="text.secondary" className="mt-1">{subtitle}</Typography>}
+      </CardContent>
+    </Card>
+  );
+};
+
+
 const PerformanceDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<PerformanceMetrics>({
     coreWebVitals: { cls: 0, fid: 0, fcp: 0, lcp: 0, ttfb: 0 },
@@ -261,13 +298,6 @@ const PerformanceDashboard: React.FC = () => {
     setRefreshing(false);
   };
 
-  const getStatusClasses = (status: 'good' | 'warning' | 'error') => {
-    switch (status) {
-      case 'good': return { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', label: 'Bra' };
-      case 'warning': return { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', label: 'Varning' };
-      case 'error': return { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', label: 'Dålig' };
-    }
-  };
 
   const getSeverityIcon = (type: string) => {
     switch (type) {
@@ -279,33 +309,12 @@ const PerformanceDashboard: React.FC = () => {
     }
   };
 
-  const MetricCard: React.FC<{
-    title: string; value: string | number; unit?: string;
-    status?: 'good' | 'warning' | 'error'; icon: React.ReactNode; subtitle?: string;
-  }> = ({ title, value, unit, status = 'good', icon, subtitle }) => {
-    const s = getStatusClasses(status);
-    return (
-      <Card>
-        <CardContent>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              {icon}
-              <Typography variant="body2" color="text.secondary">{title}</Typography>
-            </div>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.bg} ${s.text}`}>{s.label}</span>
-          </div>
-          <Typography variant="h4" component="div">
-            {typeof value === 'number' ? value.toFixed(value < 1 ? 3 : 0) : value}
-            {unit && <span className="text-base text-slate-400 ml-1">{unit}</span>}
-          </Typography>
-          {subtitle && <Typography variant="body2" color="text.secondary" className="mt-1">{subtitle}</Typography>}
-        </CardContent>
-      </Card>
-    );
-  };
 
-  const TabButton: React.FC<{ index: number; label: string }> = ({ index, label }) => (
+  // Render helpers, called as functions: as components declared in here they
+  // were new types on every render and remounted their whole subtree.
+  const renderTab = (index: number, label: string) => (
     <button
+      key={index}
       onClick={() => setSelectedTab(index)}
       className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
         selectedTab === index
@@ -317,7 +326,7 @@ const PerformanceDashboard: React.FC = () => {
     </button>
   );
 
-  const WebVitalsSection = () => (
+  const renderWebVitals = () => (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <MetricCard
         title="First Contentful Paint" value={metrics.coreWebVitals.fcp} unit="ms"
@@ -352,7 +361,7 @@ const PerformanceDashboard: React.FC = () => {
     </div>
   );
 
-  const BudgetsSection = () => (
+  const renderBudgets = () => (
     <div className="space-y-4">
       <Typography variant="h6">Prestandabudgetar</Typography>
       {metrics.budgets.length === 0 ? (
@@ -388,7 +397,7 @@ const PerformanceDashboard: React.FC = () => {
     </div>
   );
 
-  const IssuesSection = () => (
+  const renderIssues = () => (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <Typography variant="h6">Prestandaproblem</Typography>
@@ -440,14 +449,14 @@ const PerformanceDashboard: React.FC = () => {
       </div>
 
       <div className="flex gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-fit">
-        <TabButton index={0} label="Core Web Vitals" />
-        <TabButton index={1} label="Prestandabudgetar" />
-        <TabButton index={2} label="Problem & Varningar" />
+        {renderTab(0, 'Core Web Vitals')}
+        {renderTab(1, 'Prestandabudgetar')}
+        {renderTab(2, 'Problem & Varningar')}
       </div>
 
-      {selectedTab === 0 && <WebVitalsSection />}
-      {selectedTab === 1 && <BudgetsSection />}
-      {selectedTab === 2 && <IssuesSection />}
+      {selectedTab === 0 && renderWebVitals()}
+      {selectedTab === 1 && renderBudgets()}
+      {selectedTab === 2 && renderIssues()}
     </div>
   );
 };

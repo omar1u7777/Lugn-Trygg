@@ -283,8 +283,8 @@ thead th {
 
 /* Ensure sufficient contrast in dark mode */
 [data-theme="dark"] {
-  --text-primary: #fff;
-  --text-secondary: #b3b3b3;
+  --ds-text-primary: #fff;
+  --ds-text-secondary: #b3b3b3;
   --background-primary: #121212;
   --background-secondary: #1e1e1e;
   --border-color: #333;

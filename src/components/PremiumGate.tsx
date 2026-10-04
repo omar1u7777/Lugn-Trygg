@@ -5,11 +5,12 @@
  * komma åt premium-funktioner.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSubscription, type SubscriptionFeatures, type SubscriptionTier } from '@/contexts/SubscriptionContext';
 import { LockClosedIcon, SparklesIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { MONTHLY_PRICE_SEK, CURRENCY_SUFFIX } from '../config/pricing';
+import { svCount } from '../utils/plural';
 
 // Typ för feature-namn
 export type FeatureName = keyof SubscriptionFeatures;
@@ -73,14 +74,17 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
 }) => {
   const { hasFeature, plan, loading, isTrial } = useSubscription();
   const navigate = useNavigate();
+  // Read the clock once per mount rather than on every render, so the
+  // trial countdown cannot flip between renders of the same screen.
+  const [now] = useState(Date.now);
   const trialEndTime =
     plan.trialEndsAt && typeof plan.trialEndsAt.getTime === 'function'
       ? plan.trialEndsAt.getTime()
       : 0;
-  const remainingMs = Math.max(0, trialEndTime - Date.now());
+  const remainingMs = Math.max(0, trialEndTime - now);
   const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
   const hasTrialEndDate = Boolean(plan.trialEndsAt);
-  const hasTrialExpired = hasTrialEndDate && trialEndTime > 0 && trialEndTime <= Date.now();
+  const hasTrialExpired = hasTrialEndDate && trialEndTime > 0 && trialEndTime <= now;
 
   // Visa laddningsindikator medan vi kollar prenumeration
   if (loading) {
@@ -99,7 +103,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
           <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
             <p className="text-sm font-medium">
               {remainingDays > 0
-                ? `Gratisperiod aktiv: ${remainingDays} dagar kvar.`
+                ? `Gratisperiod aktiv: ${svCount(remainingDays, 'dag', 'dagar')} kvar.`
                 : 'Gratisperiod aktiv.'}
             </p>
           </div>
@@ -129,7 +133,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
       <div className="relative z-10 flex items-center justify-center min-h-[400px] p-4">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
           {/* Ikon */}
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center mb-6">
+          <div className="mx-auto w-16 h-16 bg-linear-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center mb-6">
             <LockClosedIcon className="w-8 h-8 text-white" />
           </div>
 
@@ -160,7 +164,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
             <ul className="space-y-2">
               {PREMIUM_BENEFITS.slice(0, 5).map((benefit, index) => (
                 <li key={index} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                  <CheckIcon className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <CheckIcon className="w-4 h-4 text-green-500 shrink-0" />
                   {benefit}
                 </li>
               ))}
@@ -184,7 +188,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
           <div className="space-y-3">
             <button
               onClick={() => navigate('/upgrade')}
-              className="w-full bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+              className="w-full bg-linear-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               Uppgradera till Premium
             </button>

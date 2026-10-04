@@ -82,7 +82,7 @@ SWAGGER_CONFIG: dict[str, Any] = {
     "termsOfService": "https://lugntrygg.se/terms",
     "contact": {
         "name": "Lugn & Trygg Support",
-        "email": "support@lugntrygg.se",
+        "email": "support@lugn-trygg.se",
         "url": "https://lugntrygg.se/support"
     },
     "license": {

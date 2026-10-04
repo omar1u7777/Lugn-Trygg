@@ -22,6 +22,7 @@ import {
   type ComprehensiveRiskResult,
 } from '../api/clinical';
 import { logger } from '../utils/logger';
+import CompositeRiskCard from './clinical/CompositeRiskCard';
 import { useMountedRef } from '../hooks/useMountedRef';
 
 // ---------------------------------------------------------------------------
@@ -290,7 +291,7 @@ export const ClinicalAssessment: React.FC = () => {
           {t('clinicalAssessment.subtitle')}
         </p>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 flex items-start gap-1.5">
-          <InformationCircleIcon className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" aria-hidden="true" />
+          <InformationCircleIcon className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden="true" />
           {t('clinicalAssessment.disclaimer')}
         </p>
       </div>
@@ -430,8 +431,16 @@ export const ClinicalAssessment: React.FC = () => {
                     {entry.total_score} {t('clinicalAssessment.points')} — {severityLabel(entry.severity, t)}
                   </span>
                   {entry.type === 'phq9' && (entry as AssessmentHistoryEntry).suicidal_ideation && (
-                    <span className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400 font-medium">
-                      <ExclamationTriangleIcon className="w-3 h-3" /> {t('clinicalAssessment.risk')}
+                    // Marks any answer above 0 on question 9, whatever the
+                    // total: a 3-point "Minimal" result can be that one answer
+                    // alone. Labelled "Risk" with no explanation, it sat next
+                    // to "Minimal" and read as a contradiction (UI audit S-3).
+                    <span
+                      className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400 font-medium"
+                      title={t('clinicalAssessment.q9BadgeHint')}
+                    >
+                      <ExclamationTriangleIcon className="w-3 h-3" aria-hidden="true" /> {t('clinicalAssessment.q9Badge')}
+                      <span className="sr-only">{t('clinicalAssessment.q9BadgeHint')}</span>
                     </span>
                   )}
                 </div>
@@ -454,65 +463,11 @@ export const ClinicalAssessment: React.FC = () => {
                 </div>
               )}
               {compositeRisk && !compositeLoading && !compositeError && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-3">
-                    {t('clinicalAssessment.compositeRisk.title')}
-                  </h3>
-                  <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium mb-4 ${getSeverityColor(compositeRisk.composite_risk === 'none' ? 'minimal' : compositeRisk.composite_risk === 'crisis' ? 'severe' : compositeRisk.composite_risk)}`}>
-                    {t(`clinicalAssessment.compositeRisk.${compositeRisk.composite_risk}`)}
-                  </div>
-                  {compositeRisk.risk_factors.length > 0 && (
-                    <div className="mb-3">
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t('clinicalAssessment.compositeRisk.riskFactors')}</p>
-                      <ul className="space-y-1">
-                        {compositeRisk.risk_factors.map((factor, i) => (
-                          <li key={i} className="text-xs text-orange-700 dark:text-orange-400 flex items-start gap-1.5">
-                            <ExclamationTriangleIcon className="w-3 h-3 mt-0.5 flex-shrink-0" /> {factor}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {compositeRisk.protective_factors.length > 0 && (
-                    <div className="mb-3">
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t('clinicalAssessment.compositeRisk.protectiveFactors')}</p>
-                      <ul className="space-y-1">
-                        {compositeRisk.protective_factors.map((factor, i) => (
-                          <li key={i} className="text-xs text-green-700 dark:text-green-400 flex items-start gap-1.5">
-                            <CheckCircleIcon className="w-3 h-3 mt-0.5 flex-shrink-0" /> {factor}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {compositeRisk.suggested_interventions.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t('clinicalAssessment.compositeRisk.interventions')}</p>
-                      <ul className="space-y-1">
-                        {compositeRisk.suggested_interventions.map((intervention, i) => (
-                          <li key={i} className="text-xs text-indigo-700 dark:text-indigo-400 flex items-start gap-1.5">
-                            {/*
-                              The backend returns constants (CREATE_SAFETY_PLAN,
-                              IMMEDIATE_CRISIS_INTERVENTION…). Stripping the
-                              underscores rendered them as raw English — "create
-                              safety plan" — in a PHQ-9 crisis result, which is
-                              the last place to show a user untranslated
-                              machine output.
-
-                              The old transformation stays as the defaultValue:
-                              if the backend adds a constant before the key
-                              exists, this degrades to the previous readable
-                              form rather than printing a translation key.
-                            */}
-                            <InformationCircleIcon className="w-3 h-3 mt-0.5 flex-shrink-0" /> {t(`clinicalAssessment.interventions.${intervention}`, {
-                              defaultValue: intervention.replace(/_/g, ' ').toLowerCase(),
-                            })}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
+                <CompositeRiskCard
+                  risk={compositeRisk}
+                  severityColor={getSeverityColor}
+                  onRetake={resetAssessment}
+                />
               )}
             </div>
           )}
@@ -664,7 +619,7 @@ export const ClinicalAssessment: React.FC = () => {
                   {'suicidal_ideation' in result && result.suicidal_ideation && (
                     <div className={`mt-4 p-3 border rounded-lg ${q9HighRisk ? 'bg-red-200 dark:bg-red-900/60 border-red-400 dark:border-red-600' : 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700'}`}>
                       <div className="flex items-start gap-2">
-                        <ExclamationTriangleIcon className="w-5 h-5 text-red-700 dark:text-red-300 mt-0.5 flex-shrink-0" />
+                        <ExclamationTriangleIcon className="w-5 h-5 text-red-700 dark:text-red-300 mt-0.5 shrink-0" />
                         <div>
                           <p className="font-semibold text-red-800 dark:text-red-200">
                             {q9HighRisk ? t('clinicalAssessment.q9HighRiskTitle') : t('clinicalAssessment.q9ModerateRiskTitle')}
@@ -697,7 +652,7 @@ export const ClinicalAssessment: React.FC = () => {
                   <ul className="space-y-2">
                     {result.recommendations.map((rec, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <CheckCircleIcon className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <CheckCircleIcon className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                         <span>{rec}</span>
                       </li>
                     ))}
@@ -708,7 +663,7 @@ export const ClinicalAssessment: React.FC = () => {
                 {'follow_up_timeframe' in result && result.follow_up_timeframe && (
                   <div className="px-5 pb-4">
                     <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 p-3 flex items-center gap-2">
-                      <InformationCircleIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                      <InformationCircleIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
                       <p className="text-sm text-indigo-700 dark:text-indigo-300">
                         {t('clinicalAssessment.followUp.title')}: {t(`clinicalAssessment.followUp.${result.follow_up_timeframe}`)}
                       </p>
@@ -729,7 +684,7 @@ export const ClinicalAssessment: React.FC = () => {
                       <ol className="space-y-2">
                         {[1, 2, 3, 4, 5].map(step => (
                           <li key={step} className="text-sm text-red-700 dark:text-red-300 flex items-start gap-2">
-                            <span className="flex-shrink-0">{t(`clinicalAssessment.safetyPlan.step${step}`)}</span>
+                            <span className="shrink-0">{t(`clinicalAssessment.safetyPlan.step${step}`)}</span>
                           </li>
                         ))}
                       </ol>

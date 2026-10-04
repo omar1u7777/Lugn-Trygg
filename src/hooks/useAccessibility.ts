@@ -39,6 +39,30 @@ export const useAccessibility = (): AccessibilityState & AccessibilityActions =>
   const liveRegionRef = useRef<HTMLDivElement | null>(null);
   const assertiveLiveRegionRef = useRef<HTMLDivElement | null>(null);
 
+  // Screen reader detection
+  const isScreenReaderActive = (): boolean => {
+    // Check for common screen reader indicators
+    const hasAriaLive = document.querySelector('[aria-live]') !== null;
+    const hasScreenReaderClass = document.body.classList.contains('screen-reader-active');
+
+    // Check for NVDA, JAWS, VoiceOver, etc.
+    const userAgent = navigator.userAgent.toLowerCase();
+    const screenReaderIndicators = [
+      'nvda',
+      'jaws',
+      'voiceover',
+      'talkback',
+      'narrator',
+      'orca'
+    ];
+
+    const hasScreenReaderUA = screenReaderIndicators.some(indicator =>
+      userAgent.includes(indicator)
+    );
+
+    return hasAriaLive || hasScreenReaderClass || hasScreenReaderUA;
+  };
+
   const detectAccessibilityFeatures = useCallback(() => {
     // CRITICAL: Check window exists to prevent TDZ errors in production
     if (typeof window === 'undefined') return;
@@ -164,30 +188,6 @@ export const useAccessibility = (): AccessibilityState & AccessibilityActions =>
     };
   }, [detectAccessibilityFeatures, setupFocusManagement, setupKeyboardNavigation, setupLiveRegions]);
 
-  // Screen reader detection
-  const isScreenReaderActive = (): boolean => {
-    // Check for common screen reader indicators
-    const hasAriaLive = document.querySelector('[aria-live]') !== null;
-    const hasScreenReaderClass = document.body.classList.contains('screen-reader-active');
-
-    // Check for NVDA, JAWS, VoiceOver, etc.
-    const userAgent = navigator.userAgent.toLowerCase();
-    const screenReaderIndicators = [
-      'nvda',
-      'jaws',
-      'voiceover',
-      'talkback',
-      'narrator',
-      'orca'
-    ];
-
-    const hasScreenReaderUA = screenReaderIndicators.some(indicator =>
-      userAgent.includes(indicator)
-    );
-
-    return hasAriaLive || hasScreenReaderClass || hasScreenReaderUA;
-  };
-
   // Announce to screen reader
   const announceToScreenReader = useCallback((message: string, priority: 'polite' | 'assertive' = 'polite') => {
     const targetRegion = priority === 'assertive' ? assertiveLiveRegionRef.current : liveRegionRef.current;
@@ -201,6 +201,20 @@ export const useAccessibility = (): AccessibilityState & AccessibilityActions =>
           targetRegion.textContent = message;
         }
       }, 100);
+      /*
+        And clear it again once it has been read.
+        This cleared BEFORE announcing but never after, so the last message sat
+        in the accessibility tree indefinitely. With a polite and an assertive
+        region each holding their last line, anything reading the DOM as text
+        sees them together — which is why a QA pass reported the live region
+        "accumulating" messages like "Sida laddad: … / Dashboard laddad".
+        Matches what useAnnounce in SkipLink already does.
+      */
+      setTimeout(() => {
+        if (targetRegion && targetRegion.textContent === message) {
+          targetRegion.textContent = '';
+        }
+      }, 3000);
     }
   }, []);
 

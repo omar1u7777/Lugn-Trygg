@@ -135,7 +135,9 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
   }, [timerRemaining, clearTimerInterval, restoreVolume]);
 
   // Keep ref in sync for unmount cleanup
-  selectedTrackRef.current = selectedTrack;
+  useEffect(() => {
+    selectedTrackRef.current = selectedTrack;
+  }, [selectedTrack]);
 
   const savePlaybackSession = useCallback(() => {
     if (!playbackStartRef.current || !selectedTrackRef.current) return;
@@ -258,6 +260,14 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
       }
     }, [audioLoadingFallback, isPlaying, t]);
 
+  const selectTrack = (track: AudioTrack, index: number) => {
+    savePlaybackSession();
+    playbackStartRef.current = new Date();
+    setSelectedTrack(track);
+    setCurrentTrackIndex(index);
+    setAudioError(null);
+  };
+
   const handleNextTrack = useCallback(() => {
     if (currentPlaylist.length === 0) return;
     const nextIndex = (currentTrackIndex + 1) % currentPlaylist.length;
@@ -310,14 +320,6 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
       }
     }
   }, [isPlaying, selectedTrack, t]);
-
-  const selectTrack = (track: AudioTrack, index: number) => {
-    savePlaybackSession();
-    playbackStartRef.current = new Date();
-    setSelectedTrack(track);
-    setCurrentTrackIndex(index);
-    setAudioError(null);
-  };
 
   // Point the player at the chosen track.
   //
@@ -417,16 +419,26 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
 
   const containerClasses = embedded
     ? "w-full min-h-[500px] flex flex-col bg-transparent"
-    : "fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm p-4";
+    : "fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-xs p-4";
 
+  /*
+   * flex-1 min-h-0, not h-full.
+   *
+   * The embedded container sets min-h-[500px] and no height. `h-full` resolves
+   * against the parent's HEIGHT, which is auto — so the card collapsed to its
+   * own content and the flex-1 overflow-y-auto track list underneath it was
+   * left with whatever remained, a strip a few pixels tall that could not
+   * scroll. min-h-0 is what lets that inner list actually overflow rather than
+   * forcing its parent to grow.
+   */
   const cardClasses = embedded
-    ? "bg-transparent w-full flex flex-col h-full"
+    ? "bg-transparent w-full flex flex-col flex-1 min-h-0"
     : "bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 animate-fade-in max-h-[95vh] w-full max-w-6xl flex flex-col";
 
   return (
     <div className={containerClasses}>
       <div className={cardClasses}>
-        <div className={`p-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0 pt-0' : ''}`}>
+        <div className={`p-6 border-b border-slate-200 dark:border-slate-700 shrink-0 ${embedded ? 'px-0 pt-0' : ''}`}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-3">
               <span className="text-2xl">🎵</span>
@@ -445,7 +457,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
         </div>
 
         {/* Tab Switcher */}
-        <div className={`px-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0' : ''}`}>
+        <div className={`px-6 border-b border-slate-200 dark:border-slate-700 shrink-0 ${embedded ? 'px-0' : ''}`}>
           <div className="flex gap-4">
             <button
               onClick={() => setActiveTab('library')}
@@ -468,7 +480,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
             >
               <span className="mr-2">🤖</span>
               {t('sounds.aiMusic', 'AI-Musik')}
-              <span className="ml-2 px-2 py-0.5 text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full">
+              <span className="ml-2 px-2 py-0.5 text-xs bg-linear-to-r from-purple-500 to-pink-500 text-white rounded-full">
                 {t('common.new', 'Ny')}
               </span>
             </button>
@@ -524,7 +536,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
             {!loading && !error && categories.length > 0 && (
               <>
                 {/* Category Selection */}
-                <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0' : ''}`}>
+                <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0 ${embedded ? 'px-0' : ''}`}>
                   <div className="flex flex-wrap gap-3">
                     {categories.map((category) => (
                       <button
@@ -545,7 +557,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                 <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                   {/* Track List */}
                   <div className="flex-1 flex flex-col min-h-0">
-                    <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0' : ''}`}>
+                    <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0 ${embedded ? 'px-0' : ''}`}>
                       <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                         <span>{currentCategory?.icon}</span>
                         {currentCategory && getLocalizedText(currentCategory)}
@@ -558,8 +570,24 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                         {currentPlaylist.map((track, index) => (
                           <div
                             key={track.id}
+                            role="button"
+                            tabIndex={0}
+                            aria-pressed={selectedTrack?.id === track.id}
+                            aria-label={getLocalizedText(track)}
                             onClick={() => selectTrack(track, index)}
-                            className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 ${selectedTrack?.id === track.id
+                            /*
+                              These were plain divs with an onClick: absent from
+                              the accessibility tree and unreachable by keyboard,
+                              so the whole library was mouse-only. Space and
+                              Enter are what a real button responds to.
+                            */
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                selectTrack(track, index);
+                              }
+                            }}
+                            className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${selectedTrack?.id === track.id
                               ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-600 shadow-md'
                               : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
                               }`}
@@ -572,7 +600,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                                 <p className="text-sm text-slate-600 dark:text-slate-400 truncate">{track.artist}</p>
                                 <p className="text-xs text-slate-500 dark:text-slate-500 mt-1 line-clamp-2">{track.description}</p>
                               </div>
-                              <div className="text-right ml-4 flex-shrink-0">
+                              <div className="text-right ml-4 shrink-0">
                                 <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{track.duration}</div>
                                 {selectedTrack?.id === track.id && (
                                   <div className="text-xs text-primary-600 dark:text-primary-400 mt-1">
@@ -588,15 +616,29 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                   </div>
 
                   {/* Player Controls - Always Visible */}
-                  <div className="lg:w-96 flex-shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700">
+                  <div className="lg:w-96 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700">
                     <div className={`p-6 h-full flex flex-col ${embedded ? 'px-4' : ''}`}>
                       <div className="text-center mb-6">
-                        <div
-                          className="w-20 h-20 mx-auto mb-4 bg-primary-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg cursor-pointer hover:bg-primary-600 transition-colors"
+                        {/*
+                          A div with an onClick, styled as the largest control
+                          on the page. It had no role, no keyboard access and no
+                          disabled state, so with nothing selected a click did
+                          nothing at all and said nothing about why —
+                          togglePlay returns early without a selectedTrack.
+
+                          The smaller transport button below always had
+                          disabled={!selectedTrack}; this one, the obvious thing
+                          to press, did not.
+                        */}
+                        <button
+                          type="button"
                           onClick={togglePlay}
+                          disabled={!selectedTrack}
+                          aria-label={isPlaying ? t('audio.pause', 'Pausa') : t('audio.play', 'Spela')}
+                          className="w-20 h-20 mx-auto mb-4 bg-primary-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg cursor-pointer hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                         >
                           {isPlaying ? '⏸️' : '▶️'}
-                        </div>
+                        </button>
                         {selectedTrack ? (
                           <div>
                             <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-1 truncate">

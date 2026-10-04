@@ -78,7 +78,7 @@ const BentoCard: React.FC<{
   <div
     onClick={onClick}
     className={`
-      group relative overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800 border border-gray-100 dark:border-gray-700/50 shadow-sm hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-slate-900/50 transition-all duration-500 cursor-pointer
+      group relative overflow-hidden rounded-4xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-gray-700/50 shadow-xs hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-slate-900/50 transition-all duration-500 cursor-pointer
       ${className}
     `}
   >
@@ -87,7 +87,7 @@ const BentoCard: React.FC<{
         <div className="mb-auto flex justify-between items-start w-full">
           {icon && (
             <div className={`w-12 h-12 rounded-2xl ${accentColor} bg-opacity-10 text-primary-600 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:rotate-6 sm:w-14 sm:h-14`}>
-              {React.cloneElement(icon as React.ReactElement, { className: `w-6 h-6 sm:w-7 sm:h-7` })}
+              {React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: `w-6 h-6 sm:w-7 sm:h-7` })}
             </div>
           )}
         </div>
@@ -258,7 +258,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
     return (
       <div className="p-12 text-center animate-pulse">
         <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-4" />
-        <div className="h-6 w-1/3 bg-gray-200 dark:bg-gray-700 rounded mx-auto" />
+        <div className="h-6 w-1/3 bg-gray-200 dark:bg-gray-700 rounded-sm mx-auto" />
       </div>
     );
   }
@@ -280,7 +280,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
               {t('gamification.celebrateProgress')}
             </p>
           </div>
-          <button onClick={onClose} className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-700 min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label={t('common.close')}>
+          <button onClick={onClose} className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-xs hover:shadow-md transition-all border border-gray-100 dark:border-gray-700 min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label={t('common.close')}>
             <XMarkIcon className="w-6 h-6 text-gray-500" />
           </button>
         </header>
@@ -289,7 +289,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
           {/* Level Card - Main Feature */}
           <div className="lg:col-span-2">
-            <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-2xl shadow-indigo-500/20 h-full p-8 sm:p-10 flex flex-col justify-between group">
+            <div className="relative overflow-hidden rounded-[2.5rem] bg-linear-to-br from-indigo-500 to-purple-600 text-white shadow-2xl shadow-indigo-500/20 h-full p-8 sm:p-10 flex flex-col justify-between group">
               <div className="absolute top-0 right-0 p-32 bg-white/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform duration-700 ease-in-out" />
 
               <div className="relative z-10 flex items-start justify-between">
@@ -315,7 +315,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
                   <span>{t('gamification.xpProgress', { current: stats.xp, next: stats.xpToNext })}</span>
                   <span>{t('gamification.percentToLevel', { percent: Math.round((stats.xp / stats.xpToNext) * 100), level: stats.level + 1 })}</span>
                 </div>
-                <div className="h-4 bg-black/20 rounded-full overflow-hidden backdrop-blur-sm">
+                <div className="h-4 bg-black/20 rounded-full overflow-hidden backdrop-blur-xs">
                   <div
                     className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)] rounded-full transition-all duration-1000 ease-out relative overflow-hidden"
                     style={{ width: `${(stats.xp / stats.xpToNext) * 100}%` }}
@@ -334,14 +334,14 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
               subtitle={t('gamification.currentStreak')}
               icon={<FireIconSolid />}
               accentColor="bg-orange-500"
-              className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-orange-100 dark:border-orange-800/30"
+              className="bg-linear-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-orange-100 dark:border-orange-800/30"
             />
             <BentoCard
               title={`${stats.achievementsUnlocked}/${stats.totalAchievements}`}
               subtitle={t('gamification.unlockedAchievements')}
               icon={<TrophyIcon />}
               accentColor="bg-yellow-500"
-              className="bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-yellow-100 dark:border-yellow-800/30"
+              className="bg-linear-to-br from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-yellow-100 dark:border-yellow-800/30"
             />
           </div>
         </div>
@@ -354,9 +354,9 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
             { label: t('gamification.totalXP'), value: ((stats.level - 1) ** 2) * 100 + stats.xp, icon: <SparklesIcon className="text-purple-500" />, bg: 'bg-purple-50' },
             { label: t('gamification.ranking'), value: t('gamification.level', { level: stats.level }), icon: <ArrowTrendingUpIcon className="text-green-500" />, bg: 'bg-green-50' }
           ].map((stat, i) => (
-            <div key={i} className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700/50 shadow-sm flex flex-col items-center text-center hover:scale-[1.02] transition-transform">
+            <div key={i} className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700/50 shadow-xs flex flex-col items-center text-center hover:scale-[1.02] transition-transform">
               <div className={`mb-3 p-3 rounded-2xl ${stat.bg} dark:bg-opacity-10`}>
-                {React.cloneElement(stat.icon as React.ReactElement, { className: "w-6 h-6 " + stat.icon.props.className })}
+                {React.cloneElement(stat.icon as React.ReactElement<{ className?: string }>, { className: "w-6 h-6 " + stat.icon.props.className })}
               </div>
               <span className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{stat.value}</span>
               <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">{stat.label}</span>
@@ -374,12 +374,12 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
           {unlockedList.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {unlockedList.map(ach => (
-                <div key={ach.id} className="bg-white dark:bg-slate-800 rounded-[2rem] p-6 border border-gray-100 dark:border-gray-700/50 shadow-lg relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-16 bg-gradient-to-bl from-yellow-400/20 to-transparent rounded-bl-full transform translate-x-1/2 -translate-y-1/2" />
+                <div key={ach.id} className="bg-white dark:bg-slate-800 rounded-4xl p-6 border border-gray-100 dark:border-gray-700/50 shadow-lg relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-16 bg-linear-to-bl from-yellow-400/20 to-transparent rounded-bl-full transform translate-x-1/2 -translate-y-1/2" />
                   <div className="relative z-10">
                     <div className="flex justify-between items-start mb-4">
                       <div className="w-14 h-14 rounded-2xl bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 flex items-center justify-center shadow-inner">
-                        {React.cloneElement(ach.icon as React.ReactElement, { className: 'w-7 h-7' })}
+                        {React.cloneElement(ach.icon as React.ReactElement<{ className?: string }>, { className: 'w-7 h-7' })}
                       </div>
                       <RarityBadge rarity={ach.rarity} />
                     </div>
@@ -394,7 +394,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
               ))}
             </div>
           ) : (
-            <div className="p-8 text-center bg-gray-50 dark:bg-slate-800/50 rounded-[2rem] border border-dashed border-gray-200 dark:border-gray-700">
+            <div className="p-8 text-center bg-gray-50 dark:bg-slate-800/50 rounded-4xl border border-dashed border-gray-200 dark:border-gray-700">
               <p className="text-gray-500">{t('gamification.noAwardsYet')}</p>
             </div>
           )}

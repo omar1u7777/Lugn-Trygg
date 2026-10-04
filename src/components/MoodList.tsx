@@ -350,7 +350,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
   const stats = getMoodStats();
 
   return (
-    <div className={inline ? "w-full" : "fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm"}>
+    <div className={inline ? "w-full" : "fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-xs"}>
       {/* Invisible backdrop click area */}
       {!inline && (
         <div
@@ -368,21 +368,21 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
       }>
         {/* Free Tier History Limit Banner */}
         {!isPremium && historyDays > 0 && (
-          <div className="mb-4 p-3 bg-gradient-to-r from-amber-400 to-amber-500 rounded-lg text-white flex items-center justify-between">
+          <div className="mb-4 p-3 bg-linear-to-r from-amber-400 to-amber-500 rounded-lg text-white flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-lg">🔒</span>
               <span className="font-medium">Visar endast senaste {historyDays} dagars historik</span>
             </div>
             <a 
               href="/upgrade" 
-              className="px-3 py-1 bg-white text-amber-600 font-bold rounded text-sm hover:bg-gray-100 transition-colors"
+              className="px-3 py-1 bg-white text-amber-600 font-bold rounded-sm text-sm hover:bg-gray-100 transition-colors"
             >
               Lås upp allt
             </a>
           </div>
         )}
 
-        <div className="flex items-center justify-between mb-6 flex-shrink-0">
+        <div className="flex items-center justify-between mb-6 shrink-0">
           <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-3">
             <span className="text-2xl">📝</span>
             Dina Humörloggar
@@ -422,7 +422,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
         </div>
 
         {/* Search and Filters */}
-        <div className="space-y-4 mb-6 flex-shrink-0">
+        <div className="space-y-4 mb-6 shrink-0">
           {/* Search */}
           <div className="flex gap-4">
             <div className="flex-1">
@@ -431,7 +431,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
                 placeholder="🔍 Sök i humör, känslor..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
 
@@ -580,7 +580,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
 
         {/* Error message */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6 flex-shrink-0">
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6 shrink-0">
             <p className="text-red-800 dark:text-red-300 font-medium">
               <span className="text-lg mr-2">❌</span>
               <strong>{error}</strong>

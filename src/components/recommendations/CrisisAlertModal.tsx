@@ -39,7 +39,7 @@ export const CrisisAlertModal: React.FC<{ onClose: () => void }> = ({ onClose })
           </div>
 
           <p className="text-xs text-red-500 dark:text-red-400 mb-4">
-            {t('recommendations.crisis.footer', 'Om du är i omedelbar fara, ring 112 genast. Hjälplinjer är konfidentiella och tillgängliga dygnet runt.')}
+            {t('recommendations.crisis.footer', 'Om du är i omedelbar fara, ring-3 112 genast. Hjälplinjer är konfidentiella och tillgängliga dygnet runt.')}
           </p>
 
           <button

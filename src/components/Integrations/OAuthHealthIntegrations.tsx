@@ -21,13 +21,6 @@ const OAuthHealthIntegrations: React.FC = () => {
     const [success, setSuccess] = useState<string | null>(null);
     const [analysisResult, setAnalysisResult] = useState<HealthMoodAnalysisResult | null>(null);
 
-    useEffect(() => {
-        if (user?.user_id) {
-            loadAllStatuses();
-        }
-         
-    }, [user]);
-
     const loadAllStatuses = async () => {
         try {
             const allStatuses = await oauthHealthService.checkAllStatuses();
@@ -36,6 +29,13 @@ const OAuthHealthIntegrations: React.FC = () => {
             logger.error('Failed to load OAuth statuses:', err);
         }
     };
+
+    useEffect(() => {
+        if (user?.user_id) {
+            loadAllStatuses();
+        }
+         
+    }, [user]);
 
     const handleConnect = async (providerId: string) => {
         setError(null);
@@ -186,6 +186,7 @@ const OAuthHealthIntegrations: React.FC = () => {
 
                                 {isConnected && (
                                     <button
+                                        type="button"
                                         onClick={() => handleSync(provider.id)}
                                         disabled={isSyncing}
                                         className="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
@@ -196,8 +197,15 @@ const OAuthHealthIntegrations: React.FC = () => {
                             </div>
 
                             {/* Description */}
+                            {/*
+                              BUG-29: the four provider blurbs were English
+                              while the heading and buttons around them were
+                              Swedish. Translated by the provider's stable id,
+                              with the catalogue's own text as defaultValue so a
+                              provider added later still renders.
+                            */}
                             <p className="text-slate-600 dark:text-slate-400 mb-4">
-                                {provider.description}
+                                {t(`healthIntegrations.providers.${provider.id}.description`, { defaultValue: provider.description })}
                             </p>
 
                             {/* Scopes */}
@@ -210,7 +218,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                                         {status.scope.split(' ').map((scope, idx) => (
                                             <span
                                                 key={idx}
-                                                className="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded"
+                                                className="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-sm"
                                             >
                                                 {scope}
                                             </span>
@@ -233,6 +241,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                             <div className="flex space-x-3">
                                 {isConnected ? (
                                     <button
+                                        type="button"
                                         onClick={() => handleDisconnect(provider.id)}
                                         disabled={isLoading}
                                         className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
@@ -241,11 +250,14 @@ const OAuthHealthIntegrations: React.FC = () => {
                                     </button>
                                 ) : (
                                     <button
+                                        type="button"
                                         onClick={() => handleConnect(provider.id)}
                                         disabled={isLoading}
                                         className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
                                     >
-                                        {isLoading ? '⏳ Ansluter...' : '🔗 Anslut'}
+                                        {isLoading
+                                            ? t('healthIntegrations.connecting', '⏳ Ansluter…')
+                                            : t('healthIntegrations.connect', '🔗 Anslut')}
                                     </button>
                                 )}
                             </div>
@@ -306,6 +318,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                         </p>
                     </div>
                     <button
+                        type="button"
                         onClick={handleAnalyze}
                         disabled={analyzing}
                         className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50 font-medium"
@@ -372,7 +385,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                                 <p className="font-medium text-indigo-900 dark:text-indigo-100 mb-3">🔍 {t('healthIntegrations.patternsFound', 'Hittade mönster')}</p>
                                 <div className="space-y-2">
                                     {analysisResult.patterns.map((pattern, idx) => (
-                                        <div key={idx} className="bg-white dark:bg-slate-800 rounded p-3 border-l-4 border-indigo-500">
+                                        <div key={idx} className="bg-white dark:bg-slate-800 rounded-sm p-3 border-l-4 border-indigo-500">
                                             <p className="font-semibold text-slate-900 dark:text-slate-100">{pattern.title}</p>
                                             <p className="text-sm text-slate-600 dark:text-slate-400">{pattern.description}</p>
                                             <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">{t('healthIntegrations.impact', 'Påverkan:')} {pattern.impact === 'high' ? t('healthIntegrations.impactHigh', '🔴 Hög') : t('healthIntegrations.impactMedium', '🟡 Medel')}</p>
@@ -388,12 +401,12 @@ const OAuthHealthIntegrations: React.FC = () => {
                                 <p className="font-medium text-orange-900 dark:text-orange-100 mb-3">💡 Personliga rekommendationer</p>
                                 <div className="space-y-2">
                                     {analysisResult.recommendations.map((rec, idx) => (
-                                        <div key={idx} className="bg-white dark:bg-slate-800 rounded p-3">
+                                        <div key={idx} className="bg-white dark:bg-slate-800 rounded-sm p-3">
                                             <p className="font-semibold text-slate-900 dark:text-slate-100">{rec.title}</p>
                                             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{rec.description}</p>
                                             <div className="mt-2 flex items-center justify-between">
                                                 <p className="text-xs font-medium text-slate-700 dark:text-slate-300">💪 {rec.action}</p>
-                                                <span className="text-xs bg-orange-200 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200 px-2 py-1 rounded">{rec.expected_benefit}</span>
+                                                <span className="text-xs bg-orange-200 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200 px-2 py-1 rounded-sm">{rec.expected_benefit}</span>
                                             </div>
                                         </div>
                                     ))}

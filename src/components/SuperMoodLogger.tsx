@@ -9,6 +9,7 @@
  */
 
 import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react';
+import { queryClient } from '../contexts/queryClient';
 import { useTranslation } from 'react-i18next';
 import {
   ClockIcon,
@@ -33,6 +34,7 @@ import { TagSelector } from './mood/TagSelector';
 import { logger } from '../utils/logger';
 import { getMoodLabel } from '../features/mood/utils';
 import type { AxiosError } from 'axios';
+import { tagLabel } from '../utils/tagLabel';
 
 interface SuperMoodLoggerProps {
   onMoodLogged?: (mood?: number, note?: string) => void;
@@ -204,6 +206,9 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   const [isLogging, setIsLogging] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [recentMoods, setRecentMoods] = useState<RecentMood[]>([]);
+  // When the list was loaded; "Idag"/"Igår" are judged against it, not
+  // against a clock read during render.
+  const [recentMoodsLoadedAt, setRecentMoodsLoadedAt] = useState(Date.now);
   const [isLoadingRecentMoods, setIsLoadingRecentMoods] = useState(false);
   const [limitError, setLimitError] = useState<string | null>(null);
   
@@ -236,18 +241,23 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     };
   }, []);
 
-  const loadRecentMoods = useCallback(async () => {
+  const loadRecentMoods = useCallback(async (fresh = false) => {
     if (!user?.user_id) return;
-
-    // Abort any previous in-flight request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
     setIsLoadingRecentMoods(true);
 
     try {
-      const moodsResponse = await getMoods(user.user_id, abortControllerRef.current.signal);
+      // Through the shared ['moods', userId] query, so the dashboard's other
+      // reader of this list (the recommendations panel) gets the same
+      // response instead of a second GET /mood on every load (UI audit
+      // Dup-21). After this component writes, it asks for a fresh copy.
+      if (fresh) await queryClient.invalidateQueries({ queryKey: ['moods', user.user_id] });
+      const moodsResponse = await queryClient.fetchQuery({
+        queryKey: ['moods', user.user_id],
+        queryFn: ({ signal }) => getMoods(user.user_id, signal),
+        staleTime: 30 * 1000,
+        // getMoods already degrades to [] on failure; a retry only delays it.
+        retry: false,
+      });
       
       // Only update state if component is still mounted
       if (!isMountedRef.current) return;
@@ -283,6 +293,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
         .slice(0, maxRecentMoods);
 
       setRecentMoods(normalized);
+      setRecentMoodsLoadedAt(Date.now());
     } catch (err) {
       // Ignore abort errors
       if (err instanceof Error && err.name === 'AbortError') return;
@@ -291,9 +302,6 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     } finally {
       if (isMountedRef.current) {
         setIsLoadingRecentMoods(false);
-      }
-      if (abortControllerRef.current?.signal.aborted) {
-        abortControllerRef.current = null;
       }
     }
   }, [user?.user_id, maxRecentMoods]);
@@ -343,6 +351,8 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     try {
       await deleteMood(moodId);
       setRecentMoods(prev => prev.filter(m => m.id !== moodId));
+      // Other readers of the shared list must not keep showing it.
+      void queryClient.invalidateQueries({ queryKey: ['moods'] });
       announceToScreenReader(t('moodLogger.moodDeleted', 'Humörinlägg raderat'), 'polite');
     } catch (err) {
       logger.error('Failed to delete mood:', err);
@@ -445,7 +455,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
 
       // Refresh recent moods
       if (showRecentMoods) {
-        await loadRecentMoods();
+        await loadRecentMoods(true);
       }
 
       if (!isMountedRef.current) return;
@@ -545,10 +555,15 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   }, []);
 
   const groupedMoods = useMemo(() => {
+    const reference = new Date(recentMoodsLoadedAt);
+    const today = reference.toLocaleDateString(locale);
+    // setDate rather than subtracting 24 h, which lands on the wrong day
+    // across a daylight-saving change.
+    reference.setDate(reference.getDate() - 1);
+    const yesterday = reference.toLocaleDateString(locale);
+
     return recentMoods.reduce<RecentMoodGroup[]>((groups, mood) => {
       const dayKey = mood.timestamp.toLocaleDateString(locale);
-      const today = new Date().toLocaleDateString(locale);
-      const yesterday = new Date(Date.now() - 86400000).toLocaleDateString(locale);
 
       let label = dayKey;
       if (dayKey === today) label = t('moodLogger.today', 'Idag');
@@ -562,7 +577,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       group.entries.push(mood);
       return groups;
     }, []);
-  }, [recentMoods, t, locale]);
+  }, [recentMoods, recentMoodsLoadedAt, t, locale]);
 
   const canSubmit = selectedMood !== null;
   const reflectionPrompt = selectedMood !== null ? getReflectionPrompt(selectedMood, t) : '';
@@ -613,7 +628,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                         : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:scale-102'
                       }
                       disabled:opacity-50 disabled:cursor-not-allowed
-                      focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
+                      focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
                     `}
                   >
                     <div className="text-4xl mb-2">{mood.emoji}</div>
@@ -653,7 +668,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
                        placeholder-gray-400 dark:placeholder-gray-500
-                       focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+                       focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:border-transparent
                        disabled:opacity-50 disabled:cursor-not-allowed resize-none"
             />
             {note.length > 0 && (
@@ -739,7 +754,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
                            bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
                            placeholder-gray-400 dark:placeholder-gray-500
-                           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+                           focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:border-transparent
                            disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
@@ -760,9 +775,10 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
               <button
                 onClick={handleLogMood}
                 disabled={!canSubmit || isLogging}
+                aria-describedby={!canSubmit ? 'mood-submit-hint' : undefined}
                 className="w-full py-3 px-6 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg
                          transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
-                         focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
+                         focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
                          transform hover:scale-[1.02] active:scale-[0.98]"
               >
                 {isLogging
@@ -778,9 +794,10 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
             <button
               onClick={handleLogMood}
               disabled={!canSubmit || isLogging}
+              aria-describedby={!canSubmit ? 'mood-submit-hint' : undefined}
               className="w-full py-3 px-6 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg
                        transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
-                       focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
+                       focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
                        transform hover:scale-[1.02] active:scale-[0.98]"
             >
               {isLogging 
@@ -788,6 +805,18 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                 : t('moodLogger.logMood', 'Logga humör')
               }
             </button>
+          )}
+
+          {/*
+            The button carries disabled:opacity-50 and a native `disabled`,
+            which assistive tech already reports — aria-disabled would be
+            redundant on a real <button>. What was missing is WHY, for everyone:
+            canSubmit is `selectedMood !== null`, and nothing said so.
+          */}
+          {!canSubmit && !isLogging && (
+            <p id="mood-submit-hint" className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+              {t('moodLogger.selectMoodFirst', 'Välj hur du mår för att kunna logga.')}
+            </p>
           )}
         </div>
       </Card>
@@ -828,7 +857,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                           className={`p-2 rounded-lg border ${visual.iconBgClass} border-gray-200 dark:border-gray-700`}
                         >
                           <div className="flex items-center gap-2">
-                            <div className={`p-1 rounded-lg ${visual.iconBgClass} flex-shrink-0`}>
+                            <div className={`p-1 rounded-lg ${visual.iconBgClass} shrink-0`}>
                               <Icon className={`w-4 h-4 ${visual.iconClass}`} />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -836,10 +865,10 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                                 <span className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">
                                   {mood.mood}
                                 </span>
-                                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${visual.scoreBadgeClass} flex-shrink-0`}>
+                                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${visual.scoreBadgeClass} shrink-0`}>
                                   {mood.score}/10
                                 </span>
-                                <span className="text-[10px] text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">
                                   {mood.timestamp.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                               </div>
@@ -852,7 +881,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                                 <div className="flex flex-wrap gap-0.5 mt-0.5">
                                   {mood.tags.slice(0, 2).map((tag) => (
                                     <span key={tag} className="text-[8px] px-1 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full font-medium">
-                                      #{tag}
+                                      #{tagLabel(t, tag)}
                                     </span>
                                   ))}
                                   {mood.tags.length > 2 && (
@@ -863,10 +892,17 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                                 </div>
                               )}
                             </div>
+                            {/*
+                              44x44 is the WCAG 2.5.5 minimum. This was a
+                              14px icon in 4px of padding — 22x22 — on a
+                              control that permanently deletes a mood entry.
+                              The icon keeps its size; the hit area grows
+                              around it, so nothing moves visually.
+                            */}
                             <button
                               type="button"
                               onClick={() => handleDeleteMood(mood.id!)}
-                              className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded"
+                              className="shrink-0 flex items-center justify-center min-w-[44px] min-h-[44px] text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded-sm"
                               aria-label={t('moodLogger.delete', 'Radera')}
                               title={t('moodLogger.delete', 'Radera')}
                             >

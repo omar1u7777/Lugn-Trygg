@@ -15,7 +15,7 @@ import { logger } from '../../utils/logger';
 // Constants for better maintainability
 const DEFAULT_TARGET_ID = 'main-content';
 const DEFAULT_SKIP_TEXT = 'Hoppa till huvudinnehållet';
-const SKIP_LINK_CLASSES = 'skip-link focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2';
+const SKIP_LINK_CLASSES = 'skip-link focus:outline-hidden focus:ring-2 focus:ring-teal-500 focus:ring-offset-2';
 
 interface SkipLinkProps {
   targetId?: string;

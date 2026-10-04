@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter, Input, Snackbar } from './ui/tailwind';
 import { useTranslation } from 'react-i18next';
@@ -47,6 +48,16 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
   </div>
 );
 
+/**
+ * Tab order, as names. The indices are an implementation detail of the tab
+ * strip; the names are what appears in the URL and therefore what people can
+ * bookmark, so they are the stable half of this pair.
+ */
+const TAB_NAMES = ['account', 'privacy', 'notifications', 'appearance'] as const;
+const TAB_INDEX_BY_NAME: Record<string, number> = Object.fromEntries(
+  TAB_NAMES.map((name, index) => [name, index])
+);
+
 interface ProfileStats {
   totalMoods: number;
   totalConversations: number;
@@ -59,7 +70,26 @@ const ProfileHub: React.FC = () => {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const { plan, isPremium, isTrial, usage, getRemainingMoodLogs, getRemainingMessages } = useSubscription();
-  const [activeTab, setActiveTab] = useState(0);
+  /*
+   * The active tab lives in the URL.
+   *
+   * It was useState(0), and changing the theme sent the user back to
+   * "Kontoinställningar" from whichever tab they had chosen — reproduced
+   * several times in QA. I did not find the remount that causes it, and that
+   * is rather the point: local state resets for reasons that are not visible
+   * from here, while a query parameter survives any of them.
+   *
+   * It also makes the tabs linkable, which they were not.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = TAB_INDEX_BY_NAME[searchParams.get('tab') ?? ''] ?? 0;
+  const setActiveTab = useCallback((index: number) => {
+    const next = new URLSearchParams(searchParams);
+    const name = TAB_NAMES[index];
+    if (name) next.set('tab', name);
+    // replace, not push: flipping tabs should not fill the back button.
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   // Snackbar state (moved up to stabilize callbacks for useDebouncedSave)
   const [snackbar, setSnackbar] = useState({
@@ -96,7 +126,7 @@ const ProfileHub: React.FC = () => {
       onError: handleSaveError,
     }
   );
-  const { data: settings, updateData: updateSettings, isSaving: isSavingSettings, hasUnsavedChanges, cancelSave } = settingsManager;
+  const { data: settings, updateData: updateSettings, isSaving: isSavingSettings, hasUnsavedChanges, cancelSave, setBaseline: setSettingsBaseline } = settingsManager;
   // True when the saved preferences could not be fetched. The toggles then
   // show the hardcoded defaults rather than the user's real settings, so
   // writing them back would silently overwrite what they actually chose.
@@ -187,8 +217,14 @@ const ProfileHub: React.FC = () => {
             publicProfile: false,
             ...(typeof profile.preferences === 'object' ? profile.preferences : {}),
           };
-          updateSettings(loadedSettings);
-          cancelSave();
+          /*
+             Adopting server state, not editing. updateSettings moves the
+             working copy but leaves the hook's comparison point on this
+             component's hardcoded defaults, so the tab announced "Osparade
+             ändringar" the instant the fetch resolved — before the user had
+             touched a control, and with no Save button to act on it.
+          */
+          setSettingsBaseline(loadedSettings);
         }
 
         // Use aggregated stats from backend
@@ -223,7 +259,7 @@ const ProfileHub: React.FC = () => {
     };
 
     fetchProfileData();
-  }, [updateSettings, user?.createdAt, user?.user_id, cancelSave, showSnackbar, t]);
+  }, [updateSettings, user?.createdAt, user?.user_id, cancelSave, setSettingsBaseline, showSnackbar, t]);
 
   const handleSettingChange = (setting: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
     // Refuse to save when the stored preferences never loaded — the values in
@@ -389,20 +425,20 @@ const ProfileHub: React.FC = () => {
     <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
       {/* Identity Card Hero */}
       <div className="mb-8">
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-800 to-slate-900 dark:from-indigo-900 dark:to-slate-900 text-white shadow-2xl p-8 sm:p-10">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-linear-to-br from-slate-800 to-slate-900 dark:from-indigo-900 dark:to-slate-900 text-white shadow-2xl p-8 sm:p-10">
           {/* Background Decor */}
           <div className="absolute top-0 right-0 p-40 bg-white/5 rounded-full blur-3xl transform translate-x-1/3 -translate-y-1/3 pointer-events-none" />
 
           <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8">
             {/* Avatar Section */}
             <div className="relative">
-              <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full p-1 bg-gradient-to-br from-indigo-400 to-purple-400 shadow-xl">
-                <div className="w-full h-full rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-5xl sm:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-indigo-500 to-purple-600">
+              <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full p-1 bg-linear-to-br from-indigo-400 to-purple-400 shadow-xl">
+                <div className="w-full h-full rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-5xl sm:text-6xl font-bold text-transparent bg-clip-text bg-linear-to-br from-indigo-500 to-purple-600">
                   {user?.email?.charAt(0).toUpperCase() || '👤'}
                 </div>
               </div>
               {isPremium && (
-                <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-amber-400 to-amber-600 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-lg border-2 border-slate-900 flex items-center gap-1">
+                <div className="absolute -bottom-2 -right-2 bg-linear-to-r from-amber-400 to-amber-600 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-lg border-2 border-slate-900 flex items-center gap-1">
                   <StarIcon className="w-4 h-4" />
                   PREMIUM
                 </div>
@@ -411,7 +447,17 @@ const ProfileHub: React.FC = () => {
 
             {/* Info Section */}
             <div className="text-center md:text-left flex-1">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 tracking-tight">
+              {/*
+                break-words, because an e-mail address contains nothing the
+                browser is willing to break on. At text-5xl the heading ran to
+                the edge of the viewport on the tested width and would have
+                gone past it for anything longer. title carries the full value
+                for the truncating case.
+              */}
+              <h1
+                className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 tracking-tight wrap-anywhere wrap-break-word"
+                title={user?.email || undefined}
+              >
                 {user?.email || t('profileHub.guest', 'Gäst')}
               </h1>
               <p className="text-indigo-200 text-lg mb-6 max-w-lg mx-auto md:mx-0">
@@ -421,7 +467,20 @@ const ProfileHub: React.FC = () => {
               <div className="flex flex-wrap justify-center md:justify-start gap-3">
                 <div className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 text-sm font-medium flex items-center gap-2">
                   <UserIcon className="w-4 h-4 text-indigo-300" />
-                  {t('profileHub.memberForDays', 'Medlem i {{days}} dagar', { days: profileStats.accountAge })}
+                  {/*
+                    accountAge starts at 0, so this rendered "Medlem i 0 dagar"
+                    before the fetch resolved — a wrong fact rather than an
+                    absent one, and one that would have stuck permanently if the
+                    call failed silently.
+                  */}
+                  {loading ? (
+                    <span
+                      className="inline-block h-4 w-28 rounded-sm bg-white/20 animate-pulse"
+                      aria-label={t('common.loading')}
+                    />
+                  ) : (
+                    t('profileHub.memberForDays', { count: profileStats.accountAge })
+                  )}
                 </div>
                 {!isPremium && (
                   <Button
@@ -447,12 +506,12 @@ const ProfileHub: React.FC = () => {
           { label: t('profileHub.memories', 'Minnen'), value: profileStats.totalMemories, icon: SparklesIcon, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20' },
           { label: t('profileHub.daysActive', 'Dagar aktiv'), value: `${profileStats.accountAge}d`, icon: UserIcon, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20' }
         ].map((stat) => (
-          <div key={stat.label} className="group bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
+          <div key={stat.label} className="group bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 shadow-xs hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
             <div className={`w-12 h-12 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center mb-4 transition-transform group-hover:rotate-6`}>
               <stat.icon className="w-6 h-6" />
             </div>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-              {loading ? <span className="inline-block w-8 h-8 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" /> : stat.value}
+              {loading ? <span className="inline-block w-8 h-8 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-sm" /> : stat.value}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
               {stat.label}
@@ -462,7 +521,7 @@ const ProfileHub: React.FC = () => {
       </div>
 
       {/* Subscription Status Card - REAL IMPLEMENTATION */}
-      <Card className={`mb-6 sm:mb-8 overflow-hidden ${isPremium ? 'bg-gradient-to-r from-accent-400 to-accent-500' : isTrial ? 'bg-gradient-to-r from-primary-500 to-primary-600' : 'bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-800 dark:to-primary-700'}`}>
+      <Card className={`mb-6 sm:mb-8 overflow-hidden ${isPremium ? 'bg-linear-to-r from-accent-400 to-accent-500' : isTrial ? 'bg-linear-to-r from-primary-500 to-primary-600' : 'bg-linear-to-r from-primary-50 to-primary-100 dark:from-primary-800 dark:to-primary-700'}`}>
         <div className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -493,7 +552,7 @@ const ProfileHub: React.FC = () => {
             {!isPremium && !isTrial && (
               <Button
                 variant="primary"
-                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold"
+                className="bg-linear-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold"
                 onClick={() => navigate('/upgrade')}
               >
                 {t('profileHub.upgradeToPremium')}

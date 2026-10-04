@@ -34,6 +34,50 @@ interface HealthMetrics {
   riskLevel: 'low' | 'medium' | 'high' | 'unknown';
 }
 
+// Static color map to avoid dynamic Tailwind classes that get purged by JIT
+const colorClasses: Record<string, string> = {
+  primary: 'text-primary-600 dark:text-primary-400',
+  secondary: 'text-secondary-600 dark:text-secondary-400',
+  success: 'text-success-600 dark:text-success-400',
+  error: 'text-error-600 dark:text-error-400',
+  warning: 'text-warning-600 dark:text-warning-400',
+  info: 'text-info-600 dark:text-info-400',
+};
+
+// Defined at module scope: declared inside HealthMonitoring it was a new
+// component type on every render, so React remounted each card.
+const MetricCard: React.FC<{
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  icon: React.ReactNode;
+  color?: string;
+  /** Source for this metric could not be reached — show a dash, not a zero. */
+  unavailable?: boolean;
+  loading?: boolean;
+}> = ({ title, value, subtitle, icon, color = 'primary', unavailable, loading }) => (
+  <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-xs">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+          {title}
+        </p>
+        <p className="text-3xl font-bold text-gray-900 dark:text-white">
+          {loading || unavailable ? '—' : typeof value === 'number' ? value.toLocaleString() : value}
+        </p>
+        {subtitle && (
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {subtitle}
+          </p>
+        )}
+      </div>
+      <div className={colorClasses[color] ?? colorClasses.primary}>
+        {icon}
+      </div>
+    </div>
+  </div>
+);
+
 const HealthMonitoring: React.FC = () => {
   const [metrics, setMetrics] = useState<HealthMetrics>({
     totalUsers: 0,
@@ -81,7 +125,7 @@ const HealthMonitoring: React.FC = () => {
       const systemStatus = health?.status ?? 'unknown';
 
       // Calculate average mood from backend data if available
-      const avgMood = stats?.moods?.averageMood ?? 0;
+      const avgMood = stats?.moods?.averageScore ?? 0;
 
       // Determine risk level from system health
       let riskLevel: HealthMetrics['riskLevel'] = 'low';
@@ -197,51 +241,10 @@ const HealthMonitoring: React.FC = () => {
     });
   };
 
-  // Static color map to avoid dynamic Tailwind classes that get purged by JIT
-  const colorClasses: Record<string, string> = {
-    primary: 'text-primary-600 dark:text-primary-400',
-    secondary: 'text-secondary-600 dark:text-secondary-400',
-    success: 'text-success-600 dark:text-success-400',
-    error: 'text-error-600 dark:text-error-400',
-    warning: 'text-warning-600 dark:text-warning-400',
-    info: 'text-info-600 dark:text-info-400',
-  };
-
-  const MetricCard: React.FC<{
-    title: string;
-    value: string | number;
-    subtitle?: string;
-    icon: React.ReactNode;
-    color?: string;
-    /** Source for this metric could not be reached — show a dash, not a zero. */
-    unavailable?: boolean;
-  }> = ({ title, value, subtitle, icon, color = 'primary', unavailable }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-            {title}
-          </p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">
-            {loading || unavailable ? '—' : typeof value === 'number' ? value.toLocaleString() : value}
-          </p>
-          {subtitle && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              {subtitle}
-            </p>
-          )}
-        </div>
-        <div className={colorClasses[color] ?? colorClasses.primary}>
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="space-y-6 p-4 sm:p-6">
       {/* Admin Dashboard Banner */}
-      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 rounded-lg shadow-lg">
+      <div className="bg-linear-to-r from-purple-600 to-indigo-600 text-white p-4 rounded-lg shadow-lg">
         <div className="flex items-center gap-3">
           <span className="text-2xl">🔒</span>
           <div>
@@ -266,7 +269,7 @@ const HealthMonitoring: React.FC = () => {
 
         <div className="flex gap-2 flex-wrap">
           <button
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px]"
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px]"
             onClick={() => {
               analytics.track('Health Check Initiated', {
                 component: 'HealthMonitoring',
@@ -277,7 +280,7 @@ const HealthMonitoring: React.FC = () => {
             Run Health Check
           </button>
           <button
-            className="flex items-center gap-2 px-4 py-2 bg-error-600 hover:bg-error-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-error-500 min-h-[44px]"
+            className="flex items-center gap-2 px-4 py-2 bg-error-600 hover:bg-error-700 text-white font-medium rounded-lg transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-error-500 min-h-[44px]"
             onClick={() => {
               analytics.track('Emergency Protocol Activated', {
                 component: 'HealthMonitoring',
@@ -307,7 +310,7 @@ const HealthMonitoring: React.FC = () => {
             </p>
           </div>
           <button
-            className="px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[40px]"
+            className="px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[40px]"
             onClick={() => void loadRealMetrics()}
           >
             Retry
@@ -330,6 +333,7 @@ const HealthMonitoring: React.FC = () => {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
+          loading={loading}
           title="Active Monitoring"
           value={metrics.activeMonitoring}
           subtitle="Users under active health monitoring"
@@ -339,6 +343,7 @@ const HealthMonitoring: React.FC = () => {
         />
 
         <MetricCard
+          loading={loading}
           title="Crisis Alerts"
           value={metrics.crisisAlerts}
           subtitle="Require immediate attention"
@@ -347,6 +352,7 @@ const HealthMonitoring: React.FC = () => {
         />
 
         <MetricCard
+          loading={loading}
           title="Safety Checks"
           value={metrics.safetyChecks}
           subtitle="Completed this week"
@@ -356,6 +362,7 @@ const HealthMonitoring: React.FC = () => {
         />
 
         <MetricCard
+          loading={loading}
           title="Average Mood"
           value={`${metrics.averageMood}/10`}
           subtitle="Community mood score"
@@ -366,7 +373,7 @@ const HealthMonitoring: React.FC = () => {
       </div>
 
       {/* Risk Level Indicator */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-xs">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white">
             Community Risk Level
@@ -409,7 +416,7 @@ const HealthMonitoring: React.FC = () => {
       </div>
 
       {/* Crisis Indicators */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-xs">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white">
             Active Crisis Indicators
@@ -458,7 +465,7 @@ const HealthMonitoring: React.FC = () => {
 
                     {!indicator.resolved && (
                       <button
-                        className="px-4 py-2 bg-success-700 hover:bg-success-800 text-white text-sm font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-success-600 min-h-[40px]"
+                        className="px-4 py-2 bg-success-700 hover:bg-success-800 text-white text-sm font-medium rounded-lg transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-success-600 min-h-[40px]"
                         onClick={() => handleResolveIndicator(indicator)}
                       >
                         Resolve
@@ -478,7 +485,7 @@ const HealthMonitoring: React.FC = () => {
                       {indicator.actions.map((action, actionIndex) => (
                         <button
                           key={actionIndex}
-                          className="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white text-sm rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                          className="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white text-sm rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500"
                           onClick={() => handleTakeAction(indicator, action)}
                         >
                           {action}
@@ -509,7 +516,7 @@ const HealthMonitoring: React.FC = () => {
               </h2>
               <button
                 onClick={() => setActionDialog(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500"
                 aria-label="Close dialog"
               >
                 <XMarkIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
@@ -559,12 +566,12 @@ const HealthMonitoring: React.FC = () => {
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setActionDialog(false)}
-                className="px-6 py-2 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px]"
+                className="px-6 py-2 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px]"
               >
                 Cancel
               </button>
               <button
-                className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px]"
+                className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px]"
                 onClick={() => {
                   analytics.track('Health Action Executed', {
                     action: selectedAction,

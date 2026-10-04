@@ -43,7 +43,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
     >
       {/* Recommended for badge */}
       {recommendation.primaryGoal && (
-        <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-primary-500 to-secondary-500 text-white text-xs px-3 py-1.5 text-center font-medium">
+        <div className="absolute top-0 left-0 right-0 bg-linear-to-r from-primary-500 to-secondary-500 text-white text-xs px-3 py-1.5 text-center font-medium">
           ✨ {t('recommendations.recommendedFor', 'Rekommenderas för')} {recommendation.primaryGoal}
         </div>
       )}
@@ -104,7 +104,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             </div>
             <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-primary-400 to-primary-600 rounded-full transition-all duration-500"
+                className="h-full bg-linear-to-r from-primary-400 to-primary-600 rounded-full transition-all duration-500"
                 style={{ width: `${recommendation.completionRate}%` }}
               />
             </div>
@@ -252,7 +252,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
       {/* Bottom progress bar (visual only) */}
       <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 dark:bg-gray-700">
         <div
-          className="h-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all duration-500"
+          className="h-full bg-linear-to-r from-primary-400 to-primary-600 transition-all duration-500"
           style={{ width: `${recommendation.completionRate || (recommendation.completed ? 100 : 0)}%` }}
         />
       </div>

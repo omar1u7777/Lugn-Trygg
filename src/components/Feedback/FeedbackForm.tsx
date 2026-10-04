@@ -8,6 +8,7 @@ import api from '../../api/api';
 import { API_ENDPOINTS } from '../../api/constants';
 import FeedbackHistory from './FeedbackHistory';
 import { logger } from '../../utils/logger';
+import { SUPPORT_EMAIL } from '../../config/contact';
 
 
 interface FeedbackData {
@@ -21,9 +22,12 @@ interface FeedbackData {
 const FeedbackForm: React.FC = () => {
     const { user } = useAuth();
     const { t } = useTranslation();
+    // No rating until the user picks one: a preselected "Mycket nöjd" was
+    // submitted by everyone who did not touch the stars, skewing every
+    // result upwards (UI audit L-9). 0 means not chosen.
     const [feedback, setFeedback] = useState<FeedbackData>({
         category: 'general',
-        rating: 5,
+        rating: 0,
         message: '',
         email: '',
         allowContact: false
@@ -50,6 +54,11 @@ const FeedbackForm: React.FC = () => {
             return;
         }
         
+        if (feedback.rating < 1) {
+            setError(t('feedbackForm.errors.noRating', 'Välj hur nöjd du är'));
+            return;
+        }
+
         if (!feedback.message.trim()) {
             setError(t('feedbackForm.errors.emptyMessage', 'Vänligen skriv ett meddelande'));
             return;
@@ -74,7 +83,7 @@ const FeedbackForm: React.FC = () => {
             setTimeout(() => {
                 setFeedback({
                     category: 'general',
-                    rating: 5,
+                    rating: 0,
                     message: '',
                     email: '',
                     allowContact: false
@@ -199,7 +208,9 @@ const FeedbackForm: React.FC = () => {
                                 key={star}
                                 type="button"
                                 onClick={() => handleRatingClick(star)}
-                                className="transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary rounded"
+                                aria-label={t('feedbackForm.ratingStar', { count: star, defaultValue: '{{count}} av 5' })}
+                                aria-pressed={feedback.rating === star}
+                                className="transition-transform hover:scale-110 focus:outline-hidden focus:ring-2 focus:ring-primary rounded-sm"
                             >
                                 {star <= feedback.rating ? (
                                     <StarIconSolid className="w-10 h-10 text-yellow-400" />
@@ -220,10 +231,11 @@ const FeedbackForm: React.FC = () => {
 
                 {/* Message */}
                 <Card className="p-6">
-                    <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
+                    <h2 id="feedback-message-heading" className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
                         ✍️ {t('feedbackForm.yourMessage', 'Ditt meddelande')}
                     </h2>
                     <textarea
+                        aria-labelledby="feedback-message-heading"
                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
                         rows={6}
                         value={feedback.message}
@@ -244,7 +256,7 @@ const FeedbackForm: React.FC = () => {
                             type="checkbox"
                             checked={feedback.allowContact}
                             onChange={(e) => setFeedback({ ...feedback, allowContact: e.target.checked })}
-                            className="w-5 h-5 mt-1 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary"
+                            className="w-5 h-5 mt-1 rounded-sm border-gray-300 text-primary focus:ring-2 focus:ring-primary"
                         />
                         <div>
                             <p className="font-bold text-gray-900 dark:text-gray-100">
@@ -278,7 +290,14 @@ const FeedbackForm: React.FC = () => {
                         type="submit"
                         variant="primary"
                         size="lg"
-                        disabled={loading}
+                        /*
+                          Was disabled={loading} alone, so "Skicka feedback"
+                          offered to submit an empty message. The handler
+                          already refuses one — this just stops the button
+                          from promising otherwise. Same shape as BUG-38 on
+                          the registration form.
+                        */
+                        disabled={loading || !feedback.message.trim()}
                         className="flex items-center gap-2 px-8"
                     >
                         {loading ? (
@@ -297,39 +316,26 @@ const FeedbackForm: React.FC = () => {
             </form>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-                <Card className="p-6 text-center">
-                    <div className="text-4xl mb-3">📚</div>
-                    <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100">
-                        {t('feedbackForm.helpCenter', 'Hjälpcenter')}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                        {t('feedbackForm.helpCenterBody', 'Hitta svar på vanliga frågor')}
-                    </p>
-                    <a 
-                        href="https://github.com/omar1u7777/Lugn-Trygg/wiki" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline font-medium"
-                    >
-                        {t('feedbackForm.helpCenterLink', 'Besök hjälpcenter')} →
-                    </a>
-                </Card>
-                <Card className="p-6 text-center">
-                    <div className="text-4xl mb-3">💬</div>
-                    <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100">
-                        Live Chat
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                        {t('feedbackForm.liveChatBody', 'Chatta med vårt AI support-team')}
-                    </p>
-                    <Button
-                        variant="outline"
-                        onClick={() => window.location.href = '/chatbot'}
-                    >
-                        {t('feedbackForm.startChat', 'Starta chatt')} →
-                    </Button>
-                </Card>
+            {/*
+                The "Hjälpcenter" card linked to github.com/omar1u7777/Lugn-Trygg/wiki
+                — a PRIVATE repository, holding developer documentation ("Home",
+                "Testing", "Utvecklardokumentation"). For anyone who is not the
+                repo owner it is a GitHub login page or a 404, and for anyone
+                who does reach it, it is not consumer help.
+
+                Removed rather than repointed: there is no help centre to point
+                at, and a card promising answers that delivers a login screen is
+                worse than no card. The translation keys are left in place for
+                whoever builds one.
+            */}
+            {/*
+                A "Live Chat — Chatta med vårt AI support-team" card sat here.
+                It opened /ai-chat, which is the mental-health companion, not
+                product support: it is prompted for emotional support and
+                cannot answer questions about the app or an account (UI audit
+                L-10). Removed until there is a support channel to point at.
+            */}
+            <div className="grid grid-cols-1 gap-6 mt-12 max-w-md mx-auto">
                 <Card className="p-6 text-center">
                     <div className="text-4xl mb-3">📞</div>
                     <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100">
@@ -339,10 +345,10 @@ const FeedbackForm: React.FC = () => {
                         {t('feedbackForm.contactBody', 'Skicka ett email till oss')}
                     </p>
                     <a 
-                        href="mailto:support@lugn-trygg.se"
+                        href={`mailto:${SUPPORT_EMAIL}`}
                         className="text-primary hover:underline font-medium"
                     >
-                        support@lugn-trygg.se →
+                        {SUPPORT_EMAIL} →
                     </a>
                 </Card>
             </div>

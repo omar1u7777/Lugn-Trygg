@@ -45,7 +45,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose, children }) =>
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[130] animate-fade-in"
+        className="fixed inset-0 bg-black/50 backdrop-blur-xs z-130 animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -53,7 +53,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose, children }) =>
       {/* Menu Panel */}
       <div
         ref={menuPanelRef}
-        className="fixed top-0 right-0 h-full w-[85%] max-w-sm bg-white dark:bg-slate-900 shadow-2xl z-[140] animate-slide-in-right"
+        className="fixed top-0 right-0 h-full w-[85%] max-w-sm bg-white dark:bg-slate-900 shadow-2xl z-140 animate-slide-in-right"
         role="dialog"
         aria-modal="true"
         aria-label={t('navigation.mobileMenu')}

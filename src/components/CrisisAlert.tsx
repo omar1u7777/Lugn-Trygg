@@ -34,7 +34,7 @@ const CrisisAlert: React.FC<CrisisAlertProps> = ({ isOpen, onClose, moodScore })
             <p>
               🚨 <strong>{t('crisis.importantInfo')}</strong> {t('crisis.infoText')}
             </p>
-            <p className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-800 p-2 rounded">
+            <p className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-800 p-2 rounded-sm">
               💡 <strong>{t('crisis.honestAdvice')}</strong> {t('crisis.adviceText')}
             </p>
 

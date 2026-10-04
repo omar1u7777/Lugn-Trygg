@@ -168,7 +168,7 @@ const AnalyticsDashboard: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6">
         <div className="max-w-7xl mx-auto space-y-4">
-          <div className="h-10 w-64 rounded bg-slate-200 dark:bg-slate-800 animate-pulse" />
+          <div className="h-10 w-64 rounded-sm bg-slate-200 dark:bg-slate-800 animate-pulse" />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="h-24 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
             <div className="h-24 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />

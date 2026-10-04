@@ -103,7 +103,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onClose, onSuccess }) =
       <div className="relative">
         <button
           onClick={onClose}
-          className="absolute top-0 right-0 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="absolute top-0 right-0 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500"
           aria-label={t('forgotPassword.closeDialog')}
         >
           <XMarkIcon className="w-5 h-5" />
@@ -189,7 +189,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onClose, onSuccess }) =
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="text-sm text-primary-600 dark:text-primary-400 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-sm text-primary-600 dark:text-primary-400 hover:underline focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t('forgotPassword.backToLogin')}
             </button>

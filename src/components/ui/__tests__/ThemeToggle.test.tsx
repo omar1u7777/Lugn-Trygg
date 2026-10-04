@@ -168,7 +168,7 @@ describe('ThemeToggle Component', () => {
     expect(button).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('has focus ring class', () => {
+  it('has focus ring-3 class', () => {
     mockUseTheme.mockReturnValue({
       isDarkMode: false,
       toggleTheme: mockToggleTheme,
