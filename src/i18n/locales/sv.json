@@ -363,7 +363,9 @@
         "alone": "Ensam",
         "nature": "Natur",
         "creative": "Kreativt"
-      }
+      },
+      "errorEmpty": "Skriv något innan du lägger till taggen",
+      "errorDuplicate": "Taggen är redan vald"
     }
   },
   "memories": {

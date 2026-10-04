@@ -64,13 +64,58 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
     }
   };
 
+  const [customTagError, setCustomTagError] = useState<string | null>(null);
+
+  /**
+   * Strip the characters that make a stored string look like markup.
+   *
+   * React escapes on render, so this was never a live XSS — but the value is
+   * persisted, and "the current renderer happens to escape it" is not a
+   * property you want a database to depend on. Defence in depth; the backend
+   * should validate too.
+   */
+  const sanitizeTag = (value: string): string =>
+    value.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
+
   const addCustomTag = () => {
-    const trimmed = customTag.trim().toLowerCase();
-    if (!trimmed || selectedTags.length >= 5) return;
-    
-    if (!selectedTags.includes(trimmed)) {
-      onTagsChange([...selectedTags, trimmed]);
+    const cleaned = sanitizeTag(customTag);
+
+    if (!cleaned) {
+      // Was a silent `return` that also left the whitespace sitting in the
+      // field, so the user got no message and no clue why nothing happened.
+      setCustomTagError(t('mood.tags.errorEmpty'));
+      setCustomTag('');
+      return;
     }
+    if (selectedTags.length >= 5) return;
+
+    /*
+     * Compare case-insensitively against what is SELECTED and against the
+     * preset LABELS.
+     *
+     * The old check was `selectedTags.includes(trimmed)`, and selected presets
+     * are stored by id — 'work'. A user with "Arbete" already chosen who typed
+     * "arbete" was compared against 'work', found no match, and got a second
+     * tag for the same thing. Typing a preset's own label now selects that
+     * preset instead of shadowing it with a custom duplicate.
+     */
+    const needle = cleaned.toLowerCase();
+    const preset = PREDEFINED_TAGS.find(
+      tag => tag.id.toLowerCase() === needle || String(t(tag.labelKey)).toLowerCase() === needle
+    );
+    const candidate = preset ? preset.id : needle;
+
+    const alreadySelected = selectedTags.some(
+      selected => selected.toLowerCase() === candidate.toLowerCase()
+    );
+    if (alreadySelected) {
+      setCustomTagError(t('mood.tags.errorDuplicate'));
+      setCustomTag('');
+      return;
+    }
+
+    onTagsChange([...selectedTags, candidate]);
+    setCustomTagError(null);
     setCustomTag('');
   };
 
@@ -123,9 +168,16 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
               >
                 <span>{tag.emoji}</span>
                 <span>{t(tag.labelKey)}</span>
-                {isSelected && (
-                  <XMarkIcon className="w-4 h-4 ml-1" />
-                )}
+                {/*
+                  The slot is always here, only the icon appears. Rendering the
+                  X conditionally grew the chip by 20px at the moment of
+                  selection, which reflowed the row and moved every tag after
+                  it — so a second quick tap landed on the wrong one.
+                */}
+                <XMarkIcon
+                  className={`w-4 h-4 ml-1 ${isSelected ? '' : 'invisible'}`}
+                  aria-hidden="true"
+                />
               </button>
             );
           })}
@@ -136,7 +188,9 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
           <input
             type="text"
             value={customTag}
-            onChange={(e) => setCustomTag(e.target.value)}
+            onChange={(e) => { setCustomTag(e.target.value); setCustomTagError(null); }}
+            aria-invalid={customTagError ? true : undefined}
+            aria-describedby={customTagError ? 'custom-tag-error' : undefined}
             onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomTag())}
             placeholder={t('mood.tags.customPlaceholder', 'Egen tagg...')}
             disabled={disabled || selectedTags.length >= 5}
@@ -150,7 +204,13 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
           <button
             type="button"
             onClick={addCustomTag}
-            disabled={disabled || !customTag.trim() || selectedTags.length >= 5}
+            /*
+              Enabled on any input, not only non-blank input.
+              With `!customTag.trim()` the button was dead for whitespace-only
+              text: the click did nothing and explained nothing, so it read as
+              a broken button rather than as rejected input. It now answers.
+            */
+            disabled={disabled || !customTag || selectedTags.length >= 5}
             className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700
                      rounded-lg transition-colors duration-200
                      disabled:opacity-50 disabled:cursor-not-allowed
@@ -159,6 +219,21 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
             {t('mood.tags.add', 'Lägg till')}
           </button>
         </div>
+
+        {/*
+          role="alert" so the message is announced. Whitespace-only input used
+          to return silently and leave the spaces in the field, which reads as
+          the button being broken rather than the input being rejected.
+        */}
+        {customTagError && (
+          <p
+            id="custom-tag-error"
+            role="alert"
+            className="mt-2 text-xs text-red-600 dark:text-red-400"
+          >
+            {customTagError}
+          </p>
+        )}
       </div>
 
       {/* Selected Tags Display */}
