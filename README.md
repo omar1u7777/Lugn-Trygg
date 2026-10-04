@@ -32,7 +32,7 @@
 
 ## Overview
 
-Lugn & Trygg (Swedish for "Calm & Safe") is a production-grade mental health web application serving 800+ registered users with 41 000+ mood logs. The platform combines evidence-based tools — mood journaling, CBT exercises, breathing guidance, and gamified wellness challenges — with AI-driven analytics and an anonymous peer-support chat.
+Lugn & Trygg (Swedish for "Calm & Safe") is a production-grade mental health web application, load-tested with a seeded dataset of 800+ test users and 41 000+ mood logs to verify performance, analytics and pagination at realistic scale. The platform combines evidence-based tools — mood journaling, CBT exercises, breathing guidance, and gamified wellness challenges — with AI-driven analytics and an anonymous peer-support chat.
 
 The application is a **monorepo** with a React single-page application at the root and a Flask REST API under `Backend/`.
 
@@ -62,7 +62,7 @@ The application is a **monorepo** with a React single-page application at the ro
 | Styling | Tailwind CSS, Headless UI, Framer Motion | Responsive UI, dark mode, animations |
 | State | React Context (Auth, Theme, Subscription, i18n) | Global state without external libs |
 | Backend | Flask 3.0, Python 3.11+ | REST API with 34 blueprint modules |
-| Database | Firebase Firestore | NoSQL document store (49 000+ documents) |
+| Database | Firebase Firestore | NoSQL document store (tested with 49 000+ seeded documents) |
 | Auth | Firebase Auth + custom JWT | Dual token system with refresh flow |
 | Cache | Redis 7 (prod) / in-memory (dev) | Rate limiting, session data |
 | Payments | Stripe Checkout + Webhooks | Premium subscriptions, CBT modules |

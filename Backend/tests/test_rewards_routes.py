@@ -34,20 +34,16 @@ def test_get_user_rewards_computes_level(client, mocker, auth_csrf_headers):
     assert rewards['neededXp'] > 0
 
 
-def test_add_user_xp_updates_store(client, mocker, mock_db, auth_csrf_headers):
-    mocker.patch('src.routes.rewards_routes._get_db', return_value=mock_db)
-    mocker.patch('src.routes.rewards_routes._get_user_rewards', return_value={'xp': 100})
-
+def test_clients_cannot_grant_themselves_xp(client, auth_csrf_headers):
+    """/add-xp let a client award itself up to 100 XP per call, and XP buys
+    premium_time. Nothing in the app called it."""
     response = client.post(
         '/api/rewards/add-xp',
-        json={'amount': 50, 'reason': 'test'},
+        json={'amount': 100, 'reason': 'test'},
         headers=auth_csrf_headers
     )
 
-    assert response.status_code == 200
-    mock_db.collection('user_rewards').document('test-user-id').update.assert_called_once()
-    payload = response.get_json()['data']
-    assert payload['newXp'] == 150
+    assert response.status_code in (404, 405)
 
 
 def test_claim_reward_requires_enough_xp(client, mocker, mock_db, auth_csrf_headers):

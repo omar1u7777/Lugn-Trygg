@@ -444,3 +444,209 @@ class TestAKilledSweepStillMakesProgress(PagedUsers):
             service._clear_in_progress()
             assert service._previous_run_was_interrupted() is False
             assert service._read_cursor() == 'u9'
+
+
+class TestARecycledWorkerStopsTheSweepCleanly(PagedUsers):
+    """Gunicorn recycles the worker on max_requests about every 73 minutes, so
+    roughly one 3 AM sweep in three shares its worker's last minutes. Before
+    worker_exit asked the sweep to stop, a planned, graceful recycle left the
+    in-progress flag behind, and the next night raised
+    data_retention_interrupted at level=fatal — the same alarm a real OOM kill
+    raises. Fourteen of them between 2026-08-25 and 2026-09-30.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _reset_shutdown_state(self):
+        from src.services import data_retention_service as drs
+        drs._stop_requested.clear()
+        drs._sweep_idle.set()
+        yield
+        drs._stop_requested.clear()
+        drs._sweep_idle.set()
+
+    def _run(self, service, users, *, process_user, page_size=100):
+        with patch('src.services.data_retention_service.db') as mock_db, \
+             patch.object(service, '_read_cursor', return_value=None), \
+             patch.object(service, '_previous_run_was_interrupted', return_value=False), \
+             patch.object(service, '_write_cursor') as write_cursor, \
+             patch.object(service, '_process_user_retention', side_effect=process_user), \
+             patch('src.services.data_retention_service.audit_service'):
+            mock_db.collection.return_value = users
+            service.USER_PAGE_SIZE = page_size
+            result = service.apply_retention_policy()
+        return result, write_cursor
+
+    def test_a_stop_request_ends_the_sweep_at_a_user_boundary(self, service):
+        from src.services import data_retention_service as drs
+        processed = []
+
+        def process_user(uid):
+            processed.append(uid)
+            if uid == 'u2':
+                # worker_exit fires while u2 is being processed
+                drs._stop_requested.set()
+            return {'total_deleted': 0, 'collections': []}
+
+        users = self._paged_collection([['u1', 'u2', 'u3', 'u4']])
+        result, write_cursor = self._run(service, users, process_user=process_user)
+
+        assert processed == ['u1', 'u2'], "u2 must finish; u3 must not start"
+        assert result['partial'] is True
+        assert result['stopped_by'] == 'shutdown'
+        assert result['resume_after'] == 'u2'
+        assert write_cursor.call_args_list[-1] == call('u2', in_progress=False), \
+            "a clean stop must clear the flag, or the next run reports a kill"
+
+    def test_the_waiter_is_released_only_when_the_sweep_has_checkpointed(self, service):
+        """worker_exit blocks on request_sweep_stop; returning before the
+        cursor is written would let the process die before the clean stop."""
+        import threading
+
+        from src.services import data_retention_service as drs
+
+        entered = threading.Event()
+        proceed = threading.Event()
+
+        def process_user(uid):
+            entered.set()
+            proceed.wait(5)
+            return {'total_deleted': 0, 'collections': []}
+
+        users = self._paged_collection([['u1', 'u2']])
+        outcome = {}
+        sweep = threading.Thread(
+            target=lambda: outcome.update(r=self._run(service, users, process_user=process_user)))
+        sweep.start()
+        assert entered.wait(5)
+
+        assert drs.request_sweep_stop(timeout=0.05) is False, \
+            "must not report idle while a user is mid-flight"
+        proceed.set()
+        assert drs.request_sweep_stop(timeout=5) is True
+        sweep.join(5)
+
+        result, write_cursor = outcome['r']
+        assert result['stopped_by'] == 'shutdown'
+        assert write_cursor.call_args_list[-1] == call('u1', in_progress=False)
+
+    def test_no_running_sweep_means_the_waiter_returns_at_once(self):
+        from src.services import data_retention_service as drs
+        assert drs.request_sweep_stop(timeout=0) is True
+
+    def test_a_failed_sweep_still_releases_the_waiter(self, service):
+        from src.services import data_retention_service as drs
+
+        with patch.object(service, '_read_cursor', side_effect=RuntimeError("read failed")), \
+             patch.object(service, '_clear_in_progress'):
+            result = service.apply_retention_policy()
+
+        assert result['success'] is False
+        assert drs._sweep_idle.is_set(), \
+            "a sweep that raised must not leave worker_exit waiting out its grace period"
+
+    def test_a_single_user_call_does_not_touch_the_sweep_state(self, service):
+        from src.services import data_retention_service as drs
+        drs._sweep_idle.clear()  # an all-users sweep is running elsewhere
+        with patch.object(service, '_process_user_retention',
+                          return_value={'total_deleted': 0, 'collections': []}), \
+             patch('src.services.data_retention_service.audit_service'):
+            service.apply_retention_policy(user_id='someone')
+        assert not drs._sweep_idle.is_set(), \
+            "a short HTTP call must not tell worker_exit the sweep has finished"
+
+
+class TestGunicornWorkerExitHook:
+    """The hook lives in gunicorn_config.py, which only Gunicorn imports."""
+
+    @pytest.fixture
+    def hook_module(self):
+        import importlib.util
+        import os
+        path = os.path.join(os.path.dirname(__file__), '..', 'gunicorn_config.py')
+        spec = importlib.util.spec_from_file_location('gunicorn_config_under_test', path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_grace_stays_well_under_the_heartbeat_timeout(self, hook_module):
+        assert hook_module.RETENTION_STOP_GRACE_SECONDS < hook_module.timeout / 2
+
+    def test_asks_the_sweep_to_stop_and_waits(self, hook_module):
+        fake = MagicMock()
+        fake.request_sweep_stop.return_value = True
+        worker = MagicMock()
+        with patch.dict('sys.modules', {'src.services.data_retention_service': fake}):
+            hook_module.worker_exit(MagicMock(), worker)
+        fake.request_sweep_stop.assert_called_once_with(hook_module.RETENTION_STOP_GRACE_SECONDS)
+        worker.log.warning.assert_not_called()
+
+    def test_does_not_import_the_service_into_a_worker_that_never_loaded_it(self, hook_module):
+        import sys
+        saved = sys.modules.pop('src.services.data_retention_service', None)
+        try:
+            hook_module.worker_exit(MagicMock(), MagicMock())
+            assert 'src.services.data_retention_service' not in sys.modules
+        finally:
+            if saved is not None:
+                sys.modules['src.services.data_retention_service'] = saved
+
+    def test_a_sweep_that_will_not_stop_is_logged_not_raised(self, hook_module):
+        fake = MagicMock()
+        fake.request_sweep_stop.return_value = False
+        worker = MagicMock()
+        with patch.dict('sys.modules', {'src.services.data_retention_service': fake}):
+            hook_module.worker_exit(MagicMock(), worker)
+        worker.log.warning.assert_called_once()
+
+
+class TestTheUsersOwnRetentionChoiceIsHonoured:
+    """/profile → Integritet offers "Automatically delete data older than
+    retention period" with a 1-24 month slider. The choice was stored and
+    never read: the sweep kept everyone's data for seven years."""
+
+    def _settings_doc(self, settings, exists=True):
+        snap = MagicMock()
+        snap.exists = exists
+        snap.to_dict.return_value = {'privacy_settings': settings}
+        return snap
+
+    def _run(self, service, settings, exists=True):
+        with patch('src.services.data_retention_service.db') as mock_db, \
+             patch.object(service, '_delete_expired_data', return_value=0) as delete:
+            mock_db.collection.return_value.document.return_value.get.return_value = \
+                self._settings_doc(settings, exists)
+            service._process_user_retention('uid')
+        return {c.args[1]: c.args[2] for c in delete.call_args_list}
+
+    def test_opted_in_shortens_the_users_own_content(self, service):
+        periods = self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': 365})
+        for name in ('moods', 'conversations', 'journal_entries', 'voice_recordings', 'insights'):
+            assert periods[name] == 365, name
+
+    def test_records_that_are_not_their_content_keep_the_policy(self, service):
+        periods = self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': 365})
+        for name in ('achievements', 'referrals', 'feedback'):
+            assert periods[name] == service.gdpr_retention_days[name], name
+
+    def test_a_longer_choice_never_extends_the_policy(self, service):
+        periods = self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': 99999})
+        assert periods['notifications'] == service.gdpr_retention_days['notifications']
+        assert periods['moods'] == SEVEN_YEARS_DAYS
+
+    def test_not_opted_in_means_the_policy(self, service):
+        periods = self._run(service, {'autoDeleteOldData': False, 'dataRetentionDays': 30})
+        assert periods['moods'] == SEVEN_YEARS_DAYS
+
+    def test_a_tiny_or_malformed_period_is_bounded(self, service):
+        assert self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': 1})['moods'] == 30
+        assert self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': '30'})['moods'] \
+            == SEVEN_YEARS_DAYS
+        assert self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': True})['moods'] \
+            == SEVEN_YEARS_DAYS
+
+    def test_an_unreadable_preference_deletes_nothing_early(self, service):
+        with patch('src.services.data_retention_service.db') as mock_db, \
+             patch.object(service, '_delete_expired_data', return_value=0) as delete:
+            mock_db.collection.return_value.document.return_value.get.side_effect = RuntimeError('x')
+            service._process_user_retention('uid')
+        assert {c.args[1]: c.args[2] for c in delete.call_args_list}['moods'] == SEVEN_YEARS_DAYS

@@ -160,6 +160,39 @@ def child_exit(server, worker):
         except Exception:
             pass
 
+# How long worker_exit waits for a running retention sweep to checkpoint. One
+# user takes ~0.8 s and every Firestore call in it runs on a 30 s deadline, so
+# 45 s covers the worst single user. It must stay well under `timeout`: once
+# the serving loop has returned the worker no longer heartbeats, and the
+# arbiter SIGKILLs it after `timeout` seconds of silence.
+RETENTION_STOP_GRACE_SECONDS = 45
+
+
+def worker_exit(server, worker):
+    """Called in the worker just before it exits — max_requests recycle,
+    SIGTERM from a deploy, or SIGQUIT.
+
+    Lets the retention sweep stop at a user boundary instead of dying with the
+    process. Without this every recycle that landed during the 3 AM sweep
+    surfaced in Sentry as data_retention_interrupted at level=fatal.
+    """
+    import sys
+    # Looked up rather than imported: if this worker never loaded the module,
+    # no sweep can be running in it, and importing it here would pull in the
+    # Firestore client on the way out.
+    retention = sys.modules.get("src.services.data_retention_service")
+    if retention is None:
+        return
+    try:
+        if not retention.request_sweep_stop(RETENTION_STOP_GRACE_SECONDS):
+            worker.log.warning(
+                f"Worker {worker.pid}: retention sweep still running after "
+                f"{RETENTION_STOP_GRACE_SECONDS}s; exiting anyway"
+            )
+    except Exception as e:
+        worker.log.error(f"Worker {worker.pid}: retention stop request failed: {e}")
+
+
 def worker_abort(worker):
     """Called when a worker times out."""
     worker.log.warning(f"⚠️ Worker {worker.pid} timeout - aborting")

@@ -112,11 +112,6 @@ const RESOURCE_HINTS: ResourceHint[] = [
   { rel: 'dns-prefetch', href: '//api.lugntrygg.se' },
 ];
 
-const ROUTER_FUTURE_FLAGS = {
-  v7_startTransition: true,
-  v7_relativeSplatPath: true,
-} as const;
-
 type TelemetryModules = {
   Analytics?: React.ComponentType;
   SpeedInsights?: React.ComponentType;
@@ -232,7 +227,7 @@ const startApp = async () => {
     createRoot(rootElement).render(
       <ErrorBoundary>
         <I18nextProvider i18n={i18n}>
-          <BrowserRouter future={ROUTER_FUTURE_FLAGS}>
+          <BrowserRouter>
             <QueryProvider>
               <ThemeProvider>
                 <AuthProvider>

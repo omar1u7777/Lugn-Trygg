@@ -134,8 +134,7 @@ const EmailInvite: React.FC<EmailInviteProps> = () => {
 
             <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <p className="text-xs text-blue-800 dark:text-blue-200">
-                    💡 <strong>Tips:</strong> Inbjudningar skickas via SendGrid med professionella mallar. 
-                    Din vän får ett snyggt e-postmeddelande med all info!
+                    💡 <strong>Tips:</strong> Din vän får ett e-postmeddelande med all info!
                 </p>
             </div>
         </div>
