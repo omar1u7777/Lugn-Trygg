@@ -706,7 +706,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
               */}
               <div className="relative">
                 <div
-                  className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white dark:from-slate-900 to-transparent rounded-r-lg"
+                  className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-linear-to-l from-white dark:from-slate-900 to-transparent rounded-r-lg"
                   aria-hidden="true"
                 />
               <div className="flex gap-2 overflow-x-auto pb-2">

@@ -223,7 +223,7 @@ const ReferralProgram: React.FC = () => {
                   confirmation belongs above all of them.
                 */}
                 {copied && (
-                    <div className="fixed top-4 right-4 z-[150] bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in-right">
+                    <div className="fixed top-4 right-4 z-150 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in-right">
                         <span>✅</span>
                         <span className="font-medium">{t('referral.copied', 'Kopierat till urklipp!')}</span>
                     </div>

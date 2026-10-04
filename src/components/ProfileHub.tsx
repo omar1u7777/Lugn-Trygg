@@ -455,7 +455,7 @@ const ProfileHub: React.FC = () => {
                 for the truncating case.
               */}
               <h1
-                className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 tracking-tight [overflow-wrap:anywhere] break-words"
+                className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 tracking-tight [overflow-wrap:anywhere] wrap-break-word"
                 title={user?.email || undefined}
               >
                 {user?.email || t('profileHub.guest', 'Gäst')}
@@ -475,7 +475,7 @@ const ProfileHub: React.FC = () => {
                   */}
                   {loading ? (
                     <span
-                      className="inline-block h-4 w-28 rounded bg-white/20 animate-pulse"
+                      className="inline-block h-4 w-28 rounded-sm bg-white/20 animate-pulse"
                       aria-label={t('common.loading')}
                     />
                   ) : (

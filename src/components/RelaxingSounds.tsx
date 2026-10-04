@@ -635,7 +635,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                           onClick={togglePlay}
                           disabled={!selectedTrack}
                           aria-label={isPlaying ? t('audio.pause', 'Pausa') : t('audio.play', 'Spela')}
-                          className="w-20 h-20 mx-auto mb-4 bg-primary-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg cursor-pointer hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                          className="w-20 h-20 mx-auto mb-4 bg-primary-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg cursor-pointer hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                         >
                           {isPlaying ? '⏸️' : '▶️'}
                         </button>
