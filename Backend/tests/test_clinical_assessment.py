@@ -139,3 +139,90 @@ class TestPHQ9SelfHarmRecommendationSeverity:
         assert result.self_harm_score == 3
         assert any("ring 112" in r for r in result.recommendations)
         assert result.follow_up_timeframe == "24_hours"
+
+
+class TestALowTotalMadeOfSelfHarmIsNotProtective:
+    """UI audit 2026-09-29 (S-2) saw "Suicidal ideation: PHQ-9 Q9=3" under risk
+    factors and "Low PHQ-9: 3" under protective factors on the same card. Both
+    came from one assessment: Q9 alone contributed all three points."""
+
+    def test_self_harm_driven_minimal_total_is_not_listed_as_protective(self):
+        result = ClinicalRiskStratification.assess_comprehensive_risk(
+            user_id="u",
+            phq9_result=_phq9(3, "minimal", RiskLevel.NONE, suicidal=True, self_harm=3),
+            gad7_result=None, recent_moods=None,
+        )
+        assert not any(f.startswith("Low PHQ-9") for f in result.protective_factors)
+        assert result.composite_risk == RiskLevel.CRISIS
+
+    def test_a_low_total_without_self_harm_still_counts(self):
+        result = ClinicalRiskStratification.assess_comprehensive_risk(
+            user_id="u", phq9_result=_phq9(3, "minimal", RiskLevel.NONE),
+            gad7_result=None, recent_moods=None,
+        )
+        assert "Low PHQ-9: 3" in result.protective_factors
+
+
+def _mood(day, score=None, valence=None):
+    m = {"timestamp": f"2026-09-{day:02d}T09:00:00+00:00"}
+    if score is not None:
+        m["score"] = score
+    if valence is not None:
+        m["valence"] = valence
+    return m
+
+
+class TestMoodTrajectoryReadsStoredMoods:
+    """The route fetches moods newest-first and stores ratings on 1-10. The
+    engine assumed oldest-first on [-1, 1], with a missing valence read as 0."""
+
+    def _assess(self, moods):
+        return ClinicalRiskStratification.assess_comprehensive_risk(
+            user_id="u", phq9_result=None, gad7_result=None, recent_moods=moods)
+
+    def test_an_improving_week_passed_newest_first_is_not_a_decline(self):
+        improving = [_mood(d, score=s) for d, s in zip(range(1, 8), [2, 3, 4, 5, 6, 7, 9], strict=True)]
+        result = self._assess(list(reversed(improving)))
+        assert not any("declining" in f for f in result.risk_factors)
+
+    def test_a_declining_week_passed_newest_first_is_caught(self):
+        declining = [_mood(d, score=s) for d, s in zip(range(1, 8), [9, 8, 7, 5, 4, 3, 2], strict=True)]
+        result = self._assess(list(reversed(declining)))
+        assert any("declining" in f for f in result.risk_factors)
+
+    def test_unrated_entries_do_not_fabricate_a_decline(self):
+        # One advanced entry with valence 9, six basic logs without valence
+        # but with an unchanged score: the old code saw 9 -> 0 = -1.29/entry.
+        moods = [_mood(1, score=8, valence=9)] + [_mood(d, score=8) for d in range(2, 8)]
+        result = self._assess(list(reversed(moods)))
+        assert not any("declining" in f for f in result.risk_factors)
+
+    def test_entries_with_no_rating_at_all_are_skipped(self):
+        moods = [{"timestamp": f"2026-09-{d:02d}T09:00:00+00:00"} for d in range(1, 15)]
+        result = self._assess(moods)
+        assert result.risk_factors == []
+
+    def test_the_negative_streak_counts_back_from_the_newest_entry(self):
+        # Five low days at the START of the fortnight, fine since.
+        moods = [_mood(d, score=2) for d in range(1, 6)] + [_mood(d, score=8) for d in range(6, 15)]
+        result = self._assess(list(reversed(moods)))
+        assert not any(c.endswith("_consecutive_negative_days") for c in result.immediate_concerns)
+
+        recent_low = [_mood(d, score=8) for d in range(1, 10)] + [_mood(d, score=2) for d in range(10, 15)]
+        result = self._assess(list(reversed(recent_low)))
+        assert "5_consecutive_negative_days" in result.immediate_concerns
+
+
+class TestMoodValence:
+    def test_maps_the_stored_one_to_ten_scale(self):
+        v = ClinicalRiskStratification._mood_valence
+        assert v({"score": 1}) == -1.0
+        assert v({"score": 10}) == 1.0
+        assert abs(v({"score": 5.5})) < 1e-9
+
+    def test_prefers_score_and_ignores_garbage(self):
+        v = ClinicalRiskStratification._mood_valence
+        assert v({"score": 10, "valence": 1}) == 1.0
+        assert v({"score": "x", "valence": 10}) == 1.0
+        assert v({"score": True}) is None
+        assert v({}) is None

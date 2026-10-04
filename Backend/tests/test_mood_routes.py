@@ -460,3 +460,90 @@ def test_mood_streaks_reports_consecutive_days(client, mocker, auth_csrf_headers
     assert data['data']['currentStreak'] >= 2
     assert data['data']['longestStreak'] >= 2
     assert data['data']['totalLoggedDays'] == 3
+
+
+class TestTotalIsTheCollectionNotThePage:
+    """`total` used to be len(moods) — the size of the returned page.
+
+    With the default limit of 50 the API answered `total: 50` for a user with
+    121 entries, and every surface that read it believed it: /mood-list,
+    /insights, /gamification, /social and /journal each displayed 50 and
+    labelled it "Totalt", while /profile counted separately and said 121.
+    Averages, sentiment splits, trends, streaks and the AI recommendations
+    were all computed over fewer than half the user's data, and the error grew
+    the longer someone used the app.
+    """
+
+    @staticmethod
+    def _moods_collection(page_size: int, real_total: int | None):
+        """A moods collection returning `page_size` docs and counting `real_total`."""
+        docs = []
+        for i in range(page_size):
+            d = MagicMock()
+            d.id = f'mood-{i:06d}'
+            d.to_dict.return_value = {'mood_text': 'glad', 'timestamp': f'2026-01-{i % 28 + 1:02d}T10:00:00Z'}
+            docs.append(d)
+
+        moods = MagicMock()
+        moods.where.return_value = moods
+        moods.order_by.return_value = moods
+        moods.limit.return_value = moods
+        moods.offset.return_value = moods
+        moods.stream.return_value = iter(docs)
+
+        if real_total is None:
+            moods.count.side_effect = RuntimeError('aggregation index missing')
+        else:
+            agg = MagicMock()
+            agg.value = real_total
+            moods.count.return_value.get.return_value = [[agg]]
+        return moods
+
+    def _get(self, client, mocker, headers, page_size, real_total):
+        # A distinct limit per case: the endpoint is behind a response cache
+        # keyed on the query string, so reusing ?limit=50 served case 1's
+        # payload to the others.
+        moods = self._moods_collection(page_size, real_total)
+        user_doc_ref = MagicMock()
+        user_doc_ref.collection.return_value = moods
+        users = MagicMock()
+        users.document.return_value = user_doc_ref
+        mock_db = MagicMock()
+        mock_db.collection.side_effect = lambda name: users if name == 'users' else MagicMock()
+        mocker.patch('src.routes.mood_routes.db', mock_db)
+        return client.get(f'/api/mood?limit={page_size}', headers=headers)
+
+    def test_total_reports_the_whole_collection_not_the_page(
+        self, client, mocker, auth_csrf_headers, mock_auth_service
+    ):
+        response = self._get(client, mocker, auth_csrf_headers, page_size=50, real_total=121)
+        assert response.status_code == 200
+        data = response.get_json().get('data', response.get_json())
+
+        assert data['total'] == 121, "total must be the collection, not the page"
+        assert data['count'] == 50, "count is the page size"
+        assert data['has_more'] is True
+
+    def test_has_more_is_false_once_the_page_reaches_the_total(
+        self, client, mocker, auth_csrf_headers, mock_auth_service
+    ):
+        """The old heuristic said has_more whenever the page was full."""
+        response = self._get(client, mocker, auth_csrf_headers, page_size=49, real_total=49)
+        data = response.get_json().get('data', response.get_json())
+
+        assert data['total'] == 49
+        assert data['has_more'] is False
+
+    def test_total_is_omitted_rather_than_guessed_when_counting_fails(
+        self, client, mocker, auth_csrf_headers, mock_auth_service
+    ):
+        """A missing aggregation index must not resurrect the wrong number.
+
+        Unknown is a state a caller can handle; 50-when-it-is-121 is not.
+        """
+        response = self._get(client, mocker, auth_csrf_headers, page_size=48, real_total=None)
+        data = response.get_json().get('data', response.get_json())
+
+        assert 'total' not in data
+        assert data['count'] == 48
+        assert data['has_more'] is True

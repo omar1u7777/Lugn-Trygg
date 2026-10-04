@@ -15,7 +15,7 @@ config with no matching branch in _delete_expired_data would be swept every
 day, delete nothing, and report success. Both directions are pinned below.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -160,20 +160,8 @@ class TestBatching:
         assert batch.commit.call_count == expected_commits
 
 
-class TestOneBrokenStreamDoesNotAbortTheWholeSweep:
-    """The user enumeration used to be a single lazy `.stream()` sitting
-    outside every inner handler.
-
-    Firestore streams are consumed lazily, so a mid-iteration failure surfaced
-    in the caller's `for` loop, escaped the per-user and per-collection
-    handlers, hit the top-level `except`, and abandoned every remaining user.
-
-    It happened. On 2026-08-15 the sweep died with "'_UnaryStreamMultiCallable'
-    object has no attribute '_retry'" — a google-cloud-firestore/grpcio
-    incompatibility in the library's own stream-retry path, newly reachable
-    once the missing composite indexes were deployed and the sweep finally got
-    far enough to stream.
-    """
+class PagedUsers:
+    """Builds a mock users collection that pages the way Firestore does."""
 
     @staticmethod
     def _doc(doc_id):
@@ -193,7 +181,15 @@ class TestOneBrokenStreamDoesNotAbortTheWholeSweep:
 
         calls = iter(pages)
 
-        def stream():
+        def stream(**kwargs):
+            # Production passes a deadline; a mock that refuses kwargs would
+            # hide a regression that removed it.
+            assert 'timeout' in kwargs, "every Firestore call must run on a deadline"
+            assert kwargs['timeout'] > 0
+            # An explicit retry keeps the library off its own gapic_callable
+            # ._retry lookup, which is the line that raised
+            # "'_UnaryStreamMultiCallable' object has no attribute '_retry'".
+            assert kwargs.get('retry') is not None, "every call must carry an explicit retry"
             page = next(calls)
             if isinstance(page, Exception):
                 raise page
@@ -201,6 +197,22 @@ class TestOneBrokenStreamDoesNotAbortTheWholeSweep:
 
         query.stream.side_effect = stream
         return query
+
+
+class TestOneBrokenStreamDoesNotAbortTheWholeSweep(PagedUsers):
+    """The user enumeration used to be a single lazy `.stream()` sitting
+    outside every inner handler.
+
+    Firestore streams are consumed lazily, so a mid-iteration failure surfaced
+    in the caller's `for` loop, escaped the per-user and per-collection
+    handlers, hit the top-level `except`, and abandoned every remaining user.
+
+    It happened. On 2026-08-15 the sweep died with "'_UnaryStreamMultiCallable'
+    object has no attribute '_retry'" — a google-cloud-firestore/grpcio
+    incompatibility in the library's own stream-retry path, newly reachable
+    once the missing composite indexes were deployed and the sweep finally got
+    far enough to stream.
+    """
 
     def test_pages_through_all_users(self, service):
         users = self._paged_collection([['u1', 'u2'], ['u3']])
@@ -216,21 +228,50 @@ class TestOneBrokenStreamDoesNotAbortTheWholeSweep:
             assert list(service._iter_user_ids(page_size=10)) == ['u1']
         assert users.stream.call_count == 1
 
-    def test_a_failing_page_does_not_discard_the_users_already_read(self, service):
-        """The whole point: users read before the failure are still processed."""
+    def test_a_failing_page_yields_what_it_read_then_raises(self, service):
+        """Users read before the failure are still handed over — then it raises.
+
+        Raising matters as much as yielding. Returning quietly would end the
+        generator, which the caller cannot distinguish from reaching the last
+        page, and the caller responds to that by CLEARING the resume cursor.
+        A timed-out page would then look like a completed sweep.
+        """
+        from src.services.data_retention_service import RetentionEnumerationError
+
         boom = RuntimeError("'_UnaryStreamMultiCallable' object has no attribute '_retry'")
         users = self._paged_collection([['u1', 'u2'], boom])
+        seen = []
         with patch('src.services.data_retention_service.db') as mock_db:
             mock_db.collection.return_value = users
-            assert list(service._iter_user_ids(page_size=2)) == ['u1', 'u2']
+            with pytest.raises(RetentionEnumerationError):
+                for uid in service._iter_user_ids(page_size=2):
+                    seen.append(uid)
+        assert seen == ['u1', 'u2']
 
-    def test_a_failing_first_page_yields_nothing_rather_than_looping(self, service):
+    def test_a_failing_first_page_raises_rather_than_looping(self, service):
         """Without an id to resume from, retrying would re-request forever."""
+        from src.services.data_retention_service import RetentionEnumerationError
+
         users = self._paged_collection([RuntimeError('transport died')])
         with patch('src.services.data_retention_service.db') as mock_db:
             mock_db.collection.return_value = users
-            assert list(service._iter_user_ids(page_size=2)) == []
+            with pytest.raises(RetentionEnumerationError):
+                list(service._iter_user_ids(page_size=2))
         assert users.stream.call_count == 1
+
+    def test_a_failed_enumeration_keeps_the_resume_cursor(self, service):
+        """The position must survive, or the users after it are skipped again."""
+        users = self._paged_collection([['u1'], RuntimeError('transport died')])
+        with patch('src.services.data_retention_service.db') as mock_db,              patch.object(service, '_read_cursor', return_value=None),              patch.object(service, '_write_cursor') as write_cursor,              patch.object(service, '_process_user_retention',
+                          return_value={'total_deleted': 0, 'collections': []}),              patch('src.services.data_retention_service.audit_service'):
+            mock_db.collection.return_value = users
+            service.USER_PAGE_SIZE = 1
+            result = service.apply_retention_policy()
+
+        assert result['success'] is False
+        cleared = [c for c in write_cursor.call_args_list if c.args[0] is None]
+        assert not cleared, "clearing the cursor would skip everyone after u1"
+
 
     def test_one_user_raising_does_not_stop_the_others(self, service):
         """Pre-existing guarantee — kept pinned now that enumeration changed."""
@@ -309,3 +350,303 @@ class TestAFailedSweepAlertsInsteadOfReportingSuccess:
 
         assert not telemetry.critical.called
         assert telemetry.event.call_args[0][0] == 'data_retention_completed'
+
+
+class TestAKilledSweepStillMakesProgress(PagedUsers):
+    """The sweep needs ~19.5 minutes and runs inside a Gunicorn worker that
+    recycles on max_requests. Five consecutive nights:
+
+        2026-08-19  died after 12.7 min, 6 pages
+        2026-08-20  died after 12.8 min, 6 pages
+        2026-08-21  COMPLETED in 19.4 min, 1499 users
+        2026-08-22  worker recycled after 11.5 min, 5 pages
+        2026-08-23  worker recycled after 14.4 min, 6 pages
+
+    The 20-minute budget never fired once, not even on 08-23, which was the
+    first night it ran in production. A budget can only stop a sweep that is
+    still alive to read it. And since the resume position was written only on
+    a clean stop, each of the four killed runs discarded every user it had
+    processed; the next run began at the top and died in the same place.
+
+    A killed process cannot log, so all three were indistinguishable from
+    nothing happening at all.
+    """
+
+    def _sweep(self, service, users, *, page_size, interrupted=False):
+        """Run a full sweep against `users`, with the durable state mocked."""
+        with patch('src.services.data_retention_service.db') as mock_db,              patch.object(service, '_read_cursor', return_value=None),              patch.object(service, '_previous_run_was_interrupted', return_value=interrupted),              patch.object(service, '_write_cursor') as write_cursor,              patch.object(service, '_process_user_retention',
+                          return_value={'total_deleted': 0, 'collections': []}),              patch('src.services.data_retention_service.audit_service'),              patch('src.utils.telemetry.telemetry') as telemetry:
+            mock_db.collection.return_value = users
+            service.USER_PAGE_SIZE = page_size
+            result = service.apply_retention_policy()
+        return result, write_cursor, telemetry
+
+    def test_the_position_is_durable_before_the_sweep_ends(self, service):
+        """The whole failure was that progress existed only in memory."""
+        users = self._paged_collection([['u1', 'u2'], ['u3']])
+        _, write_cursor, _ = self._sweep(service, users, page_size=2)
+
+        assert write_cursor.call_args_list[0] == call('u2', in_progress=True),             "a sweep killed after u2 must resume at u2, not start over"
+
+    def test_finishing_clears_the_position_and_the_flag(self, service):
+        """Otherwise the next run would resume near the end and skip everyone."""
+        users = self._paged_collection([['u1', 'u2'], ['u3']])
+        result, write_cursor, _ = self._sweep(service, users, page_size=2)
+
+        assert result['success'] is True
+        assert write_cursor.call_args_list[-1] == call(None, in_progress=False)
+
+    def test_an_unfinished_previous_run_is_reported(self, service):
+        """The only trace a killed sweep leaves is the flag. Read it, or the
+        silence stays indistinguishable from health."""
+        users = self._paged_collection([['u1']])
+        _, _, telemetry = self._sweep(service, users, page_size=2, interrupted=True)
+
+        assert telemetry.critical.call_count == 1
+        assert telemetry.critical.call_args.args[0] == 'data_retention_interrupted'
+
+    def test_a_clean_previous_run_is_not_reported(self, service):
+        """An alarm that fires every night is one nobody reads."""
+        users = self._paged_collection([['u1']])
+        _, _, telemetry = self._sweep(service, users, page_size=2, interrupted=False)
+
+        assert telemetry.critical.call_count == 0
+
+    def test_clearing_the_flag_leaves_the_position_alone(self, service):
+        """End to end against one stored document, because the alarm reading
+        what the checkpoint wrote is the entire mechanism — mocking both halves
+        would pin nothing.
+
+        _clear_in_progress runs on the path where enumeration failed, which is
+        exactly the path whose promise is that the position survives untouched.
+        """
+        stored: dict = {}
+
+        def _set(payload, merge=False):
+            if not merge:
+                stored.clear()
+            stored.update(payload)
+
+        snap = MagicMock()
+        snap.exists = True
+        snap.to_dict.side_effect = lambda: dict(stored)
+        ref = MagicMock()
+        ref.set.side_effect = _set
+        ref.get.return_value = snap
+
+        with patch('src.services.data_retention_service.db') as mock_db:
+            mock_db.collection.return_value.document.return_value = ref
+
+            service._write_cursor('u9', in_progress=True)
+            assert service._previous_run_was_interrupted() is True
+            assert service._read_cursor() == 'u9'
+
+            service._clear_in_progress()
+            assert service._previous_run_was_interrupted() is False
+            assert service._read_cursor() == 'u9'
+
+
+class TestARecycledWorkerStopsTheSweepCleanly(PagedUsers):
+    """Gunicorn recycles the worker on max_requests about every 73 minutes, so
+    roughly one 3 AM sweep in three shares its worker's last minutes. Before
+    worker_exit asked the sweep to stop, a planned, graceful recycle left the
+    in-progress flag behind, and the next night raised
+    data_retention_interrupted at level=fatal — the same alarm a real OOM kill
+    raises. Fourteen of them between 2026-08-25 and 2026-09-30.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _reset_shutdown_state(self):
+        from src.services import data_retention_service as drs
+        drs._stop_requested.clear()
+        drs._sweep_idle.set()
+        yield
+        drs._stop_requested.clear()
+        drs._sweep_idle.set()
+
+    def _run(self, service, users, *, process_user, page_size=100):
+        with patch('src.services.data_retention_service.db') as mock_db, \
+             patch.object(service, '_read_cursor', return_value=None), \
+             patch.object(service, '_previous_run_was_interrupted', return_value=False), \
+             patch.object(service, '_write_cursor') as write_cursor, \
+             patch.object(service, '_process_user_retention', side_effect=process_user), \
+             patch('src.services.data_retention_service.audit_service'):
+            mock_db.collection.return_value = users
+            service.USER_PAGE_SIZE = page_size
+            result = service.apply_retention_policy()
+        return result, write_cursor
+
+    def test_a_stop_request_ends_the_sweep_at_a_user_boundary(self, service):
+        from src.services import data_retention_service as drs
+        processed = []
+
+        def process_user(uid):
+            processed.append(uid)
+            if uid == 'u2':
+                # worker_exit fires while u2 is being processed
+                drs._stop_requested.set()
+            return {'total_deleted': 0, 'collections': []}
+
+        users = self._paged_collection([['u1', 'u2', 'u3', 'u4']])
+        result, write_cursor = self._run(service, users, process_user=process_user)
+
+        assert processed == ['u1', 'u2'], "u2 must finish; u3 must not start"
+        assert result['partial'] is True
+        assert result['stopped_by'] == 'shutdown'
+        assert result['resume_after'] == 'u2'
+        assert write_cursor.call_args_list[-1] == call('u2', in_progress=False), \
+            "a clean stop must clear the flag, or the next run reports a kill"
+
+    def test_the_waiter_is_released_only_when_the_sweep_has_checkpointed(self, service):
+        """worker_exit blocks on request_sweep_stop; returning before the
+        cursor is written would let the process die before the clean stop."""
+        import threading
+
+        from src.services import data_retention_service as drs
+
+        entered = threading.Event()
+        proceed = threading.Event()
+
+        def process_user(uid):
+            entered.set()
+            proceed.wait(5)
+            return {'total_deleted': 0, 'collections': []}
+
+        users = self._paged_collection([['u1', 'u2']])
+        outcome = {}
+        sweep = threading.Thread(
+            target=lambda: outcome.update(r=self._run(service, users, process_user=process_user)))
+        sweep.start()
+        assert entered.wait(5)
+
+        assert drs.request_sweep_stop(timeout=0.05) is False, \
+            "must not report idle while a user is mid-flight"
+        proceed.set()
+        assert drs.request_sweep_stop(timeout=5) is True
+        sweep.join(5)
+
+        result, write_cursor = outcome['r']
+        assert result['stopped_by'] == 'shutdown'
+        assert write_cursor.call_args_list[-1] == call('u1', in_progress=False)
+
+    def test_no_running_sweep_means_the_waiter_returns_at_once(self):
+        from src.services import data_retention_service as drs
+        assert drs.request_sweep_stop(timeout=0) is True
+
+    def test_a_failed_sweep_still_releases_the_waiter(self, service):
+        from src.services import data_retention_service as drs
+
+        with patch.object(service, '_read_cursor', side_effect=RuntimeError("read failed")), \
+             patch.object(service, '_clear_in_progress'):
+            result = service.apply_retention_policy()
+
+        assert result['success'] is False
+        assert drs._sweep_idle.is_set(), \
+            "a sweep that raised must not leave worker_exit waiting out its grace period"
+
+    def test_a_single_user_call_does_not_touch_the_sweep_state(self, service):
+        from src.services import data_retention_service as drs
+        drs._sweep_idle.clear()  # an all-users sweep is running elsewhere
+        with patch.object(service, '_process_user_retention',
+                          return_value={'total_deleted': 0, 'collections': []}), \
+             patch('src.services.data_retention_service.audit_service'):
+            service.apply_retention_policy(user_id='someone')
+        assert not drs._sweep_idle.is_set(), \
+            "a short HTTP call must not tell worker_exit the sweep has finished"
+
+
+class TestGunicornWorkerExitHook:
+    """The hook lives in gunicorn_config.py, which only Gunicorn imports."""
+
+    @pytest.fixture
+    def hook_module(self):
+        import importlib.util
+        import os
+        path = os.path.join(os.path.dirname(__file__), '..', 'gunicorn_config.py')
+        spec = importlib.util.spec_from_file_location('gunicorn_config_under_test', path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_grace_stays_well_under_the_heartbeat_timeout(self, hook_module):
+        assert hook_module.RETENTION_STOP_GRACE_SECONDS < hook_module.timeout / 2
+
+    def test_asks_the_sweep_to_stop_and_waits(self, hook_module):
+        fake = MagicMock()
+        fake.request_sweep_stop.return_value = True
+        worker = MagicMock()
+        with patch.dict('sys.modules', {'src.services.data_retention_service': fake}):
+            hook_module.worker_exit(MagicMock(), worker)
+        fake.request_sweep_stop.assert_called_once_with(hook_module.RETENTION_STOP_GRACE_SECONDS)
+        worker.log.warning.assert_not_called()
+
+    def test_does_not_import_the_service_into_a_worker_that_never_loaded_it(self, hook_module):
+        import sys
+        saved = sys.modules.pop('src.services.data_retention_service', None)
+        try:
+            hook_module.worker_exit(MagicMock(), MagicMock())
+            assert 'src.services.data_retention_service' not in sys.modules
+        finally:
+            if saved is not None:
+                sys.modules['src.services.data_retention_service'] = saved
+
+    def test_a_sweep_that_will_not_stop_is_logged_not_raised(self, hook_module):
+        fake = MagicMock()
+        fake.request_sweep_stop.return_value = False
+        worker = MagicMock()
+        with patch.dict('sys.modules', {'src.services.data_retention_service': fake}):
+            hook_module.worker_exit(MagicMock(), worker)
+        worker.log.warning.assert_called_once()
+
+
+class TestTheUsersOwnRetentionChoiceIsHonoured:
+    """/profile → Integritet offers "Automatically delete data older than
+    retention period" with a 1-24 month slider. The choice was stored and
+    never read: the sweep kept everyone's data for seven years."""
+
+    def _settings_doc(self, settings, exists=True):
+        snap = MagicMock()
+        snap.exists = exists
+        snap.to_dict.return_value = {'privacy_settings': settings}
+        return snap
+
+    def _run(self, service, settings, exists=True):
+        with patch('src.services.data_retention_service.db') as mock_db, \
+             patch.object(service, '_delete_expired_data', return_value=0) as delete:
+            mock_db.collection.return_value.document.return_value.get.return_value = \
+                self._settings_doc(settings, exists)
+            service._process_user_retention('uid')
+        return {c.args[1]: c.args[2] for c in delete.call_args_list}
+
+    def test_opted_in_shortens_the_users_own_content(self, service):
+        periods = self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': 365})
+        for name in ('moods', 'conversations', 'journal_entries', 'voice_recordings', 'insights'):
+            assert periods[name] == 365, name
+
+    def test_records_that_are_not_their_content_keep_the_policy(self, service):
+        periods = self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': 365})
+        for name in ('achievements', 'referrals', 'feedback'):
+            assert periods[name] == service.gdpr_retention_days[name], name
+
+    def test_a_longer_choice_never_extends_the_policy(self, service):
+        periods = self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': 99999})
+        assert periods['notifications'] == service.gdpr_retention_days['notifications']
+        assert periods['moods'] == SEVEN_YEARS_DAYS
+
+    def test_not_opted_in_means_the_policy(self, service):
+        periods = self._run(service, {'autoDeleteOldData': False, 'dataRetentionDays': 30})
+        assert periods['moods'] == SEVEN_YEARS_DAYS
+
+    def test_a_tiny_or_malformed_period_is_bounded(self, service):
+        assert self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': 1})['moods'] == 30
+        assert self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': '30'})['moods'] \
+            == SEVEN_YEARS_DAYS
+        assert self._run(service, {'autoDeleteOldData': True, 'dataRetentionDays': True})['moods'] \
+            == SEVEN_YEARS_DAYS
+
+    def test_an_unreadable_preference_deletes_nothing_early(self, service):
+        with patch('src.services.data_retention_service.db') as mock_db, \
+             patch.object(service, '_delete_expired_data', return_value=0) as delete:
+            mock_db.collection.return_value.document.return_value.get.side_effect = RuntimeError('x')
+            service._process_user_retention('uid')
+        assert {c.args[1]: c.args[2] for c in delete.call_args_list}['moods'] == SEVEN_YEARS_DAYS

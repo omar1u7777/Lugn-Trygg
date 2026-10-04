@@ -278,13 +278,6 @@ const MoodAnalytics: React.FC = () => {
     }
   };
 
-  // 1-10 mood score scale thresholds
-  const _getSentimentColor = (score: number) => {
-    if (score >= 7) return '#4CAF50';  // Positive (7-10)
-    if (score <= 4) return '#F44336';  // Negative (1-4)
-    return '#FF9800';                   // Neutral (5-6)
-  };
-
   const getSentimentLabel = (score: number) => {
     if (score >= 7) return t('mood.positive');
     if (score <= 4) return t('mood.negative');

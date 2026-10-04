@@ -279,70 +279,6 @@ def get_user_rewards():
         return APIResponse.error("Failed to retrieve user rewards", "REWARDS_ERROR", 500)
 
 
-@rewards_bp.route('/add-xp', methods=['POST'])
-@AuthService.jwt_required
-@rate_limit_by_endpoint
-def add_user_xp():
-    """Add XP to user (called by other actions like logging mood)"""
-    user_id = g.get('user_id')
-    if not user_id:
-        return APIResponse.unauthorized("Authentication required")
-
-    try:
-        data = request.get_json(silent=True) or {}
-        xp_amount = data.get('amount', 0)
-        reason = sanitize_text(data.get('reason', 'general'), max_length=100)
-
-        if xp_amount <= 0:
-            return APIResponse.bad_request("XP amount must be positive")
-
-        # Cap XP per call to prevent abuse (max 100 XP per action)
-        MAX_XP_PER_ACTION = 100
-        xp_amount = min(xp_amount, MAX_XP_PER_ACTION)
-
-        db = _get_db()
-        rewards_data = _get_user_rewards(user_id)
-
-        old_xp = rewards_data.get('xp', 0)
-        old_level = _calculate_level(old_xp)
-
-        new_xp = old_xp + xp_amount
-        new_level = _calculate_level(new_xp)
-
-        level_up = new_level > old_level
-
-        if db:
-            db.collection('user_rewards').document(user_id).update({  # type: ignore
-                'xp': new_xp,
-                'level': new_level,
-                'last_xp_earned': datetime.now(UTC).isoformat(),
-                'last_xp_reason': reason
-            })
-
-            # Sync XP and level to users collection for leaderboard queries
-            try:
-                db.collection('users').document(user_id).set({  # type: ignore
-                    'total_xp': new_xp,
-                    'level': new_level
-                }, merge=True)
-            except Exception:
-                logger.warning("[B3] Failed to sync XP/level to users collection — leaderboard may be briefly stale", exc_info=True)
-
-        audit_log("XP_ADDED", user_id, {"amount": xp_amount, "reason": reason, "levelUp": level_up})
-
-        return APIResponse.success({
-            "xpAdded": xp_amount,
-            "newXp": new_xp,
-            "newLevel": new_level,
-            "levelUp": level_up,
-            "reason": reason
-        }, "XP added successfully")
-
-    except Exception as e:
-        logger.exception("Failed to add XP: %s", e)
-        return APIResponse.error("Failed to add XP", "XP_ERROR", 500)
-
-
 @rewards_bp.route('/claim', methods=['POST'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
@@ -516,69 +452,194 @@ def claim_reward():
         return APIResponse.error("Failed to claim reward", "CLAIM_ERROR", 500)
 
 
+# The longest streak any achievement asks for is 30 days; reading a few months
+# of timestamps covers it with room for several entries per day.
+STREAK_LOOKBACK_ENTRIES = 400
+
+# Bounds for the client's UTC offset: the furthest real offsets are -12:00 and
+# +14:00. The offset only decides where a day boundary falls, so a forged one
+# shifts a streak by at most a day; it cannot invent days nobody logged.
+_MAX_TZ_OFFSET_MINUTES = 14 * 60
+
+
+class ProgressUnavailable(RuntimeError):
+    """A counter could not be read, so achievements cannot be judged."""
+
+
+def _aggregate_count(query) -> int:
+    """Run a count() aggregation; both result shapes the client returns."""
+    result = query.count().get()
+    try:
+        return int(result[0][0].value)
+    except (IndexError, TypeError, AttributeError):
+        return int(result[0].value)
+
+
+def _parse_tz_offset(raw) -> int:
+    """Minutes EAST of UTC (the inverse of JS getTimezoneOffset). 0 if absent."""
+    try:
+        offset = int(raw)
+    except (TypeError, ValueError):
+        return 0
+    return max(-_MAX_TZ_OFFSET_MINUTES, min(_MAX_TZ_OFFSET_MINUTES, offset))
+
+
+def _current_streak(timestamps, tz_offset_minutes: int, now: datetime | None = None) -> int:
+    """Consecutive local days with at least one entry, ending today.
+
+    No entry yet today does not break the streak; the day is not over. This
+    matches the rule the rewards page shows the user.
+    """
+    tz_shift = timedelta(minutes=tz_offset_minutes)
+    logged_days = set()
+    for ts in timestamps:
+        try:
+            moment = ts if isinstance(ts, datetime) else datetime.fromisoformat(str(ts))
+        except ValueError:
+            continue
+        if moment.tzinfo is None:
+            moment = moment.replace(tzinfo=UTC)
+        logged_days.add((moment.astimezone(UTC) + tz_shift).date())
+
+    today = ((now or datetime.now(UTC)) + tz_shift).date()
+    streak = 0
+    day = today
+    if day not in logged_days:
+        day -= timedelta(days=1)
+    while day in logged_days:
+        streak += 1
+        day -= timedelta(days=1)
+    return streak
+
+
+def _server_side_progress(db, user_id: str, tz_offset_minutes: int) -> dict:
+    """Every counter an achievement condition reads, computed from stored data.
+
+    These used to come from the request body. Anyone could POST
+    {"mood_count": 100} and collect the XP, and XP buys premium_time. The
+    honest client was wrong too: it sent the length of one page of moods,
+    capped at 50, so "Mood Warrior — Log 100 mood entries" could never unlock.
+    """
+    try:
+        from google.cloud.firestore import FieldFilter
+
+        user_ref = db.collection('users').document(user_id)
+        moods_ref = user_ref.collection('moods')
+
+        recent = (
+            moods_ref.order_by('timestamp', direction='DESCENDING')
+            .limit(STREAK_LOOKBACK_ENTRIES)
+            .select(['timestamp'])
+            .stream()
+        )
+        timestamps = [(d.to_dict() or {}).get('timestamp') for d in recent]
+
+        referral_doc = db.collection('referrals').document(user_id).get()
+        referral_data = (referral_doc.to_dict() or {}) if referral_doc.exists else {}
+
+        return {
+            'mood_count': _aggregate_count(moods_ref),
+            'streak': _current_streak([t for t in timestamps if t], tz_offset_minutes),
+            'journal_count': _aggregate_count(
+                db.collection('journal_entries').where(filter=FieldFilter('user_id', '==', user_id))
+            ),
+            'referral_count': int(referral_data.get('successful_referrals', 0) or 0),
+            'meditation_count': _aggregate_count(user_ref.collection('meditation_sessions')),
+        }
+    except Exception as e:
+        raise ProgressUnavailable(str(e)) from e
+
+
+def _newly_earned(progress: dict, already_earned) -> list[str]:
+    """Achievement ids whose condition `progress` meets and are not yet held."""
+    earned = []
+    for achievement_id, achievement in ACHIEVEMENTS.items():
+        if achievement_id in already_earned:
+            continue
+        condition = achievement.get('condition', {})
+        if progress.get(condition.get('type'), 0) >= condition.get('value', 0):
+            earned.append(achievement_id)
+    return earned
+
+
 @rewards_bp.route('/check-achievements', methods=['POST'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
 def check_achievements():
-    """Check and award any earned achievements"""
+    """Award any achievements the user's stored activity has earned.
+
+    The body may carry `tz_offset_minutes` (minutes east of UTC) so a streak's
+    days match the user's calendar. Counters sent by older clients are ignored.
+    """
     user_id = g.get('user_id')
     if not user_id:
         return APIResponse.unauthorized("Authentication required")
 
+    db = _get_db()
+    if db is None or gcfirestore is None:
+        return APIResponse.error("Achievements unavailable", "SERVICE_UNAVAILABLE", 503)
+
     try:
         data = request.get_json(silent=True) or {}
+        tz_offset = _parse_tz_offset(data.get('tz_offset_minutes'))
 
-        # Stats to check against
-        mood_count = data.get('mood_count', 0)
-        streak = data.get('streak', 0)
-        journal_count = data.get('journal_count', 0)
-        referral_count = data.get('referral_count', 0)
-        meditation_count = data.get('meditation_count', 0)
+        try:
+            progress = _server_side_progress(db, user_id, tz_offset)
+        except ProgressUnavailable as e:
+            # Judging on a counter that failed to load would read as zero and
+            # quietly withhold an earned achievement. Say so instead.
+            logger.warning("Achievement progress unavailable for %s: %s", user_id[:12], e)
+            return APIResponse.error("Could not read progress", "PROGRESS_UNAVAILABLE", 503)
 
-        db = _get_db()
-        rewards_data = _get_user_rewards(user_id)
-        earned_achievements = rewards_data.get('achievements', [])
-        badges = rewards_data.get('badges', [])
-        xp = rewards_data.get('xp', 0)
+        rewards_ref = db.collection('user_rewards').document(user_id)
+        users_ref = db.collection('users').document(user_id)
 
-        new_achievements = []
-        total_xp_earned = 0
+        # Read-decide-write in one transaction: two concurrent checks used to
+        # read the same achievement list, both find the achievement missing,
+        # and both credit its XP.
+        @gcfirestore.transactional
+        def _award(transaction):
+            snapshot = rewards_ref.get(transaction=transaction)
+            if snapshot.exists:
+                rewards_data = snapshot.to_dict() or {}
+            else:
+                rewards_data = _default_rewards_data(user_id)
 
-        for achievement_id, achievement in ACHIEVEMENTS.items():
-            if achievement_id in earned_achievements:
-                continue  # Already earned
+            earned = list(rewards_data.get('achievements', []))
+            badges = list(rewards_data.get('badges', []))
+            new_ids = _newly_earned(progress, earned)
+            if not new_ids:
+                return [], 0, earned, badges
 
-            condition = achievement.get('condition', {})
-            earned = False
-
-            if condition.get('type') == 'mood_count' and mood_count >= condition.get('value', 0):
-                earned = True
-            elif condition.get('type') == 'streak' and streak >= condition.get('value', 0):
-                earned = True
-            elif condition.get('type') == 'journal_count' and journal_count >= condition.get('value', 0):
-                earned = True
-            elif condition.get('type') == 'referral_count' and referral_count >= condition.get('value', 0):
-                earned = True
-            elif condition.get('type') == 'meditation_count' and meditation_count >= condition.get('value', 0):
-                earned = True
-
-            if earned:
-                new_achievements.append(achievement_id)
-                earned_achievements.append(achievement_id)
-                total_xp_earned += achievement.get('xp_reward', 0)
-
+            xp_gained = 0
+            for achievement_id in new_ids:
+                achievement = ACHIEVEMENTS[achievement_id]
+                earned.append(achievement_id)
+                xp_gained += achievement.get('xp_reward', 0)
                 badge = achievement.get('badge')
                 if badge and badge not in badges:
                     badges.append(badge)
 
-        if new_achievements and db:
-            db.collection('user_rewards').document(user_id).update({  # type: ignore
-                'achievements': earned_achievements,
+            new_xp = rewards_data.get('xp', 0) + xp_gained
+            update = {
+                'achievements': earned,
                 'badges': badges,
-                'xp': xp + total_xp_earned,
-                'last_achievement': datetime.now(UTC).isoformat()
-            })
+                'xp': new_xp,
+                'level': _calculate_level(new_xp),
+                'last_achievement': datetime.now(UTC).isoformat(),
+            }
+            if snapshot.exists:
+                transaction.update(rewards_ref, update)
+            else:
+                transaction.set(rewards_ref, {**rewards_data, **update})
+            # The leaderboard reads users.total_xp; achievement XP never
+            # reached it, so the board and the rewards page disagreed.
+            transaction.set(users_ref, {'total_xp': new_xp, 'level': update['level']}, merge=True)
+            return new_ids, xp_gained, earned, badges
 
+        new_achievements, total_xp_earned, earned_achievements, badges = _award(db.transaction())
+
+        if new_achievements:
             audit_log("ACHIEVEMENTS_EARNED", user_id, {
                 "achievements": new_achievements,
                 "xpEarned": total_xp_earned
@@ -588,7 +649,8 @@ def check_achievements():
             "newAchievements": [ACHIEVEMENTS[a] for a in new_achievements],
             "totalXpEarned": total_xp_earned,
             "allAchievements": earned_achievements,
-            "badges": badges
+            "badges": badges,
+            "progress": progress,
         }, "Achievements checked")
 
     except Exception as e:

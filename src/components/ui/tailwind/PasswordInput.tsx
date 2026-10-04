@@ -6,6 +6,15 @@ import { Input } from './Input';
 
 export interface PasswordInputProps {
   id: string;
+  /** Submitted field name. Without it a password manager has nothing to key on. */
+  name?: string | undefined;
+  /**
+   * `current-password` when signing in, `new-password` when registering or
+   * changing. The interface was closed and carried neither this nor `name`, so
+   * every password field in the app was invisible to password managers — they
+   * could not fill it and, worse, could not offer to save it. WCAG 2.1 SC 1.3.5.
+   */
+  autoComplete?: string | undefined;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string | undefined;
@@ -21,6 +30,8 @@ export interface PasswordInputProps {
 
 export const PasswordInput: React.FC<PasswordInputProps> = ({
   id,
+  name,
+  autoComplete,
   value,
   onChange,
   placeholder,
@@ -45,6 +56,8 @@ export const PasswordInput: React.FC<PasswordInputProps> = ({
     <div className="relative">
       <Input
         id={id}
+        name={name ?? id}
+        autoComplete={autoComplete ?? 'current-password'}
         type={showPassword ? 'text' : 'password'}
         value={value}
         onChange={(e) => onChange(e.target.value)}

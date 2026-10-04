@@ -263,7 +263,7 @@ class TestCrisisTaskQueue:
                 self._docs = docs
             def limit(self, n):
                 return self
-            def stream(self):
+            def stream(self, **_kwargs):  # production passes timeout=
                 return iter(self._docs)
 
         class FakeSnap:
@@ -1108,7 +1108,7 @@ class TestCrisisQueueHealth:
                 return self
             def limit(self, *a, **k):
                 return self
-            def stream(self):
+            def stream(self, **_kwargs):  # production passes timeout=
                 return iter([])
 
         counts_by_status = {"pending": 3, "processing": 1, "failed": 2}
@@ -1722,7 +1722,7 @@ class TestPurgeUserDataCompleteness:
                 return self
             def limit(self, *a, **k):
                 return self
-            def stream(self):
+            def stream(self, **_kwargs):  # production passes timeout=
                 return iter([])  # no docs to delete in this test — presence-of-call is what's asserted
 
         class FakeProviderCollection:
@@ -1730,7 +1730,7 @@ class TestPurgeUserDataCompleteness:
                 self.id = cid
             def limit(self, *a, **k):
                 return self
-            def stream(self):
+            def stream(self, **_kwargs):  # production passes timeout=
                 return iter([])
 
         class FakeDocRef:
@@ -1758,7 +1758,7 @@ class TestPurgeUserDataCompleteness:
                 return FakeDocRef(self._name, doc_id)
             def limit(self, *a, **k):
                 return self
-            def stream(self):
+            def stream(self, **_kwargs):  # production passes timeout=
                 return iter([])
 
         fake_db = MagicMock()
@@ -1810,7 +1810,7 @@ class TestPurgeUserDataCompleteness:
                 return FakeDocRef(self._name)
             def limit(self, *a, **k):
                 return self
-            def stream(self):
+            def stream(self, **_kwargs):  # production passes timeout=
                 return iter([])
 
         fake_db.collection.side_effect = lambda name: FakeCollection(name)
@@ -1839,7 +1839,7 @@ class TestPurgeUserDataCompleteness:
                 self.id = cid
             def limit(self, *a, **k):
                 return self
-            def stream(self):
+            def stream(self, **_kwargs):  # production passes timeout=
                 deleted_subcollections.append(self.id)
                 return iter([])
 
@@ -1872,7 +1872,7 @@ class TestPurgeUserDataCompleteness:
                 return FakeGenericDocRef()
             def limit(self, *a, **k):
                 return self
-            def stream(self):
+            def stream(self, **_kwargs):  # production passes timeout=
                 return iter([])
 
         class FakeCollection:
@@ -1884,7 +1884,7 @@ class TestPurgeUserDataCompleteness:
                 return FakeHealthDocRef() if self._name == 'health_data' else FakeGenericDocRef()
             def limit(self, *a, **k):
                 return self
-            def stream(self):
+            def stream(self, **_kwargs):  # production passes timeout=
                 return iter([])
 
         fake_db = MagicMock()
@@ -1917,7 +1917,7 @@ class TestDataRetentionInsights:
             def where(self, filter):
                 captured_filters.append(filter)
                 return self
-            def stream(self):
+            def stream(self, **_kwargs):  # production passes timeout=
                 return iter([])
 
         fake_collection = MagicMock()
