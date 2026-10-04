@@ -56,7 +56,7 @@ const MetricCard: React.FC<{
   unavailable?: boolean;
   loading?: boolean;
 }> = ({ title, value, subtitle, icon, color = 'primary', unavailable, loading }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+  <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-xs">
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
@@ -244,7 +244,7 @@ const HealthMonitoring: React.FC = () => {
   return (
     <div className="space-y-6 p-4 sm:p-6">
       {/* Admin Dashboard Banner */}
-      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 rounded-lg shadow-lg">
+      <div className="bg-linear-to-r from-purple-600 to-indigo-600 text-white p-4 rounded-lg shadow-lg">
         <div className="flex items-center gap-3">
           <span className="text-2xl">🔒</span>
           <div>
@@ -269,7 +269,7 @@ const HealthMonitoring: React.FC = () => {
 
         <div className="flex gap-2 flex-wrap">
           <button
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px]"
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px]"
             onClick={() => {
               analytics.track('Health Check Initiated', {
                 component: 'HealthMonitoring',
@@ -280,7 +280,7 @@ const HealthMonitoring: React.FC = () => {
             Run Health Check
           </button>
           <button
-            className="flex items-center gap-2 px-4 py-2 bg-error-600 hover:bg-error-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-error-500 min-h-[44px]"
+            className="flex items-center gap-2 px-4 py-2 bg-error-600 hover:bg-error-700 text-white font-medium rounded-lg transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-error-500 min-h-[44px]"
             onClick={() => {
               analytics.track('Emergency Protocol Activated', {
                 component: 'HealthMonitoring',
@@ -310,7 +310,7 @@ const HealthMonitoring: React.FC = () => {
             </p>
           </div>
           <button
-            className="px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[40px]"
+            className="px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[40px]"
             onClick={() => void loadRealMetrics()}
           >
             Retry
@@ -373,7 +373,7 @@ const HealthMonitoring: React.FC = () => {
       </div>
 
       {/* Risk Level Indicator */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-xs">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white">
             Community Risk Level
@@ -416,7 +416,7 @@ const HealthMonitoring: React.FC = () => {
       </div>
 
       {/* Crisis Indicators */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-xs">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white">
             Active Crisis Indicators
@@ -465,7 +465,7 @@ const HealthMonitoring: React.FC = () => {
 
                     {!indicator.resolved && (
                       <button
-                        className="px-4 py-2 bg-success-700 hover:bg-success-800 text-white text-sm font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-success-600 min-h-[40px]"
+                        className="px-4 py-2 bg-success-700 hover:bg-success-800 text-white text-sm font-medium rounded-lg transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-success-600 min-h-[40px]"
                         onClick={() => handleResolveIndicator(indicator)}
                       >
                         Resolve
@@ -485,7 +485,7 @@ const HealthMonitoring: React.FC = () => {
                       {indicator.actions.map((action, actionIndex) => (
                         <button
                           key={actionIndex}
-                          className="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white text-sm rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                          className="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white text-sm rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500"
                           onClick={() => handleTakeAction(indicator, action)}
                         >
                           {action}
@@ -516,7 +516,7 @@ const HealthMonitoring: React.FC = () => {
               </h2>
               <button
                 onClick={() => setActionDialog(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500"
                 aria-label="Close dialog"
               >
                 <XMarkIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
@@ -566,12 +566,12 @@ const HealthMonitoring: React.FC = () => {
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setActionDialog(false)}
-                className="px-6 py-2 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px]"
+                className="px-6 py-2 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px]"
               >
                 Cancel
               </button>
               <button
-                className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px]"
+                className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px]"
                 onClick={() => {
                   analytics.track('Health Action Executed', {
                     action: selectedAction,

@@ -100,7 +100,7 @@ const ReferralLeaderboard: React.FC = () => {
                             aria-current={entry.isCurrentUser ? 'true' : undefined}
                             className={`p-4 rounded-lg ${entry.isCurrentUser ? 'ring-2 ring-primary-500 ' : ''}${
                                 isTopThree(entry.rank)
-                                    ? 'bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 shadow-md'
+                                    ? 'bg-linear-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 shadow-md'
                                     : 'bg-gray-50 dark:bg-gray-800/50'
                             }`}
                         >

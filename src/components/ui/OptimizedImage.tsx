@@ -136,7 +136,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
         <img
           src={blurDataURL || generateBlurPlaceholder(currentSrc)}
           alt=""
-          className="absolute inset-0 w-full h-full object-cover filter blur-sm scale-110"
+          className="absolute inset-0 w-full h-full object-cover filter blur-xs scale-110"
           aria-hidden="true"
         />
       )}
@@ -186,7 +186,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
       {/* Error state */}
       {hasError && !fallbackSrc && (
-        <div className="flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded">
+        <div className="flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-sm">
           <svg
             className="w-8 h-8"
             fill="none"

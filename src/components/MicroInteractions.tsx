@@ -43,7 +43,7 @@ const HeartAnimation = ({
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}
       onClick={handleClick}
-      className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-full p-2"
+      className="focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 rounded-full p-2"
       aria-label={isActive ? "Unlike" : "Like"}
     >
       <motion.div
@@ -85,7 +85,7 @@ const SuccessCheckmark = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.8, y: -20 }}
           transition={{ duration: 0.3 }}
-          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1000]"
+          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-1000"
         >
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-xl flex flex-col items-center gap-3">
             <motion.div
@@ -334,7 +334,7 @@ const InteractiveButton = ({
         ${sizeClasses[size]}
         ${variantClasses[variant][color]}
         font-medium rounded-lg transition-colors 
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-${color}-500 
+        focus:outline-hidden focus-visible:ring-2 focus-visible:ring-${color}-500 
         disabled:opacity-50 disabled:cursor-not-allowed
         relative overflow-hidden
         min-h-[44px]
@@ -420,7 +420,7 @@ const ToastNotification = ({
           animate={{ opacity: 1, x: 0, scale: 1 }}
           exit={{ opacity: 0, x: 300, scale: 0.5, transition: { duration: 0.2 } }}
           transition={{ type: "spring", stiffness: 500, damping: 30 }}
-          className="fixed top-4 right-4 z-[1000] w-[calc(100vw-2rem)] max-w-md sm:min-w-[300px] sm:w-auto"
+          className="fixed top-4 right-4 z-1000 w-[calc(100vw-2rem)] max-w-md sm:min-w-[300px] sm:w-auto"
           role="alert"
           aria-live="assertive"
         >
@@ -432,7 +432,7 @@ const ToastNotification = ({
               </p>
               <button
                 onClick={onClose}
-                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-sm transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500"
                 aria-label="Close notification"
               >
                 <XMarkIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />

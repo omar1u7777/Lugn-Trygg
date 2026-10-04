@@ -341,7 +341,7 @@ const RegisterForm: React.FC = () => {
                 checked={acceptTerms}
                 onChange={(e) => setAcceptTerms(e.target.checked)}
                 disabled={loading}
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="mt-1 h-4 w-4 rounded-sm border-gray-300 text-primary-600 focus:ring-primary-500"
                 aria-describedby={validationErrors.terms ? "terms-error" : undefined}
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -358,7 +358,7 @@ const RegisterForm: React.FC = () => {
                 checked={acceptPrivacy}
                 onChange={(e) => setAcceptPrivacy(e.target.checked)}
                 disabled={loading}
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="mt-1 h-4 w-4 rounded-sm border-gray-300 text-primary-600 focus:ring-primary-500"
                 aria-describedby={validationErrors.terms ? "terms-error" : undefined}
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -401,7 +401,7 @@ const RegisterForm: React.FC = () => {
             {t('registerForm.hasAccount')}{" "}
             <Link
               to="/login"
-              className="text-primary-600 dark:text-primary-400 font-semibold hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
+              className="text-primary-600 dark:text-primary-400 font-semibold hover:underline focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-sm"
               data-testid="register-login-link"
               aria-label={t('registerForm.goToLogin')}
             >

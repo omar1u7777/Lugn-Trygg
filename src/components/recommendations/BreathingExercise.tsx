@@ -143,8 +143,8 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
   }, []);
 
   return (
-    <div className={`${isBreathingFullscreen ? 'fixed inset-0 z-[260] overflow-y-auto bg-black/80 p-4 sm:p-8' : ''}`}>
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-blue-200 dark:border-blue-800">
+    <div className={`${isBreathingFullscreen ? 'fixed inset-0 z-260 overflow-y-auto bg-black/80 p-4 sm:p-8' : ''}`}>
+      <div className="bg-linear-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-blue-200 dark:border-blue-800">
 
         {/* Mode toggle: Basic vs Biofeedback */}
         <div className="flex justify-center mb-4 gap-2">
@@ -279,16 +279,16 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
 
             <div
               className={`relative w-40 h-40 rounded-full flex flex-col items-center justify-center transition-all duration-1000 transform ${breathingPhase === 'exhale'
-                ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white scale-75 shadow-blue-500/50 shadow-lg'
+                ? 'bg-linear-to-br from-blue-400 to-blue-600 text-white scale-75 shadow-blue-500/50 shadow-lg'
                 : breathingPhase === 'inhale'
-                  ? 'bg-gradient-to-br from-green-400 to-green-600 text-white scale-125 shadow-green-500/50 shadow-xl animate-pulse'
+                  ? 'bg-linear-to-br from-green-400 to-green-600 text-white scale-125 shadow-green-500/50 shadow-xl animate-pulse'
                   : breathingPhase === 'hold'
-                    ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white scale-110 shadow-yellow-500/50 shadow-lg'
+                    ? 'bg-linear-to-br from-yellow-400 to-yellow-600 text-white scale-110 shadow-yellow-500/50 shadow-lg'
                     : breathingPhase === 'exhale2'
-                      ? 'bg-gradient-to-br from-blue-500 to-blue-700 text-white scale-75 shadow-blue-500/50 shadow-lg'
+                      ? 'bg-linear-to-br from-blue-500 to-blue-700 text-white scale-75 shadow-blue-500/50 shadow-lg'
                       : breathingPhase === 'completed'
-                        ? 'bg-gradient-to-br from-purple-500 to-pink-600 text-white scale-110 shadow-purple-500/50 shadow-xl'
-                        : 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-700 scale-100 shadow-gray-500/20 shadow-md'} `}
+                        ? 'bg-linear-to-br from-purple-500 to-pink-600 text-white scale-110 shadow-purple-500/50 shadow-xl'
+                        : 'bg-linear-to-br from-gray-300 to-gray-400 text-gray-700 scale-100 shadow-gray-500/20 shadow-md'} `}
             >
               <span className="text-xs font-semibold tracking-wide uppercase opacity-90">
                 {breathingCue.title}

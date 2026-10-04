@@ -344,7 +344,7 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
 
           {/* Free Tier Limit Banner */}
           {!isPremium && (
-            <div className="mb-8 p-4 bg-gradient-to-r from-amber-400 to-amber-500 rounded-xl text-white">
+            <div className="mb-8 p-4 bg-linear-to-r from-amber-400 to-amber-500 rounded-xl text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <LockClosedIcon className="w-6 h-6" />

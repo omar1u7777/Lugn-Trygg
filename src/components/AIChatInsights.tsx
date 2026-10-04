@@ -257,7 +257,7 @@ export const AIChatInsights: React.FC = () => {
       {/* Framework Tab */}
       {activeTab === 'framework' && framework && (
         <div className="space-y-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xs p-6">
             <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
               Upptäckt terapeutiskt ramverk
             </h3>
@@ -339,14 +339,14 @@ export const AIChatInsights: React.FC = () => {
             />
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xs p-6">
             <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
               Övergripande kvalitet
             </h3>
             <div className="flex items-center gap-4">
               <div className="flex-1 h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all"
+                  className="h-full bg-linear-to-r from-indigo-500 to-purple-500 transition-all"
                   style={{ width: `${metrics.overall_quality * 100}%` }}
                 />
               </div>
@@ -379,7 +379,7 @@ export const AIChatInsights: React.FC = () => {
           ) : (
             <>
               {progress.progress_report && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xs p-6">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
                     Sammanfattning
                   </h3>
@@ -423,7 +423,7 @@ export const AIChatInsights: React.FC = () => {
               )}
 
               {progress.trajectory && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xs p-6">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
                     Trajectory-analys
                   </h3>
@@ -464,7 +464,7 @@ export const AIChatInsights: React.FC = () => {
                   <ul className="space-y-2">
                     {progress.recommendations.map((rec, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm text-indigo-800 dark:text-indigo-400">
-                        <LightBulbIcon className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <LightBulbIcon className="w-4 h-4 mt-0.5 shrink-0" />
                         <span>{rec}</span>
                       </li>
                     ))}
@@ -512,7 +512,7 @@ const QualityCard: React.FC<QualityCardProps> = ({ title, score, icon, descripti
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xs p-4">
       <div className="flex items-center gap-2 mb-2">
         <div className="text-gray-600 dark:text-gray-400">{icon}</div>
         <span className="font-medium text-gray-900 dark:text-white text-sm">{title}</span>

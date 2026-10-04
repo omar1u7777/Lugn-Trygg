@@ -114,16 +114,16 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
               disabled={!isSelected && isMaxReached}
             aria-disabled={!isSelected && isMaxReached}
             className={`
-                relative p-6 rounded-[1.5rem] text-left transition-all duration-300 border-2
+                relative p-6 rounded-3xl text-left transition-all duration-300 border-2
                 ${isSelected
                   ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-xl shadow-primary-500/10 scale-[1.02]'
                   : !isMaxReached
-                    ? 'border-transparent bg-white dark:bg-slate-800 shadow-sm hover:shadow-md hover:scale-[1.02]'
-                    : 'border-transparent bg-white dark:bg-slate-800 shadow-sm opacity-40 cursor-not-allowed'}
+                    ? 'border-transparent bg-white dark:bg-slate-800 shadow-xs hover:shadow-md hover:scale-[1.02]'
+                    : 'border-transparent bg-white dark:bg-slate-800 shadow-xs opacity-40 cursor-not-allowed'}
               `}
             >
               <div className="flex flex-col h-full">
-                <span className="text-4xl mb-4 block filter drop-shadow-sm">{goal.icon}</span>
+                <span className="text-4xl mb-4 block filter drop-shadow-xs">{goal.icon}</span>
                 <h3 className={`font-bold text-lg mb-1 ${isSelected ? 'text-primary-700 dark:text-primary-300' : 'text-gray-900 dark:text-white'}`}>
                   {goal.label}
                 </h3>
@@ -165,7 +165,7 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
             w-full sm:w-auto px-10 py-3.5 rounded-xl font-bold text-white shadow-lg shadow-primary-500/30 transition-all
             ${loading || selectedGoals.length === 0
               ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed shadow-none'
-              : 'bg-gradient-to-r from-primary-600 to-indigo-600 hover:scale-105 hover:shadow-xl hover:shadow-primary-500/40'}
+              : 'bg-linear-to-r from-primary-600 to-indigo-600 hover:scale-105 hover:shadow-xl hover:shadow-primary-500/40'}
           `}
         >
           {loading ? 'Sparar...' : `Fortsätt (${selectedGoals.length}/${MAX_WELLNESS_GOALS})`}

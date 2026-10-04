@@ -58,7 +58,7 @@ const SocialHub: React.FC = () => {
    *  real total — and only that stat, so one outage does not blank the rest. */
   const renderStat = (key: keyof SocialStats, value: React.ReactNode) => {
     if (loading) {
-      return <span className="inline-block w-16 h-8 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />;
+      return <span className="inline-block w-16 h-8 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-sm" />;
     }
     if (failedStats.has(key)) {
       return <span className="text-gray-400" title={t('social.statsUnavailable', 'Kunde inte hämtas')}>—</span>;
@@ -207,7 +207,7 @@ const SocialHub: React.FC = () => {
                 key={tab.index}
                 onClick={() => setActiveTab(tab.index)}
                 role="tab"
-                className={`flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${activeTab === tab.index
+                className={`flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${activeTab === tab.index
                   ? 'border-primary-600 text-primary-600'
                   : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                   }`}

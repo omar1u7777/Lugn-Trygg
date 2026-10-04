@@ -149,13 +149,13 @@ const Sidebar: React.FC = memo(() => {
 
   return (
     <aside
-      className="hidden lg:flex flex-col w-64 fixed left-0 top-0 h-screen bg-[#fff7f0] dark:bg-slate-900 border-r border-[#e8dcd0] dark:border-slate-800 z-[100] transition-colors duration-300 overflow-hidden"
+      className="hidden lg:flex flex-col w-64 fixed left-0 top-0 h-screen bg-calm-50 dark:bg-slate-900 border-r border-[#e8dcd0] dark:border-slate-800 z-100 transition-colors duration-300 overflow-hidden"
       aria-label={t('sidebar.mainNavigationAria', 'Huvudnavigation')}
     >
       {/* Logo Section */}
       <div className="p-6 border-b border-[#f2e4d4] dark:border-slate-700">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-violet-600 flex items-center justify-center shadow-md">
+          <div className="w-10 h-10 rounded-xl bg-linear-to-br from-teal-500 to-violet-600 flex items-center justify-center shadow-md">
             <span className="text-xl" aria-hidden="true">🧘</span>
           </div>
           <div>
@@ -182,13 +182,13 @@ const Sidebar: React.FC = memo(() => {
                   flex w-full min-w-0 items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
                   group relative
                   ${active
-                    ? 'bg-gradient-to-r from-teal-500 to-violet-600 text-white shadow-md shadow-teal-500/20'
+                    ? 'bg-linear-to-r from-teal-500 to-violet-600 text-white shadow-md shadow-teal-500/20'
                     : 'text-[#6d645d] hover:bg-[#f2e4d4] hover:text-[#2f2a24] dark:text-gray-400 dark:hover:bg-slate-800 dark:hover:text-white'
                   }
                 `}
                 aria-current={active ? 'page' : undefined}
               >
-                <Icon className="w-5 h-5 flex-shrink-0" />
+                <Icon className="w-5 h-5 shrink-0" />
                 <span className="flex-1 min-w-0 line-clamp-2 leading-5">{label}</span>
               </Link>
             );
@@ -221,8 +221,8 @@ const Sidebar: React.FC = memo(() => {
                   </span>
                 </div>
                 {isPremiumExpanded
-                  ? <ChevronUpIcon className="w-4 h-4 flex-shrink-0" />
-                  : <ChevronDownIcon className="w-4 h-4 flex-shrink-0" />}
+                  ? <ChevronUpIcon className="w-4 h-4 shrink-0" />
+                  : <ChevronDownIcon className="w-4 h-4 shrink-0" />}
               </button>
 
               {isPremiumExpanded && (
@@ -246,9 +246,9 @@ const Sidebar: React.FC = memo(() => {
                         `}
                         aria-current={active ? 'page' : undefined}
                       >
-                        <Icon className="w-4 h-4 flex-shrink-0" />
+                        <Icon className="w-4 h-4 shrink-0" />
                         <span className="flex-1 min-w-0 line-clamp-1 text-sm leading-5">{label}</span>
-                        <span className="flex shrink-0 items-center bg-gradient-to-r from-amber-400 to-orange-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        <span className="flex shrink-0 items-center bg-linear-to-r from-amber-400 to-orange-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                           <SparklesIcon className="w-3 h-3" />
                         </span>
                       </Link>
@@ -287,7 +287,7 @@ const Sidebar: React.FC = memo(() => {
                   }`}
                 aria-current={active ? 'page' : undefined}
               >
-                <Icon className="w-4 h-4 flex-shrink-0" />
+                <Icon className="w-4 h-4 shrink-0" />
                 <span className="min-w-0 truncate">{label}</span>
               </Link>
             );
@@ -335,7 +335,7 @@ Sidebar.displayName = 'Sidebar';
 const PremiumUpgradeCard: React.FC = memo(() => {
   const { t } = useTranslation();
   return (
-    <div className="mt-6 p-4 rounded-2xl bg-gradient-to-br from-[#fff7f0] to-[#f2e4d4] dark:from-slate-800 dark:to-slate-700 border border-[#e8dcd0] dark:border-slate-600">
+    <div className="mt-6 p-4 rounded-2xl bg-linear-to-br from-[#fff7f0] to-[#f2e4d4] dark:from-slate-800 dark:to-slate-700 border border-[#e8dcd0] dark:border-slate-600">
       <div className="flex items-center gap-2 mb-2">
         <SparklesIcon className="w-5 h-5 text-amber-500" />
         <span className="font-semibold text-[#2f2a24] dark:text-white text-sm">
@@ -350,7 +350,7 @@ const PremiumUpgradeCard: React.FC = memo(() => {
       </p>
       <Link
         to="/upgrade"
-        className="block w-full text-center py-2 px-3 bg-gradient-to-r from-[#2c8374] to-[#3a9d8c] text-white text-sm font-semibold rounded-xl hover:from-[#1e5f54] hover:to-[#2c8374] transition-all shadow-sm"
+        className="block w-full text-center py-2 px-3 bg-linear-to-r from-[#2c8374] to-[#3a9d8c] text-white text-sm font-semibold rounded-xl hover:from-[#1e5f54] hover:to-[#2c8374] transition-all shadow-xs"
       >
         {t('sidebar.seePremium', 'Se Premium →')}
       </Link>

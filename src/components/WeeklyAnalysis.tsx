@@ -98,18 +98,18 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
           </span>
           {t('dashboard.weeklyMoodAnalysis')}
         </h3>
-        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-teal-500 to-violet-500 text-white shadow-lg shadow-teal-500/30">
+        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-linear-to-r from-teal-500 to-violet-500 text-white shadow-lg shadow-teal-500/30">
           AI Powered
         </span>
       </div>
 
       {/* HONEST: MoodAnalytics provides real mood data, WeeklyAnalysis adds AI insights */}
-      <div className="bg-white dark:bg-slate-800 rounded-[2rem] p-2 shadow-sm border border-slate-100 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-800 rounded-4xl p-2 shadow-xs border border-slate-100 dark:border-slate-700">
         <MoodAnalytics />
       </div>
 
       {/* AI Insights Section - Always show, with honest messaging about AI status */}
-      <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 text-white p-8 shadow-xl">
+      <div className="relative overflow-hidden rounded-4xl bg-linear-to-br from-indigo-900 via-purple-900 to-slate-900 text-white p-8 shadow-xl">
         {/* Abstract Background */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-teal-500/20 rounded-full blur-3xl -ml-10 -mb-10" />
@@ -177,7 +177,7 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
       </div>
 
       {analysis.recent_memories && analysis.recent_memories.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-[2rem] p-8 shadow-lg border border-slate-100 dark:border-slate-700">
+        <div className="bg-white dark:bg-slate-800 rounded-4xl p-8 shadow-lg border border-slate-100 dark:border-slate-700">
           <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-2">
             <span className="text-amber-500 text-xl">🕒</span>
             {t('dashboard.recentMemories')}

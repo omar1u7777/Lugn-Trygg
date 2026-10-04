@@ -1,3 +1,5 @@
+import v3Palette from './tailwind.v3-palette.js';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -8,6 +10,7 @@ export default {
   theme: {
     extend: {
       colors: {
+        ...v3Palette,
         // Lugn & Trygg - Calm Therapeutic Palette
         primary: {
           50: '#f0f9f7',

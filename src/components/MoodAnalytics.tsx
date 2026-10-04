@@ -374,7 +374,7 @@ const MoodAnalytics: React.FC = () => {
     >
       <div className="space-y-6">
         {/* Mood Calendar for Monthly Analytics */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4 mb-6">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-4 mb-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <CalendarDaysIcon className="w-6 h-6 text-primary-600 dark:text-primary-400" />
@@ -382,7 +382,7 @@ const MoodAnalytics: React.FC = () => {
             </h2>
             <div className="flex gap-2">
               <button
-                className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                className="px-2 py-1 rounded-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 min-h-[44px] min-w-[44px] flex items-center justify-center"
                 onClick={() => {
                   if (calendarMonth === 0) {
                     setCalendarMonth(11);
@@ -399,7 +399,7 @@ const MoodAnalytics: React.FC = () => {
                 {new Date(calendarYear, calendarMonth).toLocaleString('sv-SE', { month: 'long', year: 'numeric' })}
               </span>
               <button
-                className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                className="px-2 py-1 rounded-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 min-h-[44px] min-w-[44px] flex items-center justify-center"
                 onClick={() => {
                   if (calendarMonth === 11) {
                     setCalendarMonth(0);
@@ -457,7 +457,7 @@ const MoodAnalytics: React.FC = () => {
                 onClick={() => setActiveTab(tab)}
                 className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-sm font-medium transition-all min-h-[44px] min-w-[44px] flex items-center justify-center ${
                   activeTab === tab
-                    ? 'bg-white dark:bg-gray-700 text-primary-700 dark:text-primary-300 shadow'
+                    ? 'bg-white dark:bg-gray-700 text-primary-700 dark:text-primary-300 shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
               >
@@ -540,7 +540,7 @@ const MoodAnalytics: React.FC = () => {
                           : 'bg-error-500';
                         return (
                           <div key={entry.date} className="flex flex-col items-center gap-1 min-w-[18px] flex-1 group relative">
-                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs rounded px-1 py-0.5 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs rounded-sm px-1 py-0.5 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
                               {entry.date}<br />{entry.average !== null ? `${entry.average.toFixed(1)}/10` : 'Ingen data'}
                             </div>
                             <div
@@ -647,7 +647,7 @@ const MoodAnalytics: React.FC = () => {
                         const colorClass = avg >= 7 ? 'bg-success-500' : avg >= 4 ? 'bg-warning-400' : 'bg-error-500';
                         return (
                           <div key={hour} className="flex-1 flex flex-col items-center group relative">
-                            <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] rounded px-1 opacity-0 group-hover:opacity-100 pointer-events-none z-10 whitespace-nowrap">
+                            <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] rounded-sm px-1 opacity-0 group-hover:opacity-100 pointer-events-none z-10 whitespace-nowrap">
                               {hour}:00 — {avg.toFixed(1)}
                             </div>
                             <div className={`w-full ${colorClass} rounded-t`} style={{ height: `${pct}%` }} />
@@ -716,7 +716,7 @@ const MoodAnalytics: React.FC = () => {
                           const dow = DOW_SHORT[entry.dow];
                           return (
                             <div key={entry.date} className="flex flex-col items-center gap-1 flex-1 group relative">
-                              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs rounded px-1 py-0.5 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
+                              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs rounded-sm px-1 py-0.5 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
                                 {entry.date}<br />{entry.avg ? `${entry.avg.toFixed(1)}/10` : 'Ingen'}
                               </div>
                               <div className={`w-full rounded-t ${color}`} style={{ height: `${Math.max(pct, entry.avg !== null ? 6 : 2)}%` }} />
@@ -867,7 +867,7 @@ const MoodAnalytics: React.FC = () => {
                           : 'bg-error-500';
                         return (
                           <div key={entry.month} className="flex flex-col items-center gap-1 flex-1 group relative">
-                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
+                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs rounded-sm px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
                               {entry.label}<br />
                               {entry.average !== null ? `${entry.average.toFixed(1)}/10` : 'Ingen data'}
                               {entry.count > 0 && <><br />{entry.count} loggar</>}
@@ -907,14 +907,14 @@ const MoodAnalytics: React.FC = () => {
                 </Card>
 
                 {/* Monthly calendar */}
-                <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4">
+                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-4">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                       <CalendarDaysIcon className="w-5 h-5 text-primary-600" />Kalender
                     </h3>
                     <div className="flex gap-2">
                       <button
-                        className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
+                        className="px-2 py-1 rounded-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
                         onClick={() => { if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y => y - 1); } else { setCalendarMonth(m => m - 1); } }}
                         aria-label="Föregående månad"
                       >&lt;</button>
@@ -922,7 +922,7 @@ const MoodAnalytics: React.FC = () => {
                         {new Date(calendarYear, calendarMonth).toLocaleString('sv-SE', { month: 'long', year: 'numeric' })}
                       </span>
                       <button
-                        className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
+                        className="px-2 py-1 rounded-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
                         onClick={() => { if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1); } else { setCalendarMonth(m => m + 1); } }}
                         aria-label="Nästa månad"
                       >&gt;</button>

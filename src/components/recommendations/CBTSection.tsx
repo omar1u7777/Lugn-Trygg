@@ -206,7 +206,7 @@ export const CBTSection: React.FC<CBTSectionProps> = ({
         <div className="mt-6 rounded-xl border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-blue-900 dark:text-blue-200">{t('recommendations.cbt.ba.title', '🌱 Beteendeaktivering')}</h3>
-            <button onClick={() => setActiveCbtExerciseId(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 min-h-[44px] min-w-[44px] px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">{t('recommendations.cbt.cancel', 'Avbryt')}</button>
+            <button onClick={() => setActiveCbtExerciseId(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 min-h-[44px] min-w-[44px] px-3 py-2 rounded-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">{t('recommendations.cbt.cancel', 'Avbryt')}</button>
           </div>
           <div className="mb-3 flex gap-1">
             {[1,2,3,4].map(s => (
@@ -327,7 +327,7 @@ export const CBTSection: React.FC<CBTSectionProps> = ({
         <div className="mt-6 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-purple-900 dark:text-purple-200">{t('recommendations.cbt.wt.title', '⏰ Bekymmelsetid')}</h3>
-            <button onClick={() => setActiveCbtExerciseId(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 min-h-[44px] min-w-[44px] px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">{t('recommendations.cbt.cancel', 'Avbryt')}</button>
+            <button onClick={() => setActiveCbtExerciseId(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 min-h-[44px] min-w-[44px] px-3 py-2 rounded-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">{t('recommendations.cbt.cancel', 'Avbryt')}</button>
           </div>
           <div className="mb-3 flex gap-1">
             {[1,2,3,4].map(s => (
@@ -388,7 +388,7 @@ export const CBTSection: React.FC<CBTSectionProps> = ({
                     type="checkbox"
                     checked={wtPostponeCommitted}
                     onChange={(e) => setWtPostponeCommitted(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-400"
+                    className="mt-0.5 w-4 h-4 rounded-sm border-gray-300 text-purple-600 focus:ring-purple-400"
                   />
                   <span className="text-sm text-purple-800 dark:text-purple-200">
                     {t('recommendations.cbt.wt.commitmentText', 'Jag förbinder mig att skjuta upp bekymmer till min schemalagda tid och påminna mig att de redan är noterade.')}

@@ -210,7 +210,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                                         {status.scope.split(' ').map((scope, idx) => (
                                             <span
                                                 key={idx}
-                                                className="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded"
+                                                className="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-sm"
                                             >
                                                 {scope}
                                             </span>
@@ -372,7 +372,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                                 <p className="font-medium text-indigo-900 dark:text-indigo-100 mb-3">🔍 {t('healthIntegrations.patternsFound', 'Hittade mönster')}</p>
                                 <div className="space-y-2">
                                     {analysisResult.patterns.map((pattern, idx) => (
-                                        <div key={idx} className="bg-white dark:bg-slate-800 rounded p-3 border-l-4 border-indigo-500">
+                                        <div key={idx} className="bg-white dark:bg-slate-800 rounded-sm p-3 border-l-4 border-indigo-500">
                                             <p className="font-semibold text-slate-900 dark:text-slate-100">{pattern.title}</p>
                                             <p className="text-sm text-slate-600 dark:text-slate-400">{pattern.description}</p>
                                             <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">{t('healthIntegrations.impact', 'Påverkan:')} {pattern.impact === 'high' ? t('healthIntegrations.impactHigh', '🔴 Hög') : t('healthIntegrations.impactMedium', '🟡 Medel')}</p>
@@ -388,12 +388,12 @@ const OAuthHealthIntegrations: React.FC = () => {
                                 <p className="font-medium text-orange-900 dark:text-orange-100 mb-3">💡 Personliga rekommendationer</p>
                                 <div className="space-y-2">
                                     {analysisResult.recommendations.map((rec, idx) => (
-                                        <div key={idx} className="bg-white dark:bg-slate-800 rounded p-3">
+                                        <div key={idx} className="bg-white dark:bg-slate-800 rounded-sm p-3">
                                             <p className="font-semibold text-slate-900 dark:text-slate-100">{rec.title}</p>
                                             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{rec.description}</p>
                                             <div className="mt-2 flex items-center justify-between">
                                                 <p className="text-xs font-medium text-slate-700 dark:text-slate-300">💪 {rec.action}</p>
-                                                <span className="text-xs bg-orange-200 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200 px-2 py-1 rounded">{rec.expected_benefit}</span>
+                                                <span className="text-xs bg-orange-200 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200 px-2 py-1 rounded-sm">{rec.expected_benefit}</span>
                                             </div>
                                         </div>
                                     ))}

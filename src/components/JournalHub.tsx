@@ -250,7 +250,7 @@ const JournalHub: React.FC = () => {
       {/* Hero Section (Hidden in Zen Mode) */}
       {!zenMode && (
         <section className="mb-8">
-          <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-50 to-stone-100 dark:from-slate-900 dark:to-stone-900 border border-white/50 dark:border-white/5 shadow-2xl p-8 sm:p-12">
+          <div className="relative overflow-hidden rounded-[2.5rem] bg-linear-to-br from-indigo-50 to-stone-100 dark:from-slate-900 dark:to-stone-900 border border-white/50 dark:border-white/5 shadow-2xl p-8 sm:p-12">
             <div className="relative z-10 flex flex-col lg:flex-row items-center gap-10">
               <div className="flex-1 text-center lg:text-left space-y-6">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/40 dark:bg-white/5 backdrop-blur-md border border-indigo-100 dark:border-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium text-sm">
@@ -259,7 +259,7 @@ const JournalHub: React.FC = () => {
                 </div>
 
                 <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-slate-800 dark:text-white">
-                  Digital <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400">Dagbok</span>
+                  Digital <span className="text-transparent bg-clip-text bg-linear-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400">Dagbok</span>
                 </h1>
 
                 <p className="text-lg text-slate-600 dark:text-slate-300 max-w-xl mx-auto lg:mx-0 leading-relaxed">
@@ -284,7 +284,7 @@ const JournalHub: React.FC = () => {
               </div>
 
               <div className="w-full max-w-md lg:w-1/2 relative">
-                <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 blur-3xl rounded-full animate-pulse-slow" />
+                <div className="absolute inset-0 bg-linear-to-tr from-indigo-500/20 to-purple-500/20 blur-3xl rounded-full animate-pulse-slow" />
                 <div className="relative transform rotate-3 hover:rotate-0 transition-transform duration-700">
                   <OptimizedImage
                     src={JOURNAL_HERO_IMAGE_ID}
@@ -293,7 +293,7 @@ const JournalHub: React.FC = () => {
                     height={420}
                     priority
                     fallbackSrc={JOURNAL_HERO_FALLBACK}
-                    className="rounded-3xl shadow-2xl border-4 border-white/50 dark:border-white/10 backdrop-blur-sm"
+                    className="rounded-3xl shadow-2xl border-4 border-white/50 dark:border-white/10 backdrop-blur-xs"
                   />
                 </div>
               </div>
@@ -326,7 +326,7 @@ const JournalHub: React.FC = () => {
             { label: 'Sparade Minnen', value: stats.memoryCount, icon: SparklesIcon, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
             { label: 'Dagar i rad', value: stats.weekStreak, icon: ChartBarIcon, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
           ].map((stat, idx) => (
-            <div key={idx} className="group bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <div key={idx} className="group bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-xs hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between mb-4">
                 <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color} group-hover:scale-110 transition-transform`}>
                   <stat.icon className="w-6 h-6" />
@@ -426,7 +426,7 @@ const JournalHub: React.FC = () => {
                 <div className="relative">
                   <textarea
                     rows={zenMode ? 20 : 12}
-                    className={`w-full p-6 text-lg leading-relaxed rounded-2xl border transition-all focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none resize-none ${zenMode
+                    className={`w-full p-6 text-lg leading-relaxed rounded-2xl border transition-all focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-hidden resize-none ${zenMode
                       ? 'bg-transparent border-none shadow-none text-stone-800 dark:text-stone-300 placeholder-stone-400 font-serif'
                       : 'bg-stone-50 dark:bg-slate-900 border-stone-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 shadow-inner'
                       }`}
@@ -435,7 +435,7 @@ const JournalHub: React.FC = () => {
                     onChange={(e) => setJournalText(e.target.value)}
                     autoFocus={zenMode}
                   />
-                  {!zenMode && <div className="absolute bottom-4 right-4 text-xs text-slate-400 font-medium bg-white/50 px-2 py-1 rounded-md backdrop-blur-sm">
+                  {!zenMode && <div className="absolute bottom-4 right-4 text-xs text-slate-400 font-medium bg-white/50 px-2 py-1 rounded-md backdrop-blur-xs">
                     {journalText.trim().split(/\s+/).filter(Boolean).length} ord
                   </div>}
                 </div>
@@ -461,7 +461,7 @@ const JournalHub: React.FC = () => {
                   <button
                     type="submit"
                     disabled={!journalText.trim() || isSubmittingJournal}
-                    className="px-10 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-2xl shadow-xl shadow-indigo-500/30 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2"
+                    className="px-10 py-4 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-2xl shadow-xl shadow-indigo-500/30 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2"
                   >
                     {isSubmittingJournal ? <span className="animate-spin">⏳</span> : <BookOpenIcon className="w-6 h-6" />}
                     {isSubmittingJournal ? 'Sparar...' : 'Spara i Dagboken'}

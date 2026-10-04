@@ -25,7 +25,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isPremium, planLabel 
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   const userDisplayName = extractDisplayName(user?.email || '');
-  const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2c8374] focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900';
+  const focusRing = 'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-500 focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900';
 
   // Stäng dropdown vid klick utanför
   useEffect(() => {
@@ -83,7 +83,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isPremium, planLabel 
               {userDisplayName}
             </p>
             {isPremium && planLabel && (
-              <span className="inline-flex items-center gap-1 mt-1 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1 mt-1 bg-linear-to-r from-amber-400 to-orange-400 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                 ✨ {planLabel}
               </span>
             )}

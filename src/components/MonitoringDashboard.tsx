@@ -392,11 +392,11 @@ const MonitoringDashboard: React.FC = () => {
               <button
                 key={alert.id}
                 onClick={() => setSelectedAlert(alert)}
-                className="w-full flex items-start gap-3 py-4 px-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400"
+                className="w-full flex items-start gap-3 py-4 px-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400"
                 aria-expanded={selectedAlert?.id === alert.id}
                 aria-controls={`alert-${alert.id}`}
               >
-                <div className="flex-shrink-0 mt-1">
+                <div className="shrink-0 mt-1">
                   {getStatusIcon(alert.type)}
                 </div>
                 <div className="flex-1 text-left">

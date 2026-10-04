@@ -419,7 +419,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
 
   const containerClasses = embedded
     ? "w-full min-h-[500px] flex flex-col bg-transparent"
-    : "fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm p-4";
+    : "fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-xs p-4";
 
   const cardClasses = embedded
     ? "bg-transparent w-full flex flex-col h-full"
@@ -428,7 +428,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
   return (
     <div className={containerClasses}>
       <div className={cardClasses}>
-        <div className={`p-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0 pt-0' : ''}`}>
+        <div className={`p-6 border-b border-slate-200 dark:border-slate-700 shrink-0 ${embedded ? 'px-0 pt-0' : ''}`}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-3">
               <span className="text-2xl">🎵</span>
@@ -447,7 +447,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
         </div>
 
         {/* Tab Switcher */}
-        <div className={`px-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0' : ''}`}>
+        <div className={`px-6 border-b border-slate-200 dark:border-slate-700 shrink-0 ${embedded ? 'px-0' : ''}`}>
           <div className="flex gap-4">
             <button
               onClick={() => setActiveTab('library')}
@@ -470,7 +470,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
             >
               <span className="mr-2">🤖</span>
               {t('sounds.aiMusic', 'AI-Musik')}
-              <span className="ml-2 px-2 py-0.5 text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full">
+              <span className="ml-2 px-2 py-0.5 text-xs bg-linear-to-r from-purple-500 to-pink-500 text-white rounded-full">
                 {t('common.new', 'Ny')}
               </span>
             </button>
@@ -526,7 +526,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
             {!loading && !error && categories.length > 0 && (
               <>
                 {/* Category Selection */}
-                <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0' : ''}`}>
+                <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0 ${embedded ? 'px-0' : ''}`}>
                   <div className="flex flex-wrap gap-3">
                     {categories.map((category) => (
                       <button
@@ -547,7 +547,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                 <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                   {/* Track List */}
                   <div className="flex-1 flex flex-col min-h-0">
-                    <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0' : ''}`}>
+                    <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0 ${embedded ? 'px-0' : ''}`}>
                       <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                         <span>{currentCategory?.icon}</span>
                         {currentCategory && getLocalizedText(currentCategory)}
@@ -574,7 +574,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                                 <p className="text-sm text-slate-600 dark:text-slate-400 truncate">{track.artist}</p>
                                 <p className="text-xs text-slate-500 dark:text-slate-500 mt-1 line-clamp-2">{track.description}</p>
                               </div>
-                              <div className="text-right ml-4 flex-shrink-0">
+                              <div className="text-right ml-4 shrink-0">
                                 <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{track.duration}</div>
                                 {selectedTrack?.id === track.id && (
                                   <div className="text-xs text-primary-600 dark:text-primary-400 mt-1">
@@ -590,7 +590,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                   </div>
 
                   {/* Player Controls - Always Visible */}
-                  <div className="lg:w-96 flex-shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700">
+                  <div className="lg:w-96 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700">
                     <div className={`p-6 h-full flex flex-col ${embedded ? 'px-4' : ''}`}>
                       <div className="text-center mb-6">
                         <div

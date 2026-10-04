@@ -10,11 +10,11 @@ interface ContainerProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Container = React.forwardRef<HTMLDivElement, ContainerProps>(
   ({ className, maxWidth = 'xl', centered = true, children, ...props }, ref) => {
     const maxWidths = {
-      sm: 'max-w-screen-sm',  // 640px
-      md: 'max-w-screen-md',  // 768px
-      lg: 'max-w-screen-lg',  // 1024px
-      xl: 'max-w-screen-xl',  // 1280px
-      '2xl': 'max-w-screen-2xl', // 1536px
+      sm: 'max-w-(--breakpoint-sm)',  // 640px
+      md: 'max-w-(--breakpoint-md)',  // 768px
+      lg: 'max-w-(--breakpoint-lg)',  // 1024px
+      xl: 'max-w-(--breakpoint-xl)',  // 1280px
+      '2xl': 'max-w-(--breakpoint-2xl)', // 1536px
       full: 'max-w-full',
     };
 

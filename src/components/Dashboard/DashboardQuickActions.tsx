@@ -48,7 +48,7 @@ const QuickActionButton: React.FC<{
     <button
       onClick={onClick}
       disabled={isDisabled}
-      className={`group relative flex flex-col items-center justify-center p-4 sm:p-6 rounded-[2rem] transition-all border border-transparent 
+      className={`group relative flex flex-col items-center justify-center p-4 sm:p-6 rounded-4xl transition-all border border-transparent 
         ${isDisabled
           ? 'opacity-60 cursor-not-allowed'
           : `hover:scale-[1.03] active:scale-95 hover:border-black/5 dark:hover:border-white/10 ${BG_COLORS[colorKey]} motion-safe:duration-300`
@@ -76,7 +76,7 @@ const QuickActionButton: React.FC<{
       </p>
 
       {/* Tactile shine effect */}
-      <div className="absolute inset-0 rounded-[2rem] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity motion-reduce:transition-none duration-500 bg-gradient-to-tr from-white/20 to-transparent" />
+      <div className="absolute inset-0 rounded-4xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity motion-reduce:transition-none duration-500 bg-linear-to-tr from-white/20 to-transparent" />
     </button>
   );
 };
@@ -102,7 +102,7 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-12 animate-pulse">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-40 rounded-[2rem] bg-gray-100 dark:bg-gray-800" />
+          <div key={i} className="h-40 rounded-4xl bg-gray-100 dark:bg-gray-800" />
         ))}
       </div>
     );

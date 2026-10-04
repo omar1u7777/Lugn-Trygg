@@ -100,7 +100,7 @@ export const ClinicalFlaggingBanner: React.FC = () => {
           {flags.recommendations.map((rec, idx) => (
             <div key={idx} className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-current/20">
               <div className="flex items-start gap-2 mb-2">
-                {rec.priority === 'high' && <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0 mt-0.5" />}
+                {rec.priority === 'high' && <ExclamationTriangleIcon className="w-5 h-5 shrink-0 mt-0.5" />}
                 <div className="flex-1">
                   <h5 className="font-semibold mb-1">{rec.title}</h5>
                   <p className="text-sm opacity-90">{rec.description}</p>
@@ -141,7 +141,7 @@ export const ClinicalFlaggingBanner: React.FC = () => {
       {/* Footer */}
       <div className="mt-4 pt-4 border-t border-current/20 text-xs opacity-75">
         <p>
-          {t('mood.clinical.disclaimer', 'Detta är en automatisk analys baserad på dina humörloggningar. Vid akut kris, ring alltid 112 eller kontakta närmaste akutmottagning.')}
+          {t('mood.clinical.disclaimer', 'Detta är en automatisk analys baserad på dina humörloggningar. Vid akut kris, ring-3 alltid 112 eller kontakta närmaste akutmottagning.')}
         </p>
       </div>
     </div>

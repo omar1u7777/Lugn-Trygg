@@ -132,7 +132,7 @@ export const MeditationSession: React.FC<MeditationSessionProps> = ({
   }, [duration, isMeditationActive, startMeditationSession]);
 
   return (
-    <div className="bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-2xl p-8 mb-6 border-2 border-purple-200 dark:border-purple-800 text-center shadow-lg">
+    <div className="bg-linear-to-br from-purple-50 to-indigo-100 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-2xl p-8 mb-6 border-2 border-purple-200 dark:border-purple-800 text-center shadow-lg">
       <div className="flex flex-col items-center">
         <button
           onClick={() => !isMeditationActive && startMeditationSession(duration)}

@@ -9,7 +9,7 @@ const AuthEntryLayout: React.FC = () => {
   const { t } = useTranslation();
   return (
     <div
-      className="relative min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,116,144,0.16),_transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(34,197,94,0.12),_transparent_50%),linear-gradient(135deg,#f8fafc_0%,#f0f9ff_45%,#f8fafc_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.14),_transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(74,222,128,0.10),_transparent_52%),linear-gradient(135deg,#0f172a_0%,#0b1220_45%,#020617_100%)] flex flex-col"
+      className="relative min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,116,144,0.16),transparent_55%),radial-gradient(circle_at_bottom_right,rgba(34,197,94,0.12),transparent_50%),linear-gradient(135deg,#f8fafc_0%,#f0f9ff_45%,#f8fafc_100%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_55%),radial-gradient(circle_at_bottom_right,rgba(74,222,128,0.10),transparent_52%),linear-gradient(135deg,#0f172a_0%,#0b1220_45%,#020617_100%)] flex flex-col"
       aria-label={t('authLayout.pageLabel')}
     >
       {/* Navigation */}

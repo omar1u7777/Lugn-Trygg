@@ -51,7 +51,7 @@ const FeatureViewFallback = ({ label }: { label: string }) => (
 
 const RecommendationsSkeleton = () => (
   <div className="space-y-4" aria-hidden="true">
-    <div className="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+    <div className="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse"></div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {[1, 2, 3, 4].map((placeholder) => (
         <div
@@ -576,7 +576,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   return (
     <div className="world-class-dashboard relative" aria-busy={loading}>
       {showWellnessOnboarding && resolvedUserId && (
-        <div className="fixed inset-0 z-[1055] flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-1055 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/50" aria-hidden="true"></div>
           <div
             className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900 rounded-2xl shadow-2xl"
@@ -642,7 +642,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         {shouldRenderWellnessSkeleton && (
           <Card className="mb-6 animate-pulse" aria-hidden="true">
             <div className="p-6 sm:p-8 space-y-4">
-              <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+              <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-sm w-1/3"></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[1, 2, 3, 4].map((skeleton) => (
                   <div
@@ -651,7 +651,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   ></div>
                 ))}
               </div>
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-sm w-1/2"></div>
             </div>
           </Card>
         )}
@@ -688,15 +688,15 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                       key={goal}
                       className="flex items-center gap-2 p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800 hover:shadow-md transition-shadow flex-nowrap"
                     >
-                      <span className="text-xs flex-shrink-0">
+                      <span className="text-xs shrink-0">
                         {getWellnessGoalIcon(goal)}
                       </span>
-                      <span className="text-xs font-medium text-gray-900 dark:text-white flex-shrink-0 leading-tight whitespace-nowrap">
+                      <span className="text-xs font-medium text-gray-900 dark:text-white shrink-0 leading-tight whitespace-nowrap">
                         {goal}
                       </span>
 
                       {/* Step completion indicator (per-goal) */}
-                      <div className="flex-shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">
+                      <div className="shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">
                         {isStepCompleted ? '✓' : '○'}
                       </div>
 
@@ -706,7 +706,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                         id={`step-${goal}`}
                         checked={isStepCompleted}
                         onChange={() => handleGoalStepToggle(goal, nextStep, isStepCompleted)}
-                        className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer flex-shrink-0"
+                        className="w-4 h-4 text-primary-600 border-gray-300 rounded-sm focus:ring-primary-500 cursor-pointer shrink-0"
                         aria-label={t('dashboard.markStepComplete', { step: nextStep })}
                       />
                       <label
@@ -724,7 +724,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                             navigate('/recommendations', { state: { goalFilter: goal } });
                           }
                         }}
-                        className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex-shrink-0 leading-tight"
+                        className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 shrink-0 leading-tight"
                         title={featureLink ? featureLink.label : t('worldDashboard.seeRecommendations')}
                         aria-label={featureLink ? featureLink.label : t('worldDashboard.seeRecommendations')}
                       >

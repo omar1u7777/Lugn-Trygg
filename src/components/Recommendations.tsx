@@ -794,7 +794,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6">
       {/* Professional Header */}
-      <div className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white rounded-xl p-6 sm:p-8 mb-8">
+      <div className="bg-linear-to-r from-primary-600 to-secondary-600 text-white rounded-xl p-6 sm:p-8 mb-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div>
             <h1 className="text-3xl sm:text-4xl font-bold mb-2">
@@ -997,7 +997,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
             {recommendations.slice(0, 3).map((recommendation) => (
               <div
                 key={`featured-${recommendation.id}`}
-                className="bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-primary-900/20 dark:to-secondary-900/20 rounded-xl border border-primary-200 dark:border-primary-800 p-6 hover:shadow-lg transition-all duration-300"
+                className="bg-linear-to-br from-primary-50 to-secondary-50 dark:from-primary-900/20 dark:to-secondary-900/20 rounded-xl border border-primary-200 dark:border-primary-800 p-6 hover:shadow-lg transition-all duration-300"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="text-4xl">{recommendation.image || getTypeIcon(recommendation.type)}</div>
@@ -1163,7 +1163,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
       {/* Content Modal */}
       {showContentModal && selectedRecommendation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[200]">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-200">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               {/* Header */}
@@ -1289,7 +1289,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
               {/* Interactive Pomodoro Timer */}
               {selectedRecommendation.id === 'focus-1' && (
-                <div className="bg-gradient-to-br from-red-50 to-orange-100 dark:from-red-900/20 dark:to-orange-900/20 rounded-lg p-6 mb-4 border-2 border-red-200 dark:border-red-800">
+                <div className="bg-linear-to-br from-red-50 to-orange-100 dark:from-red-900/20 dark:to-orange-900/20 rounded-lg p-6 mb-4 border-2 border-red-200 dark:border-red-800">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-center">
                     {t('recommendations.pomodoro.title', '🍅 Pomodoro-teknik för Bättre Fokus')}
                   </h3>
@@ -1521,7 +1521,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
               {/* Interactive Gratitude Challenge */}
               {selectedRecommendation.id === 'generic-1' && (
-                <div className="bg-gradient-to-br from-orange-50 to-yellow-100 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-lg p-6 mb-4 border-2 border-orange-200 dark:border-orange-800">
+                <div className="bg-linear-to-br from-orange-50 to-yellow-100 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-lg p-6 mb-4 border-2 border-orange-200 dark:border-orange-800">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-center">
                     {t('recommendations.gratitude.title', '🙏 7-Dagars Tacksamhetsutmaning')}
                   </h3>
@@ -1872,7 +1872,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       </div>
 
       {/* Daily Inspiration */}
-      <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg p-6 sm:p-8 text-center mb-6 sm:mb-8">
+      <div className="bg-linear-to-r from-purple-500 to-pink-500 text-white rounded-lg p-6 sm:p-8 text-center mb-6 sm:mb-8">
         <div className="flex justify-center mb-4">
           <LightBulbIcon className="w-12 h-12 sm:w-16 sm:h-16" aria-hidden="true" />
         </div>
@@ -1949,7 +1949,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       </div>
 
       {/* Professional Footer - Additional Resources */}
-      <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 sm:p-8">
+      <div className="bg-linear-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 sm:p-8">
         <div className="text-center mb-8">
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
             {t('recommendations.footer.title', 'Ytterligare Stöd & Resurser 🏥')}

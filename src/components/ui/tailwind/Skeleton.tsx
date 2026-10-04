@@ -19,7 +19,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   const baseStyles = 'bg-gray-200 dark:bg-gray-700';
   
   const variants = {
-    text: 'rounded',
+    text: 'rounded-sm',
     circular: 'rounded-full',
     rectangular: 'rounded-none',
     rounded: 'rounded-xl',

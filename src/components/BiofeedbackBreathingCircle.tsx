@@ -194,7 +194,7 @@ export const BiofeedbackBreathingCircle: React.FC<BiofeedbackBreathingCircleProp
         
         {/* Main breathing circle */}
         <div 
-          className="w-48 h-48 rounded-full flex items-center justify-center relative bg-gradient-to-br from-indigo-400 to-purple-500 dark:from-indigo-600 dark:to-purple-700"
+          className="w-48 h-48 rounded-full flex items-center justify-center relative bg-linear-to-br from-indigo-400 to-purple-500 dark:from-indigo-600 dark:to-purple-700"
           style={circleStyle}
         >
           {/* Inner content */}
@@ -265,7 +265,7 @@ export const BiofeedbackBreathingCircle: React.FC<BiofeedbackBreathingCircleProp
           </div>
           <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-300"
+              className="h-full bg-linear-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-300"
               style={{ width: `${Math.min((cycleCount / Math.max(targetCycles, 1)) * 100, 100)}%` }}
             />
           </div>

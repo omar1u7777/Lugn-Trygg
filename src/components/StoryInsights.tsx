@@ -309,7 +309,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
           >
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   {insight.badge ? (
                     <div className="text-4xl">{insight.badge}</div>
                   ) : (
@@ -376,7 +376,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
       {renderContent()}
 
       {/* Summary Card */}
-      <Card className="mt-8 bg-gradient-to-r from-primary-500 to-secondary-500 text-white">
+      <Card className="mt-8 bg-linear-to-r from-primary-500 to-secondary-500 text-white">
         <CardContent className="p-6">
           <div className="flex items-center gap-3 mb-4">
             <StarIcon className="text-yellow-300 w-6 h-6" />

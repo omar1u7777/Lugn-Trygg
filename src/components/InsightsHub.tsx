@@ -263,7 +263,7 @@ const InsightsHub: React.FC = () => {
 
       {/* Narrative Hero Section */}
       <section className="mb-8">
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-900 to-purple-900 text-white shadow-2xl p-8 sm:p-12">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-linear-to-br from-indigo-900 to-purple-900 text-white shadow-2xl p-8 sm:p-12">
           {/* Abstract Background Shapes */}
           <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
@@ -302,7 +302,7 @@ const InsightsHub: React.FC = () => {
                 { label: 'Trender', value: insightsStats.trendsAnalyzed, text: 'mönster funna' },
                 { label: 'Datatäckning', value: `${insightsStats.dataConfidence}%`, text: 'av rekommenderat underlag' }
               ].map((stat, i) => (
-                <div key={i} className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/5 hover:bg-white/10 transition-colors">
+                <div key={i} className="bg-white/5 backdrop-blur-xs rounded-xl p-4 border border-white/5 hover:bg-white/10 transition-colors">
                   <p className="text-2xl font-bold mb-1">{loading ? '-' : stat.value}</p>
                   <p className="text-sm text-indigo-200">{stat.label}</p>
                   <p className="text-xs text-indigo-400 mt-1">{stat.text}</p>
@@ -316,7 +316,7 @@ const InsightsHub: React.FC = () => {
       {/* AI Intelligence Layer */}
       <section className="mb-10">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-fuchsia-500 to-purple-600 flex items-center justify-center text-white shadow-lg">
+          <div className="w-10 h-10 rounded-xl bg-linear-to-br from-fuchsia-500 to-purple-600 flex items-center justify-center text-white shadow-lg">
             <SparklesIcon className="w-6 h-6" />
           </div>
           <div>

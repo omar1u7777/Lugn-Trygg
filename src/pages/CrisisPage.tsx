@@ -145,9 +145,9 @@ const CrisisPage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       {/* Header */}
-      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700">
+      <header className="bg-white dark:bg-slate-800 shadow-xs border-b border-slate-200 dark:border-slate-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <button
@@ -202,7 +202,7 @@ const CrisisPage: React.FC = () => {
           {crisisResources.map((resource) => (
             <div
               key={resource.id}
-              className={`bg-white dark:bg-slate-800 rounded-xl border-2 ${resource.borderColor} p-5 shadow-sm hover:shadow-md transition-shadow`}
+              className={`bg-white dark:bg-slate-800 rounded-xl border-2 ${resource.borderColor} p-5 shadow-xs hover:shadow-md transition-shadow`}
             >
               <div className="flex items-start gap-4">
                 <div className={`p-3 rounded-lg ${resource.color} text-white shrink-0`}>

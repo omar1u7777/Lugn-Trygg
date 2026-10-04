@@ -158,7 +158,7 @@ const UsersTab: React.FC = () => {
           value={search}
           onChange={handleSearchChange}
           placeholder="Sök e-post eller namn…"
-          className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
           aria-label="Sök användare"
         />
         <button
@@ -222,7 +222,7 @@ const UsersTab: React.FC = () => {
                       {user.role}
                     </span>
                     {user.premium && (
-                      <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                      <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
                         Premium
                       </span>
                     )}
@@ -249,7 +249,7 @@ const UsersTab: React.FC = () => {
                       value={user.status}
                       onChange={e => void handleStatusChange(user, e.target.value as 'active' | 'suspended' | 'banned')}
                       disabled={updating === user.id}
-                      className="text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1 focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                      className="text-xs border border-gray-300 dark:border-gray-600 rounded-sm bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1 focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
                       aria-label={`Ändra status för ${user.email}`}
                     >
                       <option value="active">Aktiv</option>
@@ -272,7 +272,7 @@ const UsersTab: React.FC = () => {
             <button
               onClick={handlePrevPage}
               disabled={page === 1}
-              className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="px-3 py-1 rounded-sm border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               ← Föregående
             </button>
@@ -280,7 +280,7 @@ const UsersTab: React.FC = () => {
             <button
               onClick={handleNextPage}
               disabled={page === totalPages}
-              className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="px-3 py-1 rounded-sm border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               Nästa →
             </button>

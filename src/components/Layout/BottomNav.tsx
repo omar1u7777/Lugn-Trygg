@@ -102,7 +102,7 @@ const BottomNav: React.FC = memo(() => {
       {/* Explore bottom sheet overlay */}
       {showExplore && (
         <div
-          className="lg:hidden fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
+          className="lg:hidden fixed inset-0 z-40 bg-black/30 backdrop-blur-xs"
           onClick={() => setShowExplore(false)}
           aria-hidden="true"
         />
@@ -113,7 +113,7 @@ const BottomNav: React.FC = memo(() => {
         <div
           role="dialog"
           aria-label={t('bottomNav.exploreAllFeatures', 'Utforska alla funktioner')}
-          className="lg:hidden fixed bottom-[calc(env(safe-area-inset-bottom,0px)+72px)] left-0 right-0 z-[60] bg-[#fff7f0] dark:bg-slate-900 border-t border-[#f2e4d4] dark:border-slate-700 rounded-t-3xl shadow-2xl animate-slide-up duration-300 max-h-[75vh] overflow-y-auto"
+          className="lg:hidden fixed bottom-[calc(env(safe-area-inset-bottom,0px)+72px)] left-0 right-0 z-60 bg-calm-50 dark:bg-slate-900 border-t border-[#f2e4d4] dark:border-slate-700 rounded-t-3xl shadow-2xl animate-slide-up duration-300 max-h-[75vh] overflow-y-auto"
         >
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#f2e4d4] dark:border-slate-700">
             <h2 className="text-base font-bold text-[#2f2a24] dark:text-white">{t('bottomNav.exploreAllFeatures', 'Utforska alla funktioner')}</h2>
@@ -132,9 +132,9 @@ const BottomNav: React.FC = memo(() => {
               <Link
                 to="/upgrade"
                 onClick={() => setShowExplore(false)}
-                className="flex items-center gap-3 w-full mb-4 p-3 rounded-2xl bg-gradient-to-r from-[#2c8374] to-[#3a9d8c] text-white font-semibold text-sm shadow-md"
+                className="flex items-center gap-3 w-full mb-4 p-3 rounded-2xl bg-linear-to-r from-[#2c8374] to-[#3a9d8c] text-white font-semibold text-sm shadow-md"
               >
-                <SparklesIcon className="w-5 h-5 flex-shrink-0" />
+                <SparklesIcon className="w-5 h-5 shrink-0" />
                 <span>{t('bottomNav.upgradeUnlockAll', 'Uppgradera till Premium — lås upp allt')}</span>
               </Link>
             )}

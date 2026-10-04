@@ -159,7 +159,7 @@ export const VoicePage: React.FC = () => {
                 type="checkbox"
                 checked={integrationSettings.saveToJournal}
                 onChange={(e) => setIntegrationSettings(prev => ({ ...prev, saveToJournal: e.target.checked }))}
-                className="w-4 h-4 text-teal-600 rounded"
+                className="w-4 h-4 text-teal-600 rounded-sm"
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">📝 Spara till journal</span>
             </label>
@@ -168,7 +168,7 @@ export const VoicePage: React.FC = () => {
                 type="checkbox"
                 checked={integrationSettings.logMood}
                 onChange={(e) => setIntegrationSettings(prev => ({ ...prev, logMood: e.target.checked }))}
-                className="w-4 h-4 text-teal-600 rounded"
+                className="w-4 h-4 text-teal-600 rounded-sm"
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">😊 Logga humör</span>
             </label>
@@ -177,7 +177,7 @@ export const VoicePage: React.FC = () => {
                 type="checkbox"
                 checked={integrationSettings.saveMindfulness}
                 onChange={(e) => setIntegrationSettings(prev => ({ ...prev, saveMindfulness: e.target.checked }))}
-                className="w-4 h-4 text-teal-600 rounded"
+                className="w-4 h-4 text-teal-600 rounded-sm"
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">🧘 Mindfulness session</span>
             </label>

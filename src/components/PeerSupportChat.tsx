@@ -351,13 +351,13 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
     return (
       <div className="space-y-4">
         <Card className="p-6 animate-pulse">
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4"></div>
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-sm w-1/3 mb-4"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-sm w-2/3"></div>
         </Card>
         {[1, 2, 3].map(i => (
           <Card key={i} className="p-6 animate-pulse">
-            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-2"></div>
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-sm w-1/4 mb-2"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-sm w-1/2"></div>
           </Card>
         ))}
       </div>
@@ -414,7 +414,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
           role="tab"
           aria-selected={activeTab === 0}
           aria-controls="chat-rooms-panel"
-          className={`px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${activeTab === 0
+          className={`px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-colors min-h-[44px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${activeTab === 0
             ? 'border-primary-600 text-primary-600'
             : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
@@ -427,7 +427,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
           aria-selected={activeTab === 1}
           aria-controls="active-chat-panel"
           disabled={!selectedRoom}
-          className={`px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${activeTab === 1
+          className={`px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-colors min-h-[44px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${activeTab === 1
             ? 'border-primary-600 text-primary-600'
             : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
@@ -554,8 +554,8 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
                         } ${msg.reported ? 'opacity-50' : ''}`}>
                         <div className="flex gap-3">
                           {/* Avatar */}
-                          <div className="flex-shrink-0">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-white text-lg font-semibold">
+                          <div className="shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-white text-lg font-semibold">
                               {msg.avatar}
                             </div>
                           </div>
@@ -567,7 +567,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
                                 {msg.anonymous_name}
                               </span>
                               {msg.session_id === session.session_id && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 dark:bg-primary-900/20 text-primary-800 dark:text-primary-200">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-primary-100 dark:bg-primary-900/20 text-primary-800 dark:text-primary-200">
                                   {isSwedish ? 'Du' : 'You'}
                                 </span>
                               )}
@@ -575,7 +575,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
                                 {formatTimestamp(msg.timestamp)}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-700 dark:text-gray-300 break-words">
+                            <p className="text-sm text-gray-700 dark:text-gray-300 wrap-break-word">
                               {msg.message}
                             </p>
 
@@ -584,7 +584,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
                               <div className="flex items-center gap-2 mt-3">
                                 <button
                                   onClick={() => handleLikeMessage(msg.id)}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors min-h-[44px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500"
                                   aria-label={`Like message from ${msg.anonymous_name}`}
                                 >
                                   {msg.likes > 0 ? (
@@ -601,7 +601,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
                                 {msg.session_id !== session.session_id && (
                                   <button
                                     onClick={() => setShowReportDialog(msg.id)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors min-h-[44px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500"
                                     aria-label="Report message"
                                   >
                                     <FlagIcon className="w-4 h-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />
@@ -623,7 +623,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
             <div className="p-4 border-t border-gray-200 dark:border-gray-700">
               <div className="flex gap-2">
                 <textarea
-                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
+                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
                   rows={2}
                   placeholder={t('chat.typeMessage', 'Type your message...')}
                   value={newMessage}
@@ -673,7 +673,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
               : 'Describe why this message should be reviewed by moderators.'}
           </p>
           <textarea
-            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
             rows={3}
             placeholder={isSwedish ? 'Anledning...' : 'Reason...'}
             value={reportReason}
@@ -700,7 +700,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
             </h2>
             <button
               onClick={() => setShowGuidelines(false)}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
               aria-label="Close dialog"
             >
               <XMarkIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />

@@ -108,7 +108,7 @@ const MoodLoggerForm: React.FC = () => {
             id="mood-select"
             value={mood}
             onChange={(e) => setMood(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select mood</option>
             <option value="2">😢 Sad</option>
@@ -126,18 +126,18 @@ const MoodLoggerForm: React.FC = () => {
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-sm">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+          <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-sm">
             Mood logged successfully!
           </div>
         )}
@@ -145,7 +145,7 @@ const MoodLoggerForm: React.FC = () => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
         >
           {loading ? 'Logging...' : 'Log Mood'}
         </button>
@@ -195,7 +195,7 @@ const ChatMessageForm: React.FC = () => {
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyPress}
           rows={2}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           disabled={loading}
         />
       </div>
@@ -204,14 +204,14 @@ const ChatMessageForm: React.FC = () => {
         <button
           onClick={handleSend}
           disabled={loading || !message.trim()}
-          className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
         >
           {loading ? 'Sending...' : 'Send'}
         </button>
       </div>
 
       {response && (
-        <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 rounded">
+        <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 rounded-sm">
           {response}
         </div>
       )}

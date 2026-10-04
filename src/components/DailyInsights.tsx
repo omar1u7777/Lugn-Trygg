@@ -310,11 +310,11 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
               exit={{ opacity: 0, x: 60, transition: { duration: 0.2 } }}
               transition={{ duration: 0.3, delay: index * 0.07 }}
             >
-              <div className={`relative rounded-2xl border bg-white dark:bg-slate-800 p-5 shadow-sm hover:shadow-md transition-shadow ${style.border}`}>
+              <div className={`relative rounded-2xl border bg-white dark:bg-slate-800 p-5 shadow-xs hover:shadow-md transition-shadow ${style.border}`}>
                 {/* Header row */}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="flex-shrink-0">{style.icon}</div>
+                    <div className="shrink-0">{style.icon}</div>
                     <h3 className="font-semibold text-gray-900 dark:text-white text-sm leading-snug truncate">
                       {insight.title}
                     </h3>
@@ -322,7 +322,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
                   <button
                     onClick={() => handleDismiss(insight.insight_id)}
                     disabled={actionState === 'loading'}
-                    className="flex-shrink-0 p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    className="shrink-0 p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                     aria-label={t('dailyInsights.close')}
                   >
                     <XMarkIcon className="w-4 h-4" />

@@ -443,7 +443,7 @@ export const AIMusicGenerator: React.FC = () => {
                   <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
                     {sv ? sc.description : sc.description_en}
                   </div>
-                  <div className="mt-2 text-xs font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 inline-block">
+                  <div className="mt-2 text-xs font-mono px-1.5 py-0.5 rounded-sm bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 inline-block">
                     {sc.brainwave}
                   </div>
                   {active && (
@@ -488,7 +488,7 @@ export const AIMusicGenerator: React.FC = () => {
           <select
             value={selectedMood}
             onChange={(e) => setSelectedMood(e.target.value)}
-            className="text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">{sv ? '— välj humör —' : '— select mood —'}</option>
             {MOODS.map((m) => (
@@ -540,7 +540,7 @@ export const AIMusicGenerator: React.FC = () => {
         <button
           onClick={handleGenerate}
           disabled={isGenerating || isPreviewing || loadingCatalogue}
-          className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-colors shadow-sm bg-indigo-600 hover:bg-indigo-700"
+          className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-colors shadow-xs bg-indigo-600 hover:bg-indigo-700"
         >
           {isGenerating
             ? <><span className="animate-spin">⏳</span>{sv ? 'Genererar AI-ljud…' : 'Generating AI audio…'}</>
@@ -559,7 +559,7 @@ export const AIMusicGenerator: React.FC = () => {
 
       {/* ── Audio player ── */}
       {(audioObjectUrl || isLoadingAudio) && (
-        <div className="bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20 border border-indigo-200 dark:border-indigo-800 rounded-2xl p-5 space-y-4">
+        <div className="bg-linear-to-br from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20 border border-indigo-200 dark:border-indigo-800 rounded-2xl p-5 space-y-4">
           {/* Track info */}
           {track && (
             <div className="flex items-start justify-between">

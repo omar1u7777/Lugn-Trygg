@@ -73,7 +73,7 @@ const TimelineItem: React.FC<{ activity: ActivityItem; index: number }> = ({ act
       {/* Timeline Dot/Icon - uses activity.type for reliable color matching */}
       <div
         className={`absolute left-0 top-0 w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center z-10 
-          transform transition-transform duration-300 group-hover:scale-110 shadow-sm motion-reduce:transform-none
+          transform transition-transform duration-300 group-hover:scale-110 shadow-xs motion-reduce:transform-none
           ${activity.type === 'mood' ? 'bg-pink-50 text-pink-500 dark:bg-pink-900/20 dark:text-pink-300' :
             activity.type === 'chat' ? 'bg-blue-50 text-blue-500 dark:bg-blue-900/20 dark:text-blue-300' :
               activity.type === 'meditation' ? 'bg-teal-50 text-teal-500 dark:bg-teal-900/20 dark:text-teal-300' :
@@ -81,11 +81,11 @@ const TimelineItem: React.FC<{ activity: ActivityItem; index: number }> = ({ act
                   'bg-amber-50 text-amber-500 dark:bg-amber-900/20 dark:text-amber-300'}
         `}
       >
-        <span className="text-xl sm:text-2xl filter drop-shadow-sm">{activity.icon}</span>
+        <span className="text-xl sm:text-2xl filter drop-shadow-xs">{activity.icon}</span>
       </div>
 
       {/* Content Card */}
-      <div className="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-white/20 dark:border-white/5 hover:bg-white/80 dark:hover:bg-slate-800/80 transition-all duration-300 hover:shadow-md ml-4">
+      <div className="bg-white/50 dark:bg-slate-800/50 backdrop-blur-xs rounded-2xl p-4 sm:p-5 border border-white/20 dark:border-white/5 hover:bg-white/80 dark:hover:bg-slate-800/80 transition-all duration-300 hover:shadow-md ml-4">
         <div className="flex justify-between items-start gap-4">
           <div>
             <p className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1 leading-snug">

@@ -69,7 +69,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             disabled={disabled}
             className={cn(
               'w-full rounded-xl border px-4 py-3 text-calm-800 dark:text-gray-100 transition-all duration-200',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0',
+              'focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-0',
               'placeholder:text-calm-400 dark:placeholder:text-gray-500',
               'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-calm-200 dark:disabled:bg-gray-800',
               hasError
@@ -165,7 +165,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           disabled={disabled}
           className={cn(
             'w-full rounded-lg border px-4 py-2.5 text-gray-900 dark:text-gray-100 transition-colors',
-            'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0',
+            'focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-0',
             'placeholder:text-gray-400 dark:placeholder:text-gray-500',
             'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 dark:disabled:bg-gray-800',
             'resize-y min-h-[100px]',

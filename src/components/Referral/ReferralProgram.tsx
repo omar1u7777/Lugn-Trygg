@@ -148,7 +148,7 @@ const ReferralProgram: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-slate-900 dark:to-slate-800">
+            <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-primary-50 to-secondary-50 dark:from-slate-900 dark:to-slate-800">
                 <div className="text-center">
                     <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600 mb-4"></div>
                     <p className="text-lg text-slate-600 dark:text-slate-400">
@@ -203,7 +203,7 @@ const ReferralProgram: React.FC = () => {
     const progress = tierInfo.required ? Math.min(100, (referralData.referralCount / tierInfo.required) * 100) : 100;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-linear-to-br from-primary-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="text-center mb-8">
@@ -250,7 +250,7 @@ const ReferralProgram: React.FC = () => {
                             </div>
                             <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
                                 <div 
-                                    className="bg-gradient-to-r from-primary-500 to-secondary-500 h-full rounded-full transition-all duration-500"
+                                    className="bg-linear-to-r from-primary-500 to-secondary-500 h-full rounded-full transition-all duration-500"
                                     style={{ width: `${progress}%` }}
                                 />
                             </div>
@@ -262,7 +262,7 @@ const ReferralProgram: React.FC = () => {
                     
                     {/* Stats Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg p-4 text-white text-center">
+                        <div className="bg-linear-to-br from-primary-500 to-primary-600 rounded-lg p-4 text-white text-center">
                             <div className="text-3xl font-bold mb-1">
                                 {referralData.referralCount || 0}
                             </div>
@@ -270,7 +270,7 @@ const ReferralProgram: React.FC = () => {
                                 {t('referral.totalInvited', 'Totalt bjudna')}
                             </div>
                         </div>
-                        <div className="bg-gradient-to-br from-secondary-500 to-secondary-600 rounded-lg p-4 text-white text-center">
+                        <div className="bg-linear-to-br from-secondary-500 to-secondary-600 rounded-lg p-4 text-white text-center">
                             <div className="text-3xl font-bold mb-1">
                                 {stats?.active || 0}
                             </div>
@@ -278,7 +278,7 @@ const ReferralProgram: React.FC = () => {
                                 {t('referral.activeUsers', 'Aktiva användare')}
                             </div>
                         </div>
-                        <div className="bg-gradient-to-br from-success-500 to-success-600 rounded-lg p-4 text-white text-center">
+                        <div className="bg-linear-to-br from-success-500 to-success-600 rounded-lg p-4 text-white text-center">
                             <div className="text-3xl font-bold mb-1">
                                 {t('referral.weeks', '{{count}} veckor', { count: referralData.rewards || 0 })}
                             </div>

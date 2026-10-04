@@ -41,7 +41,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
   const { t } = useTranslation();
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-blue-200 dark:border-blue-800">
+    <div className="bg-linear-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-blue-200 dark:border-blue-800">
       <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-center">
         {t('recommendations.article.neuroscienceTitle', '🧠 Neurovetenskap: Så Fungerar Fokus')}
       </h3>
@@ -72,7 +72,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
           </h4>
 
           <div
-            className="text-gray-700 dark:text-gray-300 leading-relaxed [&_.highlight-box]:bg-blue-50 [&_.highlight-box]:dark:bg-blue-900/20 [&_.highlight-box]:border-l-4 [&_.highlight-box]:border-l-blue-500 [&_.highlight-box]:p-4 [&_.highlight-box]:my-4 [&_.highlight-box]:rounded-r-lg"
+            className="text-gray-700 dark:text-gray-300 leading-relaxed [&_.highlight-box]:bg-blue-50 dark:[&_.highlight-box]:bg-blue-900/20 [&_.highlight-box]:border-l-4 [&_.highlight-box]:border-l-blue-500 [&_.highlight-box]:p-4 [&_.highlight-box]:my-4 [&_.highlight-box]:rounded-r-lg"
             dangerouslySetInnerHTML={{ __html: neuroscienceArticleSections[currentSection]?.content || '' }}
           />
         </div>

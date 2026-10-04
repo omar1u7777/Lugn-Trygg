@@ -301,7 +301,7 @@ export const BreathingFocusCard: React.FC<{
       style={{ animationDelay: '200ms' }}
     >
       <div
-        className="p-4 rounded-[1.5rem] flex items-center gap-4 w-full max-w-2xl mx-auto bg-white/85 dark:bg-slate-800/85 border border-white/70 dark:border-white/15 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.45)]"
+        className="p-4 rounded-3xl flex items-center gap-4 w-full max-w-2xl mx-auto bg-white/85 dark:bg-slate-800/85 border border-white/70 dark:border-white/15 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.45)]"
         aria-live="polite"
         aria-atomic="true"
       >
@@ -335,7 +335,7 @@ export const BreathingFocusCard: React.FC<{
               : sessionCompleted
                 ? t('breath.ariaContinue', 'Fortsätt till humörcheck-in')
                 : `${t('breath.ariaStart', 'Starta guidad andningsövning')}: ${focusContent.description}`}
-            className="mt-2 inline-flex items-center rounded-full bg-primary-600 hover:bg-primary-700 text-white text-[10px] font-semibold px-2 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
+            className="mt-2 inline-flex items-center rounded-full bg-primary-600 hover:bg-primary-700 text-white text-[10px] font-semibold px-2 py-1 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
           >
             {isBreathingSessionActive
               ? t('breath.inProgress', 'Pågår...')
@@ -347,7 +347,7 @@ export const BreathingFocusCard: React.FC<{
             <button
               type="button"
               onClick={handleSkipBreathing}
-              className="mt-1 ml-1 inline-flex items-center rounded-full border border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300 text-[10px] font-semibold px-2 py-1 transition-colors hover:bg-primary-50 dark:hover:bg-primary-900/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
+              className="mt-1 ml-1 inline-flex items-center rounded-full border border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300 text-[10px] font-semibold px-2 py-1 transition-colors hover:bg-primary-50 dark:hover:bg-primary-900/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
             >
               {t('breath.skip', 'Hoppa')}
             </button>
@@ -443,7 +443,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             </div>
 
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-medium text-neutral-900 dark:text-neutral-50 tracking-tight leading-tight mb-1">
-              {greeting} <span className="text-primary-600 dark:text-primary-400 bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-500">
+              {greeting} <span className="text-primary-600 dark:text-primary-400 bg-clip-text text-transparent bg-linear-to-r from-primary-600 to-secondary-500">
                 {displayName}
               </span>
             </h1>

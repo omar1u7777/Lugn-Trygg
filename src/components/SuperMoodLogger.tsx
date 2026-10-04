@@ -622,7 +622,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                         : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:scale-102'
                       }
                       disabled:opacity-50 disabled:cursor-not-allowed
-                      focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
+                      focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
                     `}
                   >
                     <div className="text-4xl mb-2">{mood.emoji}</div>
@@ -662,7 +662,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
                        placeholder-gray-400 dark:placeholder-gray-500
-                       focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+                       focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:border-transparent
                        disabled:opacity-50 disabled:cursor-not-allowed resize-none"
             />
             {note.length > 0 && (
@@ -748,7 +748,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
                            bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
                            placeholder-gray-400 dark:placeholder-gray-500
-                           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+                           focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:border-transparent
                            disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
@@ -771,7 +771,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                 disabled={!canSubmit || isLogging}
                 className="w-full py-3 px-6 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg
                          transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
-                         focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
+                         focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
                          transform hover:scale-[1.02] active:scale-[0.98]"
               >
                 {isLogging
@@ -789,7 +789,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
               disabled={!canSubmit || isLogging}
               className="w-full py-3 px-6 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg
                        transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
-                       focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
+                       focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
                        transform hover:scale-[1.02] active:scale-[0.98]"
             >
               {isLogging 
@@ -837,7 +837,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                           className={`p-2 rounded-lg border ${visual.iconBgClass} border-gray-200 dark:border-gray-700`}
                         >
                           <div className="flex items-center gap-2">
-                            <div className={`p-1 rounded-lg ${visual.iconBgClass} flex-shrink-0`}>
+                            <div className={`p-1 rounded-lg ${visual.iconBgClass} shrink-0`}>
                               <Icon className={`w-4 h-4 ${visual.iconClass}`} />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -845,10 +845,10 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                                 <span className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">
                                   {mood.mood}
                                 </span>
-                                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${visual.scoreBadgeClass} flex-shrink-0`}>
+                                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${visual.scoreBadgeClass} shrink-0`}>
                                   {mood.score}/10
                                 </span>
-                                <span className="text-[10px] text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">
                                   {mood.timestamp.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                               </div>
@@ -875,7 +875,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                             <button
                               type="button"
                               onClick={() => handleDeleteMood(mood.id!)}
-                              className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded"
+                              className="shrink-0 p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded-sm"
                               aria-label={t('moodLogger.delete', 'Radera')}
                               title={t('moodLogger.delete', 'Radera')}
                             >

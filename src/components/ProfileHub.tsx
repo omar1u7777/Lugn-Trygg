@@ -389,20 +389,20 @@ const ProfileHub: React.FC = () => {
     <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
       {/* Identity Card Hero */}
       <div className="mb-8">
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-800 to-slate-900 dark:from-indigo-900 dark:to-slate-900 text-white shadow-2xl p-8 sm:p-10">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-linear-to-br from-slate-800 to-slate-900 dark:from-indigo-900 dark:to-slate-900 text-white shadow-2xl p-8 sm:p-10">
           {/* Background Decor */}
           <div className="absolute top-0 right-0 p-40 bg-white/5 rounded-full blur-3xl transform translate-x-1/3 -translate-y-1/3 pointer-events-none" />
 
           <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8">
             {/* Avatar Section */}
             <div className="relative">
-              <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full p-1 bg-gradient-to-br from-indigo-400 to-purple-400 shadow-xl">
-                <div className="w-full h-full rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-5xl sm:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-indigo-500 to-purple-600">
+              <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full p-1 bg-linear-to-br from-indigo-400 to-purple-400 shadow-xl">
+                <div className="w-full h-full rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-5xl sm:text-6xl font-bold text-transparent bg-clip-text bg-linear-to-br from-indigo-500 to-purple-600">
                   {user?.email?.charAt(0).toUpperCase() || '👤'}
                 </div>
               </div>
               {isPremium && (
-                <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-amber-400 to-amber-600 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-lg border-2 border-slate-900 flex items-center gap-1">
+                <div className="absolute -bottom-2 -right-2 bg-linear-to-r from-amber-400 to-amber-600 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-lg border-2 border-slate-900 flex items-center gap-1">
                   <StarIcon className="w-4 h-4" />
                   PREMIUM
                 </div>
@@ -447,12 +447,12 @@ const ProfileHub: React.FC = () => {
           { label: t('profileHub.memories', 'Minnen'), value: profileStats.totalMemories, icon: SparklesIcon, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20' },
           { label: t('profileHub.daysActive', 'Dagar aktiv'), value: `${profileStats.accountAge}d`, icon: UserIcon, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20' }
         ].map((stat) => (
-          <div key={stat.label} className="group bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
+          <div key={stat.label} className="group bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 shadow-xs hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
             <div className={`w-12 h-12 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center mb-4 transition-transform group-hover:rotate-6`}>
               <stat.icon className="w-6 h-6" />
             </div>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-              {loading ? <span className="inline-block w-8 h-8 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" /> : stat.value}
+              {loading ? <span className="inline-block w-8 h-8 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-sm" /> : stat.value}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
               {stat.label}
@@ -462,7 +462,7 @@ const ProfileHub: React.FC = () => {
       </div>
 
       {/* Subscription Status Card - REAL IMPLEMENTATION */}
-      <Card className={`mb-6 sm:mb-8 overflow-hidden ${isPremium ? 'bg-gradient-to-r from-accent-400 to-accent-500' : isTrial ? 'bg-gradient-to-r from-primary-500 to-primary-600' : 'bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-800 dark:to-primary-700'}`}>
+      <Card className={`mb-6 sm:mb-8 overflow-hidden ${isPremium ? 'bg-linear-to-r from-accent-400 to-accent-500' : isTrial ? 'bg-linear-to-r from-primary-500 to-primary-600' : 'bg-linear-to-r from-primary-50 to-primary-100 dark:from-primary-800 dark:to-primary-700'}`}>
         <div className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -493,7 +493,7 @@ const ProfileHub: React.FC = () => {
             {!isPremium && !isTrial && (
               <Button
                 variant="primary"
-                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold"
+                className="bg-linear-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold"
                 onClick={() => navigate('/upgrade')}
               >
                 {t('profileHub.upgradeToPremium')}

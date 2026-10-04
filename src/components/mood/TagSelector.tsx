@@ -118,7 +118,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-primary-400 dark:hover:border-primary-500'
                   }
                   disabled:opacity-50 disabled:cursor-not-allowed
-                  focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
+                  focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
                 `}
               >
                 <span>{tag.emoji}</span>
@@ -144,7 +144,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
             className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg
                      bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
                      placeholder-gray-400 dark:placeholder-gray-500
-                     focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+                     focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:border-transparent
                      disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
@@ -154,7 +154,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
             className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700
                      rounded-lg transition-colors duration-200
                      disabled:opacity-50 disabled:cursor-not-allowed
-                     focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                     focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
           >
             {t('mood.tags.add', 'Lägg till')}
           </button>

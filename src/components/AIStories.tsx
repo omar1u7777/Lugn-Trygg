@@ -286,7 +286,7 @@ const AIStories: React.FC = () => {
           <Button
             onClick={generateNewStory}
             disabled={generating}
-            className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-cyan-500/50 hover:shadow-xl"
+            className="bg-linear-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-cyan-500/50 hover:shadow-xl"
           >
             {generating ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
@@ -303,7 +303,7 @@ const AIStories: React.FC = () => {
               <span>{error}</span>
               <button
                 onClick={() => setError(null)}
-                className="p-1 rounded hover:bg-white/20 dark:hover:bg-black/20 transition-colors"
+                className="p-1 rounded-sm hover:bg-white/20 dark:hover:bg-black/20 transition-colors"
                 aria-label={t('common.close', 'Stäng')}
               >
                 <XMarkIcon className="w-4 h-4" />
@@ -335,9 +335,9 @@ const AIStories: React.FC = () => {
                   className="h-full flex flex-col cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
                   onClick={() => playStory(story)}
                 >
-                  <div className="flex-grow p-6">
+                  <div className="grow p-6">
                     <div className="flex justify-between items-start mb-4">
-                      <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex-grow mr-2">
+                      <h2 className="text-xl font-semibold text-gray-900 dark:text-white grow mr-2">
                         {story.title}
                       </h2>
                       <button
@@ -345,7 +345,7 @@ const AIStories: React.FC = () => {
                           e.stopPropagation();
                           toggleFavorite(story.id);
                         }}
-                        className="flex-shrink-0 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                        className="shrink-0 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                         aria-label={story.isFavorite ? t('ai.stories.removeFavorite', 'Ta bort favorit') : t('ai.stories.addFavorite', 'Lägg till favorit')}
                       >
                         {story.isFavorite ? (
@@ -407,7 +407,7 @@ const AIStories: React.FC = () => {
             >
               {/* Header */}
               <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-3 flex-grow mr-4">
+                <div className="flex items-center gap-3 grow mr-4">
                   <BookOpenIcon className="w-6 h-6 text-primary-600" />
                   <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                     {selectedStory.title}
@@ -459,7 +459,7 @@ const AIStories: React.FC = () => {
                     )}
                   </button>
 
-                  <div className="flex-grow mx-4">
+                  <div className="grow mx-4">
                     <div className="h-1 bg-gray-300 dark:bg-gray-600 rounded-full relative overflow-hidden">
                       <div
                         className="h-full bg-primary-600 rounded-full transition-all duration-300"

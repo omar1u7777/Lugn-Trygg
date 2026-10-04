@@ -19,27 +19,27 @@ describe('Container', () => {
 
   it('defaults to xl maxWidth', () => {
     const { container } = render(<Container>X</Container>);
-    expect(container.firstChild).toHaveClass('max-w-screen-xl');
+    expect(container.firstChild).toHaveClass('max-w-(--breakpoint-xl)');
   });
 
   it('applies sm maxWidth', () => {
     const { container } = render(<Container maxWidth="sm">X</Container>);
-    expect(container.firstChild).toHaveClass('max-w-screen-sm');
+    expect(container.firstChild).toHaveClass('max-w-(--breakpoint-sm)');
   });
 
   it('applies md maxWidth', () => {
     const { container } = render(<Container maxWidth="md">X</Container>);
-    expect(container.firstChild).toHaveClass('max-w-screen-md');
+    expect(container.firstChild).toHaveClass('max-w-(--breakpoint-md)');
   });
 
   it('applies lg maxWidth', () => {
     const { container } = render(<Container maxWidth="lg">X</Container>);
-    expect(container.firstChild).toHaveClass('max-w-screen-lg');
+    expect(container.firstChild).toHaveClass('max-w-(--breakpoint-lg)');
   });
 
   it('applies 2xl maxWidth', () => {
     const { container } = render(<Container maxWidth="2xl">X</Container>);
-    expect(container.firstChild).toHaveClass('max-w-screen-2xl');
+    expect(container.firstChild).toHaveClass('max-w-(--breakpoint-2xl)');
   });
 
   it('applies full maxWidth', () => {

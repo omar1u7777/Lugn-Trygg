@@ -199,7 +199,7 @@ const FeedbackForm: React.FC = () => {
                                 key={star}
                                 type="button"
                                 onClick={() => handleRatingClick(star)}
-                                className="transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary rounded"
+                                className="transition-transform hover:scale-110 focus:outline-hidden focus:ring-2 focus:ring-primary rounded-sm"
                             >
                                 {star <= feedback.rating ? (
                                     <StarIconSolid className="w-10 h-10 text-yellow-400" />
@@ -244,7 +244,7 @@ const FeedbackForm: React.FC = () => {
                             type="checkbox"
                             checked={feedback.allowContact}
                             onChange={(e) => setFeedback({ ...feedback, allowContact: e.target.checked })}
-                            className="w-5 h-5 mt-1 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary"
+                            className="w-5 h-5 mt-1 rounded-sm border-gray-300 text-primary focus:ring-2 focus:ring-primary"
                         />
                         <div>
                             <p className="font-bold text-gray-900 dark:text-gray-100">

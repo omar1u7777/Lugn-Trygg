@@ -132,7 +132,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
       <div className="relative z-10 flex items-center justify-center min-h-[400px] p-4">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
           {/* Ikon */}
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center mb-6">
+          <div className="mx-auto w-16 h-16 bg-linear-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center mb-6">
             <LockClosedIcon className="w-8 h-8 text-white" />
           </div>
 
@@ -163,7 +163,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
             <ul className="space-y-2">
               {PREMIUM_BENEFITS.slice(0, 5).map((benefit, index) => (
                 <li key={index} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                  <CheckIcon className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <CheckIcon className="w-4 h-4 text-green-500 shrink-0" />
                   {benefit}
                 </li>
               ))}
@@ -187,7 +187,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
           <div className="space-y-3">
             <button
               onClick={() => navigate('/upgrade')}
-              className="w-full bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+              className="w-full bg-linear-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               Uppgradera till Premium
             </button>
