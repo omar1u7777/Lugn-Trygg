@@ -455,7 +455,7 @@ const ProfileHub: React.FC = () => {
                 for the truncating case.
               */}
               <h1
-                className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 tracking-tight [overflow-wrap:anywhere] wrap-break-word"
+                className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 tracking-tight wrap-anywhere wrap-break-word"
                 title={user?.email || undefined}
               >
                 {user?.email || t('profileHub.guest', 'Gäst')}
