@@ -8,7 +8,6 @@ import {
   getRewardCatalog,
   getAchievements,
   claimReward,
-  addXp,
   checkAchievements,
   getUserBadges,
 } from '../rewards';
@@ -63,29 +62,18 @@ describe('rewards API', () => {
     await expect(claimReward('r1')).rejects.toThrow();
   });
 
-  it('addXp returns updated xp', async () => {
-    const updated = { xp: 150, level: 3 };
-    apiMock.post.mockResolvedValueOnce({ data: { data: updated } });
-    const result = await addXp(50, 'mood_log');
-    expect(result).toMatchObject(updated);
-  });
-
-  it('addXp uses default reason', async () => {
-    apiMock.post.mockResolvedValueOnce({ data: { data: { xp: 110 } } });
-    const result = await addXp(10);
-    expect(result).toBeDefined();
-  });
-
-  it('addXp throws on error', async () => {
-    apiMock.post.mockRejectedValueOnce(new Error('fail'));
-    await expect(addXp(5)).rejects.toThrow();
-  });
-
   it('checkAchievements returns achievements', async () => {
     const achievements = [{ id: 'a1', unlocked: true }];
     apiMock.post.mockResolvedValueOnce({ data: { data: achievements } });
     const result = await checkAchievements({ mood_count: 10 });
     expect(Array.isArray(result)).toBe(true);
+  });
+
+  it('checkAchievements sends only the UTC offset, never counts', async () => {
+    apiMock.post.mockResolvedValueOnce({ data: { data: { newAchievements: [] } } });
+    await checkAchievements({ mood_count: 100000 });
+    const body = apiMock.post.mock.calls[0][1];
+    expect(body).toEqual({ tz_offset_minutes: -new Date().getTimezoneOffset() });
   });
 
   it('checkAchievements throws on error', async () => {

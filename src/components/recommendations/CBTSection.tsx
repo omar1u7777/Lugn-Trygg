@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CBTExercise, CBTInsights, CBTModule, PersonalizedSession } from '../../api/cbt';
+import { CRISIS_NUMBERS } from '../../config/crisisResources';
 
 interface CBTSectionProps {
   cbtModules: CBTModule[];
@@ -77,7 +78,11 @@ export const CBTSection: React.FC<CBTSectionProps> = ({
     <section className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-6 sm:mb-8">
       {/* Disclaimer at top */}
       <div className="mb-4 p-3 rounded-lg border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-800 text-xs text-yellow-800 dark:text-yellow-300">
-        <strong>{t('recommendations.cbt.disclaimerPrefix', '⚠️ Viktigt:')}</strong> {t('recommendations.cbt.disclaimerBody', 'Dessa KBT-övningar är ett komplement till — inte en ersättning för — professionell psykoterapi. Söker du vård, kontakta legitimerad psykolog eller psykoterapeut. Kris: 112 | Självmordslinjen: 0900-011 200 | 1177')}
+        <strong>{t('recommendations.cbt.disclaimerPrefix', '⚠️ Viktigt:')}</strong> {t('recommendations.cbt.disclaimerBody', {
+          emergency: CRISIS_NUMBERS.emergency,
+          suicideLine: CRISIS_NUMBERS.suicideLine,
+          healthcare: CRISIS_NUMBERS.healthcare,
+        })}
       </div>
 
       <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">

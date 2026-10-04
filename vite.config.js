@@ -166,6 +166,12 @@ export default defineConfig({
         },
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
+        // Icons shared between lazy routes became one ~1 kB chunk each: 38
+        // of them, a request apiece on a cold load (UI audit 6.2). Isolating
+        // @heroicons in a manual chunk is not an option (see below), so let
+        // Rollup fold chunks under this size into the chunks that import
+        // them. It only merges where doing so cannot change side-effect order.
+        experimentalMinChunkSize: 8 * 1024,
         manualChunks: (id) => {
           if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/")) {
             return "react-core";
