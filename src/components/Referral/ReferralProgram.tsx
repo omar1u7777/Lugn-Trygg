@@ -6,7 +6,6 @@ import { API_ENDPOINTS } from '../../api/constants';
 import ReferralLeaderboard from './ReferralLeaderboard';
 import ReferralHistory from './ReferralHistory';
 import RewardsCatalog from './RewardsCatalog';
-import EmailInvite from './EmailInvite';
 import { logger } from '../../utils/logger';
 import { useTranslation } from 'react-i18next';
 import { extractErrorMessage } from '../../api/errorMessage';
@@ -377,13 +376,20 @@ const ReferralProgram: React.FC = () => {
                             className="flex flex-col items-center gap-2 p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 text-purple-700 dark:text-purple-300 transition-colors"
                         >
                             <span className="text-3xl">📧</span>
-                            <span className="font-semibold">Email</span>
+                            <span className="font-semibold">{t('referral.shareEmail')}</span>
                         </button>
                     </div>
                 </div>
 
-                {/* Email Invitation */}
-                <EmailInvite referralCode={referralData.referralCode} />
+                {/*
+                  A "Skicka inbjudan" e-mail form sat here, below the E-post
+                  share button above it (UI audit Dup-13). It also reported
+                  "Inbjudan skickad" whenever the request succeeded, including
+                  when the e-mail service failed and nothing was sent, which
+                  in production was every time; and it stored the invitee's
+                  address either way. The share button opens the person's own
+                  mail client instead, and nothing about the friend is stored.
+                */}
 
                 {/* Rewards Catalog */}
                 <RewardsCatalog 

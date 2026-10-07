@@ -653,7 +653,8 @@
     "weeksUnit_one": "week",
     "weeksUnit_other": "weeks",
     "weeks_one": "{{count}} week",
-    "weeks_other": "{{count}} weeks"
+    "weeks_other": "{{count}} weeks",
+    "shareEmail": "Email"
   },
   "healthIntegrations": {
     "title": "Health integrations (OAuth)",
@@ -1445,18 +1446,12 @@
           "available": "Around the clock"
         },
         "suicideLine": {
-          "title": "Suicide Line (Sweden)",
-          "subtitle": "Phone line for you in crisis",
-          "description": "Talk about suicidal thoughts and existential distress",
+          "title": "Mind Suicide Line (Sweden)",
+          "subtitle": "Phone and chat for you in crisis",
+          "description": "Talk about suicidal thoughts and existential distress. Anonymous, by phone or in the chat.",
           "action": "Call {{number}}",
-          "available": "Around the clock"
-        },
-        "mindChat": {
-          "title": "Mind Suicide Line",
-          "subtitle": "Online chat service",
-          "description": "Anonymous chat if you have suicidal thoughts. The same service is also reachable by phone.",
-          "action": "Open chat",
-          "available": "Around the clock"
+          "available": "Around the clock",
+          "chatAction": "Chat"
         },
         "healthcare": {
           "title": "Healthcare Guide 1177",

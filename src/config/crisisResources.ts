@@ -61,14 +61,18 @@ export interface CrisisResource {
   readonly href: string;
   /** Opens in a new tab, and gets the globe icon rather than the phone icon. */
   readonly external?: boolean;
-  /**
-   * A dialable number to show on the card, when the resource has one.
-   *
-   * Mind is listed twice on purpose — the phone line and the chat are separate
-   * ways in, and the QA pass found the chat card presenting itself as the whole
-   * of Mind, with no number at all.
-   */
+  /** A dialable number to show on the card, when the resource has one. */
   readonly phone?: string;
+  /**
+   * A chat for the same service, offered as a second button on the same card.
+   *
+   * Mind used to be two cards, "Självmordslinjen" (phone) and "Mind
+   * Självmordslinjen" (chat), so the page listed one organisation twice under
+   * two names (UI audit Dup-14). Before that, the chat card was the only
+   * place Mind appeared and it had no number. One card with both ways in
+   * fixes both.
+   */
+  readonly chat?: string;
 }
 
 /**
@@ -92,16 +96,7 @@ export const CRISIS_RESOURCES: readonly CrisisResource[] = [
     emoji: '💙',
     href: CRISIS_TEL.suicideLine,
     phone: CRISIS_NUMBERS.suicideLine,
-  },
-  {
-    id: 'mindChat',
-    priority: 'high',
-    emoji: '💬',
-    href: CRISIS_LINKS.mindChat,
-    external: true,
-    // Deliberately carries the number too. The chat card used to be the only
-    // place Mind appeared on this page, and it showed no number at all.
-    phone: CRISIS_NUMBERS.suicideLine,
+    chat: CRISIS_LINKS.mindChat,
   },
   {
     id: 'healthcare',
@@ -148,7 +143,6 @@ export const CRISIS_RESOURCE_STYLES: Record<string, {
 }> = {
   emergency: { button: 'bg-red-600 hover:bg-red-700', text: 'text-red-600', border: 'border-red-500' },
   suicideLine: { button: 'bg-rose-600 hover:bg-rose-700', text: 'text-rose-600', border: 'border-rose-500' },
-  mindChat: { button: 'bg-purple-600 hover:bg-purple-700', text: 'text-purple-600', border: 'border-purple-500' },
   healthcare: { button: 'bg-green-600 hover:bg-green-700', text: 'text-green-600', border: 'border-green-500' },
   priest: { button: 'bg-blue-600 hover:bg-blue-700', text: 'text-blue-600', border: 'border-blue-500' },
   bris: { button: 'bg-orange-500 hover:bg-orange-600', text: 'text-orange-500', border: 'border-orange-500' },

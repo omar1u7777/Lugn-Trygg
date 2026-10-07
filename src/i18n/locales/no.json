@@ -697,7 +697,8 @@
     "weeksUnit_one": "uke",
     "weeksUnit_other": "uker",
     "weeks_one": "{{count}} uke",
-    "weeks_other": "{{count}} uker"
+    "weeks_other": "{{count}} uker",
+    "shareEmail": "E-post"
   },
   "healthIntegrations": {
     "title": "Helseintegrasjoner (OAuth)",
@@ -1445,18 +1446,12 @@
           "available": "Døgnet rundt"
         },
         "suicideLine": {
-          "title": "Selvmordslinjen (Sverige)",
-          "subtitle": "Telefonvakt for deg i krise",
-          "description": "Samtale om selvmordstanker og eksistensiell angst",
+          "title": "Mind Selvmordslinjen (Sverige)",
+          "subtitle": "Telefon og chat for deg i krise",
+          "description": "Samtale om selvmordstanker og eksistensiell angst. Anonymt, på telefon eller i chatten.",
           "action": "Ring {{number}}",
-          "available": "Døgnet rundt"
-        },
-        "mindChat": {
-          "title": "Mind Selvmordslinjen",
-          "subtitle": "Chattjeneste på nett",
-          "description": "Anonym chat for deg med selvmordstanker. Samme tjeneste kan også nås på telefon.",
-          "action": "Åpne chat",
-          "available": "Døgnet rundt"
+          "available": "Døgnet rundt",
+          "chatAction": "Chat"
         },
         "healthcare": {
           "title": "Vårdguiden 1177 (Sverige)",
