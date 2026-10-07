@@ -5,7 +5,6 @@ import RegisterForm from '@/components/Auth/RegisterForm';
 import {
   DailyInsightsWrapper,
   OnboardingFlowWrapper,
-  PrivacySettingsWrapper,
   WorldClassAIChatWrapper,
   // [D6] WorldClassMoodLoggerWrapper removed — identical to MoodLoggerBasicWrapper.
   // Use /mood-basic (referenced in Sidebar, BottomNav, Dashboard).
@@ -112,5 +111,4 @@ export const ROUTES: RouteDefinition[] = [
   // everything to lose. This must stay public.
   { path: '/crisis', component: CrisisPageWrapper, protected: false },
   { path: '/onboarding', component: OnboardingFlowWrapper, protected: true },
-  { path: '/privacy', component: PrivacySettingsWrapper, protected: true },
 ];

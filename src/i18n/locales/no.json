@@ -1802,7 +1802,8 @@
     "deleting": "Sletter...",
     "settingsLoadFailed": "Kunne ikke hente dine lagrede innstillinger. Last inn siden på nytt før du endrer noe.",
     "memberForDays_one": "Medlem i {{count}} dag",
-    "memberForDays_other": "Medlem i {{count}} dager"
+    "memberForDays_other": "Medlem i {{count}} dager",
+    "pushBlocked": "Nettleseren blokkerer varsler fra Lugn & Trygg. Tillat dem i nettleserinnstillingene og prøv igjen."
   },
   "wellnessGoalLabels": {
     "Hantera stress": {
@@ -2485,17 +2486,11 @@
     "exporting": "Eksporterer…",
     "exportSuccess": "Opplysningene ble eksportert!",
     "downloadData": "Last ned data",
-    "deleteData": "Slett alle opplysningene mine",
-    "deleteDataTitle": "Slett alle opplysningene dine",
-    "deleteDataWarning": "Handlingen er permanent og kan ikke angres. Alle humørloggene, minnene og personopplysningene dine slettes for alltid.",
-    "deleteDataConfirm": "Skriv \"slett dataene mine\" nedenfor for å bekrefte:",
-    "confirmDelete": "Slett permanent",
-    "confirmTextMismatch": "Skriv bekreftelsesteksten nøyaktig",
-    "deleting": "Sletter…",
     "loading": "Laster personverninnstillinger…",
     "loadFailed": "Kunne ikke laste personverninnstillingene",
     "exportFailed": "Eksporten mislyktes",
-    "deleteFailed": "Slettingen mislyktes"
+    "monthsShort": "mnd",
+    "deleteViaAccount": "Vil du slette dataene dine? Bruk «Slett konto» under Kontohandlinger lenger ned. Kontoen stenges med en gang, og alle data slettes permanent innen 30 dager."
   },
   "wellnessGoals": {
     "skip": "Hopp over",

@@ -268,61 +268,18 @@ export async function savePrivacySettings(settings: PrivacySettings, userId?: st
   }
 }
 
-// Export all user data (GDPR compliance)
+// Export all user data (GDPR Art. 15/20).
+//
+// On a backend failure this used to build a "local fallback" file instead:
+// the cached settings and empty mood and memory lists, which the dialog then
+// reported as a successful export. A copy of your data that is silently
+// missing all of it is worse than an error, so the error goes to the caller.
 export async function exportUserData(userId: string): Promise<Blob> {
-  try {
-    const { default: api } = await import('../api/client');
-    const response = await api.post(`/api/v1/privacy/export/${userId}`, {}, {
-      responseType: 'blob',
-    });
-    return response.data;
-  } catch (error) {
-    logger.error('Failed to export data from backend:', error);
-    
-    // Fallback: Create local data export (not complete, but better than nothing)
-    const cachedSettings = await getPrivacySettings();
-    const userData = {
-      userId,
-      exportDate: new Date().toISOString(),
-      source: 'local_fallback',
-      moods: [],
-      memories: [],
-      settings: cachedSettings,
-      warning: 'This is a local fallback export. Backend export failed.'
-    };
-    
-    const json = JSON.stringify(userData, null, 2);
-    return new Blob([json], { type: 'application/json' });
-  }
-}
-
-// Delete all user data (GDPR compliance)
-export async function deleteAllUserData(userId: string): Promise<void> {
-  try {
-    const { default: api } = await import('../api/client');
-    const response = await api.delete(`/api/v1/privacy/delete/${userId}`, {
-      params: { confirm: 'delete my data' },
-    });
-    const result = response.data;
-    logger.debug('✅ Backend deletion completed:', result);
-    
-    // Clear local storage after successful backend deletion
-    try {
-      const keysToKeep = ['theme', 'language'];
-      const allKeys = Object.keys(localStorage);
-      
-      allKeys.forEach((key) => {
-        if (!keysToKeep.includes(key)) {
-          localStorage.removeItem(key);
-        }
-      });
-    } catch { /* localStorage unavailable */ }
-    
-    logger.debug(`✅ All data for user ${userId} has been permanently deleted`);
-  } catch (error) {
-    logger.error('Failed to delete data:', error);
-    throw error; // Re-throw to show error to user
-  }
+  const { default: api } = await import('../api/client');
+  const response = await api.post(`/api/v1/privacy/export/${userId}`, {}, {
+    responseType: 'blob',
+  });
+  return response.data;
 }
 
 export default {
@@ -338,5 +295,4 @@ export default {
   getPrivacySettings,
   savePrivacySettings,
   exportUserData,
-  deleteAllUserData,
 };

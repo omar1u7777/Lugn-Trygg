@@ -1802,7 +1802,8 @@
     "deleting": "Raderar...",
     "settingsLoadFailed": "Kunde inte hämta dina sparade inställningar. Ladda om sidan innan du ändrar något.",
     "memberForDays_one": "Medlem i {{count}} dag",
-    "memberForDays_other": "Medlem i {{count}} dagar"
+    "memberForDays_other": "Medlem i {{count}} dagar",
+    "pushBlocked": "Webbläsaren blockerar notiser från Lugn & Trygg. Tillåt dem i webbläsarens inställningar och försök igen."
   },
   "wellnessGoalLabels": {
     "Hantera stress": {
@@ -2485,17 +2486,11 @@
     "exporting": "Exporterar…",
     "exportSuccess": "Uppgifterna exporterades!",
     "downloadData": "Ladda ned data",
-    "deleteData": "Radera alla mina uppgifter",
-    "deleteDataTitle": "Radera alla dina uppgifter",
-    "deleteDataWarning": "Åtgärden är permanent och kan inte ångras. Alla dina humörloggar, minnen och personuppgifter raderas för alltid.",
-    "deleteDataConfirm": "Skriv \"radera mina uppgifter\" nedan för att bekräfta:",
-    "confirmDelete": "Radera permanent",
-    "confirmTextMismatch": "Skriv bekräftelsetexten exakt",
-    "deleting": "Raderar…",
     "loading": "Laddar integritetsinställningar…",
     "loadFailed": "Kunde inte ladda integritetsinställningarna",
     "exportFailed": "Exporten misslyckades",
-    "deleteFailed": "Raderingen misslyckades"
+    "monthsShort": "mån",
+    "deleteViaAccount": "Vill du radera din data? Använd \"Radera konto\" under Kontoåtgärder längre ner. Kontot stängs direkt och all data raderas permanent inom 30 dagar."
   },
   "wellnessGoals": {
     "skip": "Hoppa över",

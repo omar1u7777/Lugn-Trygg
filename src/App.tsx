@@ -135,6 +135,9 @@ function App() {
                     <Route path="/voice-chat" element={<Navigate to="/ai-chat" replace />} />
                     {/* /settings was a 404 that people typed or followed (UI audit N-3, N-5). */}
                     <Route path="/settings" element={<Navigate to="/profile?tab=appearance" replace />} />
+                    {/* The same panel as the profile's Integritet tab, under a second
+                        address (UI audit Dup-6). Kept as a redirect for links. */}
+                    <Route path="/privacy" element={<Navigate to="/profile?tab=privacy" replace />} />
 
                     <Route path="*" element={<NotFoundPage />} />
                 </Routes>

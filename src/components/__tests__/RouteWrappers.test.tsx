@@ -49,7 +49,6 @@ vi.mock('../OnboardingFlow', () => ({
     </div>
   ),
 }));
-vi.mock('../PrivacySettings', () => ({ default: (p: { userId: string }) => <div data-testid="privacy-settings">PrivacySettings {p.userId}</div> }));
 vi.mock('../../pages/CrisisPage', () => ({ default: () => <div data-testid="crisis-page">CrisisPage</div> }));
 vi.mock('../SuperMoodLogger', () => ({
   SuperMoodLogger: () => <div data-testid="super-mood-logger">SuperMoodLogger</div>,
@@ -78,7 +77,6 @@ import {
   PeerSupportChatWrapper,
   CrisisAlertWrapper,
   OnboardingFlowWrapper,
-  PrivacySettingsWrapper,
   CrisisPageWrapper,
 } from '../RouteWrappers';
 
@@ -235,14 +233,6 @@ describe('RouteWrappers', () => {
       await waitFor(() => screen.getByTestId('onboarding-complete'));
       await userEvent.click(screen.getByTestId('onboarding-complete'));
       expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
-    });
-  });
-
-  describe('PrivacySettingsWrapper', () => {
-    it('renders PrivacySettings with userId', async () => {
-      renderInRouter(<PrivacySettingsWrapper />);
-      await waitFor(() => expect(screen.getByTestId('privacy-settings')).toBeInTheDocument());
-      expect(screen.getByText(/PrivacySettings user-123/)).toBeInTheDocument();
     });
   });
 
