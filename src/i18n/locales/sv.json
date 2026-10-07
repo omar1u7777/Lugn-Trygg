@@ -1163,27 +1163,7 @@
     "inLeaderboard": "I community topplistan",
     "activeMember": "Aktiv Medlem",
     "partOfUsers": "En del av {{count}} användare",
-    "clickToShare": "",
-    "guidelines": {
-      "title": "Community-riktlinjer",
-      "supportive": "Var stöttande",
-      "supportiveDesc": "Uppmuntra och lyfta community-medlemmar",
-      "respectful": "Var respektfull",
-      "respectfulDesc": "Behandla alla med vänlighet och respekt",
-      "privacy": "Skydda integritet",
-      "privacyDesc": "Dela aldrig personlig information",
-      "report": "Rapportera problem",
-      "reportDesc": "Flagga olämpligt innehåll omedelbart"
-    },
-    "whyJoin": "Varför ansluta till communityn?",
-    "benefits": {
-      "motivation": "Motivation & stöd",
-      "motivationDesc": "Bli uppmuntrad av andra på samma resa",
-      "accountability": "Ansvarighet",
-      "accountabilityDesc": "Håll dig engagerad med grupputmaningar",
-      "sharedSuccess": "Delad framgång",
-      "sharedSuccessDesc": "Fira prestationer tillsammans"
-    }
+    "clickToShare": ""
   },
   "dashboardStats": {
     "sectionTitle": "Statistik Översikt",
