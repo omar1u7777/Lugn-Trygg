@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSyncHistory, retrySyncOperation, type SyncHistoryEntry } from '../../api/sync';
 import { logger } from '../../utils/logger';
+import oauthHealthService from '../../services/oauthHealthService';
+
+const HEALTH_PROVIDERS = oauthHealthService.getSupportedProviders();
 
 
 interface SyncHistoryProps {
@@ -132,10 +135,16 @@ const SyncHistory: React.FC<SyncHistoryProps> = ({ userId, providerFilter }) => 
           className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm font-medium focus:ring-2 focus:ring-red-500"
         >
           <option value="all">Alla enheter</option>
-          <option value="google_fit">🏃 Google Fit</option>
-          <option value="fitbit">⌚ Fitbit</option>
-          <option value="samsung_health">💪 Samsung Health</option>
-          <option value="withings">🩺 Withings</option>
+          {/* From the same list as the provider cards. This was a second,
+              hand-written list with different icons (Fitbit ⌚ here, 💪 on its
+              card, which here meant Samsung) and the id "samsung_health",
+              which the backend never uses, so filtering on Samsung Health
+              always came back empty (UI audit Dup-12). */}
+          {HEALTH_PROVIDERS.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.icon} {provider.name}
+            </option>
+          ))}
         </select>
 
         {/* Date Range Filter */}
