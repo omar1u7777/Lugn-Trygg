@@ -82,7 +82,7 @@
     "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.8.0",
     "jsdom": "^23.0.1",
-    "lighthouse": "^13.4.1",
+    "lighthouse": "^13.5.0",
     "postcss": "^8.5.28",
     "rollup-plugin-visualizer": "^7.0.1",
     "serve-handler": "^6.1.6",
