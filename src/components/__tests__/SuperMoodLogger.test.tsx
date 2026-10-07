@@ -20,6 +20,8 @@ vi.mock('react-i18next', () => {
     'moodLogger.reflectionPrompts.good': 'Vad bidrog till att du känner dig okej eller bra just nu?',
     'moodLogger.reflectionPrompts.high': 'Vad vill du ta med dig från den här positiva känslan resten av dagen?',
     'moodLogger.defaultNotePrefix': 'Känner mig',
+    'moodLogger.showAdvanced': '▶ Fler alternativ',
+    'moodLogger.hideAdvanced': '▼ Färre alternativ',
     // Tags are stored by internal id and displayed by label. Without these the
     // mock would answer with the key, which is the bug this view used to have.
     'mood.tags.predefined.work': 'Arbete',
@@ -401,7 +403,7 @@ describe('SuperMoodLogger', () => {
     render(<SuperMoodLogger />);
     fireEvent.click(screen.getByRole('button', { name: /Fler alternativ/i }));
     expect(screen.getByTestId('circumplex-sliders')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Dölj avancerade alternativ/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Färre alternativ/i }));
     expect(screen.queryByTestId('circumplex-sliders')).not.toBeInTheDocument();
   });
 

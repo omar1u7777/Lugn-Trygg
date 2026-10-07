@@ -280,12 +280,9 @@ const JournalHub: React.FC = () => {
                     <BookOpenIcon className="w-5 h-5" />
                     Skriv i Zen Mode
                   </button>
-                  <button
-                    onClick={() => setActiveTab(1)}
-                    className="px-6 py-3 bg-white dark:bg-white/10 text-slate-700 dark:text-white border border-slate-200 dark:border-white/10 rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-white/20 transition-all"
-                  >
-                    Visa Historik
-                  </button>
+                  {/* "Visa Historik" sat here, opening the Historik tab that is
+                      a hand's width below (UI audit Dup-7). Zen Mode stays: it
+                      is a writing mode, not a tab, and this is its only entry. */}
                 </div>
               </div>
 
@@ -329,7 +326,7 @@ const JournalHub: React.FC = () => {
           {[
             { label: 'Dagboksanteckningar', value: stats.journalCount, icon: BookOpenIcon, color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
             { label: 'Humörloggar', value: stats.moodCount, icon: HeartIcon, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-900/20' },
-            { label: 'Sparade Minnen', value: stats.memoryCount, icon: SparklesIcon, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+            { label: 'Minnen', value: stats.memoryCount, icon: SparklesIcon, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
             { label: 'Dagar i rad', value: stats.weekStreak, icon: ChartBarIcon, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
           ].map((stat, idx) => (
             <div key={idx} className="group bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-xs hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
@@ -363,7 +360,9 @@ const JournalHub: React.FC = () => {
                 { label: 'Skriv', icon: BookOpenIcon },
                 { label: 'Historik', icon: DocumentTextIcon },
                 { label: 'Humör', icon: HeartIcon },
-                { label: 'Minnesdagbok', icon: SparklesIcon },
+                // One name for one thing: the stat above and the profile
+                // both say "Minnen" (UI audit Dup-7).
+                { label: 'Minnen', icon: SparklesIcon },
               ].map((tab, idx) => (
                 <button
                   key={idx}

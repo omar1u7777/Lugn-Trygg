@@ -805,7 +805,7 @@
     "stopRecording": "Stop recording",
     "startRecording": "Record voice",
     "audioRecorded": "Voice recording ready",
-    "hideAdvanced": "▼ Hide advanced options",
+    "hideAdvanced": "▼ Fewer options",
     "showAdvanced": "▶ More options",
     "context": "Context (optional)",
     "contextPlaceholder": "e.g. \"home\", \"at work\", \"outside\"",

@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Card, Button } from './ui/tailwind';
 import { useTranslation } from 'react-i18next';
 import BadgeDisplay from './BadgeDisplay';
-import { WorldClassGamificationWrapper } from './RouteWrappers';
 import useAuth from '../hooks/useAuth';
 import {
   getMoods,
@@ -26,6 +25,8 @@ import {
   ArrowPathIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
+
+const WorldClassGamification = lazy(() => import('./WorldClassGamification'));
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -355,8 +356,12 @@ const RewardsHub: React.FC = () => {
             {[
               { icon: <TrophyIcon className="w-5 h-5" />, label: 'Mina märken', index: 0 },
               { icon: <GiftIcon className="w-5 h-5" />, label: 'Belöningskatalog', index: 1 },
-              { icon: <StarIcon className="w-5 h-5" />, label: 'Prestationer', index: 2 },
-              { icon: <FireIcon className="w-5 h-5" />, label: 'Dagliga utmaningar', index: 3 },
+              // "Prestationer" and "Dagliga utmaningar" were two tabs rendering
+              // the same component, and it has no daily challenges: it shows
+              // level, XP and streak, plus a second achievement list counted
+              // differently from "Mina märken" (UI audit Dup-8). One tab now,
+              // named for what it shows, without that second list.
+              { icon: <StarIcon className="w-5 h-5" />, label: 'Nivå & XP', index: 2 },
             ].map((tab) => (
               <button
                 key={tab.index}
@@ -369,6 +374,9 @@ const RewardsHub: React.FC = () => {
                 id={`rewards-tab-${tab.index}`}
                 aria-controls={`rewards-tabpanel-${tab.index}`}
                 aria-selected={activeTab === tab.index}
+                // The text is hidden below sm, which left phone users' screen
+                // readers announcing four unnamed tabs.
+                aria-label={tab.label}
               >
                 {tab.icon}
                 <span className="hidden sm:inline">{tab.label}</span>
@@ -511,27 +519,16 @@ const RewardsHub: React.FC = () => {
             </div>
           </TabPanel>
 
-          {/* Achievements Tab */}
+          {/* Level & XP Tab */}
           <TabPanel value={activeTab} index={2}>
             {user?.user_id ? (
-              <WorldClassGamificationWrapper />
+              <Suspense fallback={<div className="h-64" aria-busy="true" />}>
+                <WorldClassGamification showAchievements={false} />
+              </Suspense>
             ) : (
               <div className="text-center py-8 sm:py-12">
                 <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300">
-                  Logga in för att se dina prestationer
-                </p>
-              </div>
-            )}
-          </TabPanel>
-
-          {/* Daily Challenges Tab */}
-          <TabPanel value={activeTab} index={3}>
-            {user?.user_id ? (
-              <WorldClassGamificationWrapper />
-            ) : (
-              <div className="text-center py-8 sm:py-12">
-                <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300">
-                  Logga in för att se dagliga utmaningar
+                  Logga in för att se din nivå
                 </p>
               </div>
             )}
