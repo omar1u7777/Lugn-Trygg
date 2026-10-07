@@ -14,7 +14,7 @@ import OptimizedImage from './ui/OptimizedImage';
 import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useDebouncedSave } from '../hooks/useDebouncedSave';
-import { changeEmail, changePassword, setup2FA, verify2FASetup, exportUserData, deleteAccount } from '../api/api';
+import { changeEmail, changePassword, setup2FA, verify2FASetup, deleteAccount } from '../api/api';
 import { getUserProfile, getUserStats, updateUserPreferences } from '../api/users';
 import { getApiErrorMessage } from '../api/errorUtils';
 import { logger } from '../utils/logger';
@@ -262,7 +262,7 @@ const ProfileHub: React.FC = () => {
     fetchProfileData();
   }, [updateSettings, user?.createdAt, user?.user_id, cancelSave, setSettingsBaseline, showSnackbar, t]);
 
-  const handleSettingChange = (setting: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
+  const applySetting = (setting: string, checked: boolean) => {
     // Refuse to save when the stored preferences never loaded — the values in
     // state are defaults, not the user's, and persisting them would overwrite
     // real choices with guesses.
@@ -273,9 +273,33 @@ const ProfileHub: React.FC = () => {
       );
       return;
     }
-    const checked = event.target.checked;
     // DEBOUNCED: Update settings with automatic save
     updateSettings(prev => ({ ...prev, [setting]: checked }));
+  };
+
+  const handleSettingChange = (setting: string) => (event: React.ChangeEvent<HTMLInputElement>) =>
+    applySetting(setting, event.target.checked);
+
+  /*
+   * The push toggle also asks the browser for permission. A separate
+   * "Vill du aktivera webbläsarnotiser? [Aktivera]" button sat right under it
+   * (UI audit Dup-6): two controls for one thing, and the toggle could read
+   * "on" while the browser had never been asked, so nothing would arrive.
+   */
+  const handlePushToggle = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Read before awaiting: React puts a controlled checkbox back to its state
+    // value once the handler returns, so event.target.checked is stale later.
+    const enabling = event.target.checked;
+    if (enabling && typeof window !== 'undefined' && 'Notification' in window) {
+      const permission = Notification.permission === 'default'
+        ? await Notification.requestPermission()
+        : Notification.permission;
+      if (permission !== 'granted') {
+        showSnackbar(t('profileHub.pushBlocked'), 'error');
+        return;
+      }
+    }
+    applySetting('pushNotifications', enabling);
   };
 
   // Modal handlers
@@ -410,20 +434,8 @@ const ProfileHub: React.FC = () => {
     }
   };
 
-  const handleExportData = async () => {
-    setModalLoading(true);
-    try {
-      await exportUserData();
-      showSnackbar('Din data har exporterats!', 'success');
-    } catch (error: unknown) {
-      showSnackbar(getApiErrorMessage(error, 'Kunde inte exportera data'), 'error');
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
   return (
-    <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
+    <div className="py-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
       {/* Identity Card Hero */}
       <div className="mb-8">
         <div className="relative overflow-hidden rounded-[2.5rem] bg-linear-to-br from-slate-800 to-slate-900 dark:from-indigo-900 dark:to-slate-900 text-white shadow-2xl p-8 sm:p-10">
@@ -522,7 +534,7 @@ const ProfileHub: React.FC = () => {
       </div>
 
       {/* Subscription Status Card - REAL IMPLEMENTATION */}
-      <Card className={`mb-6 sm:mb-8 overflow-hidden ${isPremium ? 'bg-linear-to-r from-accent-400 to-accent-500' : isTrial ? 'bg-linear-to-r from-primary-500 to-primary-600' : 'bg-linear-to-r from-primary-50 to-primary-100 dark:from-primary-800 dark:to-primary-700'}`}>
+      <Card padding="none" className={`mb-6 sm:mb-8 overflow-hidden ${isPremium ? 'bg-linear-to-r from-accent-400 to-accent-500' : isTrial ? 'bg-linear-to-r from-primary-500 to-primary-600' : 'bg-linear-to-r from-primary-50 to-primary-100 dark:from-primary-800 dark:to-primary-700'}`}>
         <div className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -614,7 +626,7 @@ const ProfileHub: React.FC = () => {
       )}
 
       {/* Tabs for different profile sections */}
-      <Card className="world-class-dashboard-card">
+      <Card padding="none" className="overflow-hidden">
         <div className="border-b border-gray-200 dark:border-gray-700 relative">
           <ScrollableTabs
             tabs={[
@@ -637,7 +649,7 @@ const ProfileHub: React.FC = () => {
                 {t('profileHub.accountInfo')}
               </h3>
               <div className="space-y-4">
-                <Card className="border border-gray-200 dark:border-gray-700">
+                <Card padding="none" className="border border-gray-200 dark:border-gray-700">
                   <div className="p-4 sm:p-6">
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1 sm:mb-2">
                       {t('profileHub.emailAddress')}
@@ -655,7 +667,7 @@ const ProfileHub: React.FC = () => {
                   </div>
                 </Card>
 
-                <Card className="border border-gray-200 dark:border-gray-700">
+                <Card padding="none" className="border border-gray-200 dark:border-gray-700">
                   <div className="p-4 sm:p-6">
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1 sm:mb-2">
                       {t('profileHub.password')}
@@ -673,7 +685,7 @@ const ProfileHub: React.FC = () => {
                   </div>
                 </Card>
 
-                <Card className="border border-gray-200 dark:border-gray-700">
+                <Card padding="none" className="border border-gray-200 dark:border-gray-700">
                   <div className="p-4 sm:p-6">
                     <h4 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">
                       🔐 {t('profileHub.twoFactor')}
@@ -736,7 +748,7 @@ const ProfileHub: React.FC = () => {
                 )}
               </div>
               <div className="space-y-4">
-                <Card className="border border-gray-200 dark:border-gray-700">
+                <Card padding="none" className="border border-gray-200 dark:border-gray-700">
                   <label className="flex items-center justify-between p-4 sm:p-6 cursor-pointer">
                     <div className="flex-1">
                       <p className="text-base font-semibold text-gray-900 dark:text-white mb-1">
@@ -755,7 +767,7 @@ const ProfileHub: React.FC = () => {
                   </label>
                 </Card>
 
-                <Card className="border border-gray-200 dark:border-gray-700">
+                <Card padding="none" className="border border-gray-200 dark:border-gray-700">
                   <label className="flex items-center justify-between p-4 sm:p-6 cursor-pointer">
                     <div className="flex-1">
                       <p className="text-base font-semibold text-gray-900 dark:text-white mb-1">
@@ -768,28 +780,12 @@ const ProfileHub: React.FC = () => {
                     <input
                       type="checkbox"
                       checked={settings.pushNotifications}
-                      onChange={handleSettingChange('pushNotifications')}
+                      onChange={handlePushToggle}
                       className="w-12 h-6 ml-4 accent-primary-600 cursor-pointer"
                     />
                   </label>
                 </Card>
 
-                <div className="pt-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    {t('profileHub.enableBrowserNotificationsQ')}
-                  </p>
-                  <Button
-                    variant="primary"
-                    onClick={() => {
-                      if ('Notification' in window && Notification.permission === 'default') {
-                        Notification.requestPermission();
-                      }
-                    }}
-                    className="w-full sm:w-auto"
-                  >
-                    {t('profileHub.enableBrowserNotifications')}
-                  </Button>
-                </div>
               </div>
             </div>
           </TabPanel>
@@ -801,7 +797,7 @@ const ProfileHub: React.FC = () => {
                 {t('profileHub.appearanceSettings')}
               </h3>
               <div className="space-y-4">
-                <Card className="border border-gray-200 dark:border-gray-700">
+                <Card padding="none" className="border border-gray-200 dark:border-gray-700">
                   <div className="p-4 sm:p-6">
                     <h4 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
                       {t('profileHub.themeMode')}
@@ -813,7 +809,7 @@ const ProfileHub: React.FC = () => {
                   </div>
                 </Card>
 
-                <Card className="border border-gray-200 dark:border-gray-700">
+                <Card padding="none" className="border border-gray-200 dark:border-gray-700">
                   <div className="p-4 sm:p-6">
                     <h4 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
                       {t('profileHub.language')}
@@ -831,21 +827,16 @@ const ProfileHub: React.FC = () => {
       </Card>
 
       {/* Account Actions */}
-      <Card className="border border-gray-200 dark:border-gray-700">
+      <Card padding="none" className="border border-gray-200 dark:border-gray-700">
         <div className="p-4 sm:p-6 md:p-8">
           <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
             {t('profileHub.accountActions')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Button
-              variant="outline"
-              className="w-full min-h-[44px] flex items-center justify-center gap-2"
-              onClick={handleExportData}
-              disabled={modalLoading}
-            >
-              <ShieldCheckIcon className="w-5 h-5" aria-hidden="true" />
-              <span>{modalLoading ? t('profileHub.exporting') : t('profileHub.exportData')}</span>
-            </Button>
+            {/* "Exportera min data" was here as well as under Integritet
+                (UI audit Dup-6), and it was the weaker of the two: it read
+                memories and journal entries from collections they are not
+                stored in. The export under Integritet covers every store. */}
             <Button
               variant="outline"
               className="w-full min-h-[44px] text-error-600 border-error-600 hover:bg-error-50 dark:hover:bg-error-900/20"
@@ -859,7 +850,7 @@ const ProfileHub: React.FC = () => {
                 menu has it, and showing it twice is what the audit flagged. */}
             <Button
               variant="outline"
-              className="lg:hidden w-full min-h-[44px] flex items-center justify-center gap-2 md:col-span-2"
+              className="lg:hidden w-full min-h-[44px] flex items-center justify-center gap-2"
               onClick={() => {
                 if (window.confirm(t('navigation.confirmLogout'))) {
                   logout();

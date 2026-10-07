@@ -1802,7 +1802,8 @@
     "deleting": "Deleting...",
     "settingsLoadFailed": "Could not load your saved settings. Reload the page before changing anything.",
     "memberForDays_one": "Member for {{count}} day",
-    "memberForDays_other": "Member for {{count}} days"
+    "memberForDays_other": "Member for {{count}} days",
+    "pushBlocked": "Your browser is blocking notifications from Lugn & Trygg. Allow them in your browser settings and try again."
   },
   "wellnessGoalLabels": {
     "Hantera stress": {
@@ -2485,17 +2486,11 @@
     "exporting": "Exporting…",
     "exportSuccess": "Data exported successfully!",
     "downloadData": "Download Data",
-    "deleteData": "Delete All My Data",
-    "deleteDataTitle": "Delete All Your Data",
-    "deleteDataWarning": "This action is permanent and cannot be undone. All your mood logs, memories, and personal data will be deleted forever.",
-    "deleteDataConfirm": "To confirm, please type \"delete my data\" below:",
-    "confirmDelete": "Delete Forever",
-    "confirmTextMismatch": "Please type the confirmation text exactly",
-    "deleting": "Deleting…",
     "loading": "Loading privacy settings…",
     "loadFailed": "Failed to load privacy settings",
     "exportFailed": "Export failed",
-    "deleteFailed": "Deletion failed"
+    "monthsShort": "mo",
+    "deleteViaAccount": "Want your data erased? Use \"Delete account\" under Account Actions below. The account is closed at once and all data is permanently erased within 30 days."
   },
   "wellnessGoals": {
     "skip": "Skip",

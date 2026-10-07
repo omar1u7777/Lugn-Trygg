@@ -31,7 +31,6 @@ vi.mock('../../utils/encryptionService', () => ({
   getPrivacySettings: getPrivacySettingsMock,
   savePrivacySettings: vi.fn(),
   exportUserData: vi.fn(),
-  deleteAllUserData: vi.fn(),
 }));
 
 /** The defaults both the frontend and Backend/privacy_settings_service declare. */
@@ -104,6 +103,7 @@ describe('the privacy tab follows the chosen language', () => {
       'Privacy & Security', 'Data Encryption', 'Data Retention',
       'Analytics & Sharing', 'Your Privacy Rights', 'Export My Data',
       'Delete All My Data', 'Under GDPR and data protection laws',
+      '1 month', '6 months', '1 year', '2 years',
     ]) {
       expect(text).not.toContain(english);
     }
@@ -122,5 +122,23 @@ describe('the retention figure reads correctly at every value', () => {
     await waitFor(() => {
       expect(container.textContent).toContain(expected);
     });
+  });
+});
+
+describe('one way to erase data (UI audit Dup-6)', () => {
+  it('has no delete button of its own and points to account deletion instead', async () => {
+    await i18n.changeLanguage('sv');
+    const { container } = renderTab();
+    await waitFor(() => expect(screen.getByRole('heading', { level: 2 })).toBeInTheDocument());
+
+    expect(screen.queryByRole('button', { name: /radera/i })).toBeNull();
+    expect(container.textContent).toContain('"Radera konto" under Kontoåtgärder');
+  });
+
+  it('labels the retention scale in the unit its readout uses (Dup-15)', async () => {
+    await i18n.changeLanguage('sv');
+    const { container } = renderTab();
+    await waitFor(() => expect(container.textContent).toContain('24 mån'));
+    expect(container.textContent).not.toMatch(/\b\d+ (år|years?)\b/);
   });
 });

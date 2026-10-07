@@ -11,13 +11,15 @@ import {
   getPrivacySettings,
   savePrivacySettings,
   exportUserData,
-  deleteAllUserData,
 } from '../utils/encryptionService';
 import { trackEvent } from '../services/analytics';
-import { tokenStorage, secureStorage, purgeUserScopedStorage } from '../utils/secureStorage';
-import { ArrowDownTrayIcon, EyeSlashIcon, LockClosedIcon, TrashIcon, ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, EyeSlashIcon, LockClosedIcon, ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
 
+
+const RETENTION_MIN_DAYS = 30;
+const RETENTION_MAX_DAYS = 720;
+const RETENTION_MARKS_MONTHS = [1, 24];
 
 interface PrivacySettingsProps {
   userId: string;
@@ -26,13 +28,9 @@ interface PrivacySettingsProps {
 export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
   const { t } = useTranslation();
   const [settings, setSettings] = useState<IPrivacySettings | null>(null);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isExporting, setIsExporting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [exportSuccess, setExportSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -100,43 +98,6 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
     }
   };
 
-  const handleDeleteAllData = async () => {
-    if (deleteConfirmText.toLowerCase() !== 'delete my data') {
-      setDeleteError(t('privacy.confirmTextMismatch'));
-      return;
-    }
-    
-    setIsDeleting(true);
-    setDeleteError(null);
-    
-    try {
-      logger.debug('🗑️ Starting permanent data deletion for user:', userId);
-      await deleteAllUserData(userId);
-      
-      logger.debug('✅ Data deletion completed successfully');
-      trackEvent('data_deleted', { userId });
-      
-      // Clear auth state through the storage abstraction so in-memory tokens,
-      // encrypted user profile, per-user caches AND legacy raw keys all go.
-      tokenStorage.clearTokens();
-      secureStorage.removeItem('user');
-      purgeUserScopedStorage();
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      
-      setShowDeleteDialog(false);
-      
-      // Redirect to homepage after short delay
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 1000);
-    } catch (error) {
-      logger.error('❌ Failed to delete data:', error);
-      setDeleteError(error instanceof Error ? error.message : t('privacy.deleteFailed'));
-      setIsDeleting(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3 mb-6">
@@ -147,14 +108,14 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
       </div>
 
       {isLoading ? (
-        <Card>
+        <Card padding="none">
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
             <p className="text-gray-600 dark:text-gray-400">{t('privacy.loading')}</p>
           </div>
         </Card>
       ) : !settings ? (
-        <Card>
+        <Card padding="none">
           <div className="p-8 text-center">
             <p className="text-red-600 dark:text-red-400">{t('privacy.loadFailed')}</p>
           </div>
@@ -162,7 +123,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
       ) : (
         <>
           {/* Encryption Settings */}
-          <Card>
+          <Card padding="none">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <LockClosedIcon className="w-5 h-5 text-primary-600 dark:text-primary-500" />
@@ -198,7 +159,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
           </Card>
 
       {/* Data Retention */}
-      <Card>
+      <Card padding="none">
         <div className="p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
             {t('privacy.dataRetention')}
@@ -207,19 +168,31 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
             {t('privacy.dataRetentionDesc')}
           </p>
           <div className="mb-6">
-            <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-              <span>1 month</span>
-              <span>6 months</span>
-              <span>1 year</span>
-              <span>2 years</span>
+            {/* One unit, the one the readout below uses (UI audit Dup-15: the
+                last mark said "2 years" above a readout of "24 months"). Only
+                the two ends are marked: on a phone the track is too short for
+                more labels without them overlapping, and the readout below
+                gives the exact value. */}
+            <div className="relative h-5 text-sm text-gray-600 dark:text-gray-400 mb-2" aria-hidden="true">
+              {RETENTION_MARKS_MONTHS.map((months) => (
+                <span
+                  key={months}
+                  className="absolute -translate-x-1/2 first:translate-x-0 last:-translate-x-full whitespace-nowrap"
+                  style={{ left: `${((months * 30 - RETENTION_MIN_DAYS) / (RETENTION_MAX_DAYS - RETENTION_MIN_DAYS)) * 100}%` }}
+                >
+                  {months} {t('privacy.monthsShort')}
+                </span>
+              ))}
             </div>
             <input
               type="range"
-              min="30"
-              max="730"
+              min={RETENTION_MIN_DAYS}
+              max={RETENTION_MAX_DAYS}
               step="30"
               value={settings.dataRetentionDays}
               onChange={(e) => handleSettingChange('dataRetentionDays', parseInt(e.target.value))}
+              aria-label={t('privacy.dataRetention')}
+              aria-valuetext={`${Math.round(settings.dataRetentionDays / 30)} ${t('privacy.months', { count: Math.round(settings.dataRetentionDays / 30) })}`}
               className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary-600"
             />
             <div className="text-center mt-2">
@@ -246,7 +219,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
       </Card>
 
       {/* Analytics & Sharing */}
-      <Card>
+      <Card padding="none">
         <div className="p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <EyeSlashIcon className="w-5 h-5 text-primary-600 dark:text-primary-500" />
@@ -300,7 +273,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
       <div className="border-t border-gray-200 dark:border-gray-700 my-6"></div>
 
       {/* GDPR Rights */}
-      <Card>
+      <Card padding="none">
         <div className="p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             {t('privacy.yourRights')}
@@ -320,15 +293,19 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
               <ArrowDownTrayIcon className="w-5 h-5" />
               {t('privacy.exportData')}
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(true)}
-              className="flex items-center justify-center gap-2 border-error-500 text-error-600 hover:bg-error-50 dark:border-error-700 dark:text-error-400 dark:hover:bg-error-900/30"
-            >
-              <TrashIcon className="w-5 h-5" />
-              {t('privacy.deleteData')}
-            </Button>
           </div>
+          {/*
+            "Radera alla mina uppgifter" used to sit here beside "Radera konto"
+            further down the profile: two destructive buttons, and no way to
+            tell whether this one kept the account (UI audit Dup-6). It also
+            erased everything at once on a typed phrase, where account deletion
+            asks for the password, so a stolen session token was enough. The
+            Swedish text even told people to type a phrase the check rejected.
+            Account deletion is now the one way, and this says where it is.
+          */}
+          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+            {t('privacy.deleteViaAccount')}
+          </p>
         </div>
       </Card>
 
@@ -421,94 +398,6 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
         </div>
       )}
 
-      {/* Delete Data Dialog */}
-      {showDeleteDialog && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowDeleteDialog(false)}
-        >
-          <div 
-            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <h2 className="text-xl font-semibold text-error-600 dark:text-error-400">
-                {t('privacy.deleteDataTitle')}
-              </h2>
-              <button
-                onClick={() => setShowDeleteDialog(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                aria-label={t('common.close', 'Close')}
-              >
-                <XMarkIcon className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="bg-error-50 dark:bg-error-900/30 border border-error-200 dark:border-error-800 rounded-lg p-4 mb-4">
-              <p className="text-sm text-error-800 dark:text-error-300 font-medium">
-                {t('privacy.deleteDataWarning')}
-              </p>
-            </div>
-            
-            {deleteError && (
-              <div className="bg-error-50 dark:bg-error-900/30 border border-error-200 dark:border-error-800 rounded-lg p-3 mb-4">
-                <p className="text-sm text-error-800 dark:text-error-300">
-                  ❌ {deleteError}
-                </p>
-              </div>
-            )}
-            
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                {t('privacy.deleteDataConfirm')}
-              </label>
-              <input
-                type="text"
-                value={deleteConfirmText}
-                onChange={(e) => {
-                  setDeleteConfirmText(e.target.value);
-                  setDeleteError(null);
-                }}
-                disabled={isDeleting}
-                placeholder="delete my data"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-error-500 dark:focus:ring-error-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowDeleteDialog(false);
-                  setDeleteConfirmText('');
-                  setDeleteError(null);
-                }}
-                disabled={isDeleting}
-                className="flex-1"
-              >
-                {t('common.cancel', 'Cancel')}
-              </Button>
-              <Button
-                onClick={handleDeleteAllData}
-                disabled={deleteConfirmText.toLowerCase() !== 'delete my data' || isDeleting}
-                className="flex-1 bg-error-600 hover:bg-error-700 dark:bg-error-700 dark:hover:bg-error-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isDeleting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    {t('privacy.deleting')}
-                  </>
-                ) : (
-                  <>
-                    <TrashIcon className="w-5 h-5" />
-                    {t('privacy.confirmDelete')}
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
         </>
       )}
     </div>
