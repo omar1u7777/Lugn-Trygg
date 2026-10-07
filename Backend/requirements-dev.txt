@@ -19,5 +19,5 @@ bandit==1.8.2
 safety==3.8.1
 
 # Development Tools
-ipython==8.30.0
+ipython==9.17.1
 ipdb==0.13.13
