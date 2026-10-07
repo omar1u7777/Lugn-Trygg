@@ -62,6 +62,7 @@ class InsightNotificationScheduler:
         notify_claim = FirestoreLeaseLock('insight_notifications')
         retention_claim = FirestoreLeaseLock('data_retention_enforcement')
         health_sync_claim = FirestoreLeaseLock('health_auto_sync')
+        erasure_claim = FirestoreLeaseLock('account_erasure')
 
         while self.is_running:
             try:
@@ -89,6 +90,11 @@ class InsightNotificationScheduler:
                 if current_hour == 4 and health_sync_claim.try_claim_period(20 * 3600):
                     self._run_health_auto_sync()
 
+                # Erase accounts whose 30-day deletion grace period has ended.
+                # The delete route promised it and nothing did it.
+                if current_hour == 5 and erasure_claim.try_claim_period(20 * 3600):
+                    self._run_account_erasure()
+
                 # Sleep for 1 hour
                 time.sleep(3600)
 
@@ -109,6 +115,45 @@ class InsightNotificationScheduler:
             log("🔄 Health auto-sync finished: %s", stats)
         except Exception as e:
             logger.exception("Scheduled health auto-sync failed: %s", e)
+
+    def _run_account_erasure(self):
+        """Run the deleted-account erasure job under telemetry.
+
+        Read the verdict rather than trusting that the call returned, for the
+        reason _run_data_retention spells out below.
+        """
+        from src.utils.telemetry import telemetry
+
+        try:
+            from src.services.account_erasure import erase_due_accounts
+
+            result = erase_due_accounts()
+        except Exception as e:
+            telemetry.critical(
+                "account_erasure_failed",
+                "Deleted-account erasure raised — closed accounts keep their data",
+                error=str(e),
+            )
+            logger.exception("Account erasure failed: %s", e)
+            return
+
+        if not result.get('success'):
+            telemetry.critical(
+                "account_erasure_failed",
+                "Deleted-account erasure did not complete — closed accounts keep their data",
+                error=str(result.get('error', 'unknown')),
+                erased=result.get('erased', 0),
+                failed=result.get('failed', 0),
+            )
+            logger.error("🚨 Account erasure incomplete: %s", result.get('error'))
+            return
+
+        telemetry.event(
+            "account_erasure_completed",
+            "Deleted-account erasure finished",
+            erased=result.get('erased', 0),
+        )
+        logger.info("🗑️ Account erasure completed: %s account(s) erased", result.get('erased', 0))
 
     def _run_data_retention(self):
         """Run the data-retention policy sweep under telemetry."""
