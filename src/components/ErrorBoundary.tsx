@@ -7,6 +7,7 @@ import { Component, ErrorInfo, ReactNode } from 'react'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
 import { SUPPORT_EMAIL } from '../config/contact';
+import { isStaleBundleError, recoverFromStaleBundle } from '../utils/staleBundle';
 
 
 interface Props {
@@ -25,54 +26,6 @@ interface State {
 
 class ErrorBoundary extends Component<Props, State> {
   private maxRetries = 3;
-  private static readonly bundleRecoveryMaxRetries = 3;
-
-  private static recoverFromStaleBundleError() {
-    const recoveryKey = 'bundle_recovery_attempt_ts';
-    const recoveryCountKey = 'bundle_recovery_attempt_count';
-    const lastAttemptRaw = sessionStorage.getItem(recoveryKey);
-    const attemptCountRaw = sessionStorage.getItem(recoveryCountKey);
-    const now = Date.now();
-    const lastAttempt = lastAttemptRaw ? parseInt(lastAttemptRaw, 10) : 0;
-    const attemptCount = attemptCountRaw ? parseInt(attemptCountRaw, 10) : 0;
-
-    // Hard-stop automatic recovery after N attempts per tab session.
-    if (attemptCount >= ErrorBoundary.bundleRecoveryMaxRetries) {
-      logger.warn('Stale bundle auto-recovery retry limit reached', {
-        attemptCount,
-        maxRetries: ErrorBoundary.bundleRecoveryMaxRetries,
-      });
-      return;
-    }
-
-    // Avoid infinite reload loops: only recover once every 10 seconds.
-    if (lastAttempt && now - lastAttempt <= 10000) {
-      return;
-    }
-
-    sessionStorage.setItem(recoveryKey, now.toString());
-    sessionStorage.setItem(recoveryCountKey, String(attemptCount + 1));
-
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then((regs) => {
-        regs.forEach((reg) => {
-          reg.unregister();
-        });
-      });
-    }
-
-    if ('caches' in window) {
-      caches.keys().then((names) => {
-        names.forEach((name) => {
-          caches.delete(name);
-        });
-      });
-    }
-
-    const url = new URL(window.location.href);
-    url.searchParams.set('t', now.toString());
-    window.location.replace(url.toString());
-  }
 
   constructor(props: Props) {
     super(props);
@@ -83,18 +36,9 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
-    // Detect ChunkLoadError (Vite/Webpack missing dynamically imported modules on new deployments)
-    const isChunkLoadError = error?.name === 'ChunkLoadError' || 
-                             (error?.message && /Failed to fetch dynamically imported module/i.test(error.message)) ||
-                             (error?.message && /Importing a module script failed/i.test(error.message)) ||
-                             (error?.message && /missing/i.test(error.message) && /dynamically imported/i.test(error.message));
-    const isInitializationReferenceError =
-      error?.name === 'ReferenceError' &&
-      !!error?.message &&
-      /Cannot access '.*' before initialization/i.test(error.message);
-
-    if (typeof window !== 'undefined' && (isChunkLoadError || isInitializationReferenceError)) {
-      ErrorBoundary.recoverFromStaleBundleError();
+    // A chunk from the previous deploy: reload onto the current one.
+    if (isStaleBundleError(error)) {
+      recoverFromStaleBundle();
     }
 
     return {
