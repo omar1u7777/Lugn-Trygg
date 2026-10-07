@@ -1631,19 +1631,18 @@
       "updateTimeFailed": "Kunde inte uppdatera påminnelsetiden. Försök igen."
     },
     "cbt": {
-      "selectMood": "Välj ditt nuvarande mående",
       "errorLoad": "CBT-data kunde inte laddas just nu. Försök igen senare.",
       "errorLoadShort": "CBT-data kunde inte laddas just nu.",
-      "mood": {
-        "neutral": "Neutralt mående",
-        "highAnxiety": "Hög ångest",
-        "lowMood": "Nedstämd",
-        "depression": "Depression",
-        "stress": "Stress",
-        "good": "Mår bra"
-      },
       "disclaimerPrefix": "⚠️ Viktigt:",
-      "disclaimerBody": "Dessa KBT-övningar är ett komplement till — inte en ersättning för — professionell psykoterapi. Söker du vård, kontakta legitimerad psykolog eller psykoterapeut. Kris: {{emergency}} | Självmordslinjen: {{suicideLine}} | {{healthcare}}"
+      "disclaimerBody": "Dessa KBT-övningar är ett komplement till — inte en ersättning för — professionell psykoterapi. Söker du vård, kontakta legitimerad psykolog eller psykoterapeut. Kris: {{emergency}} | Självmordslinjen: {{suicideLine}} | {{healthcare}}",
+      "selectFocus": "Vad vill du öva på?",
+      "focus": {
+        "general": "Grundläggande färdigheter",
+        "anxiety": "Ångest och oro",
+        "stress": "Stress",
+        "thoughts": "Negativa tankar",
+        "activation": "Komma igång med aktiviteter"
+      }
     },
     "disclaimer": {
       "crisisNumber": "🔹 Krisnummer Sverige: {{emergency}} (akut) eller {{healthcare}} (vårdguiden)",
