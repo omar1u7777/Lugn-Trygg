@@ -41,7 +41,6 @@ const CrisisPage: React.FC = () => {
   /** Icon per resource. Structure, not data — stays with the presentation. */
   const iconFor = (id: string) => {
     switch (id) {
-      case 'mindChat':
       case 'bris':
         return <ChatBubbleLeftRightIcon className="w-6 h-6" />;
       case 'priest':
@@ -158,24 +157,37 @@ const CrisisPage: React.FC = () => {
                         {resource.phone}
                       </p>
                     )}
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs text-slate-400 dark:text-slate-500">
                         🕐 {t(`${base}.available`)}
                       </span>
-                      <a
-                        href={resource.href}
-                        {...(resource.external
-                          ? { target: '_blank', rel: 'noopener noreferrer' }
-                          : {})}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium ${style?.button ?? 'bg-slate-600'} transition-colors`}
-                      >
-                        {resource.external ? (
-                          <GlobeAltIcon className="w-4 h-4" />
-                        ) : (
-                          <PhoneIcon className="w-4 h-4" />
+                      <div className="flex flex-wrap gap-2">
+                        {resource.chat && (
+                          <a
+                            href={resource.chat}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] rounded-lg border-2 ${style?.border ?? 'border-slate-300'} ${style?.text ?? 'text-slate-700'} text-sm font-medium bg-white dark:bg-slate-800`}
+                          >
+                            <ChatBubbleLeftRightIcon className="w-4 h-4" aria-hidden="true" />
+                            {t(`${base}.chatAction`)}
+                          </a>
                         )}
-                        {t(`${base}.action`, { number: resource.phone ?? '' })}
-                      </a>
+                        <a
+                          href={resource.href}
+                          {...(resource.external
+                            ? { target: '_blank', rel: 'noopener noreferrer' }
+                            : {})}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] rounded-lg text-white text-sm font-medium ${style?.button ?? 'bg-slate-600'} transition-colors`}
+                        >
+                          {resource.external ? (
+                            <GlobeAltIcon className="w-4 h-4" />
+                          ) : (
+                            <PhoneIcon className="w-4 h-4" />
+                          )}
+                          {t(`${base}.action`, { number: resource.phone ?? '' })}
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </div>
