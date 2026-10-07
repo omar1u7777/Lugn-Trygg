@@ -22,7 +22,7 @@ sendgrid==6.11.0
 requests==2.34.2
 
 # Security & Encryption
-bcrypt==3.2.2
+bcrypt==5.0.0
 pycryptodome==3.23.0
 cryptography==50.0.0
 bleach==6.4.0
