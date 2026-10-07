@@ -217,6 +217,9 @@ const SocialHub: React.FC = () => {
                 id={`social-tab-${tab.index}`}
                 aria-controls={`social-tabpanel-${tab.index}`}
                 aria-selected={activeTab === tab.index}
+                // The text is hidden below sm; without this the tabs had no
+                // accessible name on phones.
+                aria-label={tab.label}
               >
                 {tab.icon}
                 <span className="hidden sm:inline">{tab.label}</span>
@@ -354,103 +357,14 @@ const SocialHub: React.FC = () => {
         </div>
       </Card>
 
-      {/* Community Guidelines */}
-      <div className="mt-6 sm:mt-8">
-        <Card className="world-class-dashboard-card">
-          <div className="p-4 sm:p-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6 world-class-heading-3">
-              {t('social.guidelines.title')}
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              <div className="flex gap-3 sm:gap-4">
-                <div className="text-3xl sm:text-4xl" role="img" aria-label="Supportive emoji">🤗</div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2">
-                    {t('social.guidelines.supportive')}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {t('social.guidelines.supportiveDesc')}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 sm:gap-4">
-                <div className="text-3xl sm:text-4xl" role="img" aria-label="Respectful emoji">🤝</div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2">
-                    {t('social.guidelines.respectful')}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {t('social.guidelines.respectfulDesc')}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 sm:gap-4">
-                <div className="text-3xl sm:text-4xl" role="img" aria-label="Privacy emoji">🔒</div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2">
-                    {t('social.guidelines.privacy')}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {t('social.guidelines.privacyDesc')}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 sm:gap-4">
-                <div className="text-3xl sm:text-4xl" role="img" aria-label="Warning emoji">⚠️</div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2">
-                    {t('social.guidelines.report')}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {t('social.guidelines.reportDesc')}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Benefits */}
-      <div className="mt-6 sm:mt-8 text-center">
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-6 sm:mb-8 world-class-heading-2">
-          {t('social.whyJoin')}
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-          <div className="p-4 sm:p-6">
-            <div className="text-5xl sm:text-6xl mb-3 sm:mb-4" role="img" aria-label="Strong emoji">💪</div>
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              {t('social.benefits.motivation')}
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {t('social.benefits.motivationDesc')}
-            </p>
-          </div>
-
-          <div className="p-4 sm:p-6">
-            <div className="text-5xl sm:text-6xl mb-3 sm:mb-4" role="img" aria-label="Target emoji">🎯</div>
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              {t('social.benefits.accountability')}
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {t('social.benefits.accountabilityDesc')}
-            </p>
-          </div>
-
-          <div className="p-4 sm:p-6">
-            <div className="text-5xl sm:text-6xl mb-3 sm:mb-4" role="img" aria-label="Star emoji">🌟</div>
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              {t('social.benefits.sharedSuccess')}
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {t('social.benefits.sharedSuccessDesc')}
-            </p>
-          </div>
-        </div>
-      </div>
+      {/*
+        "Community-riktlinjer" (four cards) and "Varför ansluta till
+        communityn?" (three) sat here, outside the tab panel, so they rendered
+        identically under every tab, and the support chat has its own, more
+        specific guidelines a tab above (UI audit Dup-9). The chat's version
+        stays: it is where people write, and it is the one that says this is
+        not a crisis service and not a place for medical advice.
+      */}
     </div>
   );
 };

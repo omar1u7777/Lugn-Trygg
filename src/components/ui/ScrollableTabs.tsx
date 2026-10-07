@@ -154,11 +154,10 @@ const ScrollableTabs: React.FC<ScrollableTabsProps> = ({
             aria-selected={activeTab === tab.index}
           >
             {tab.icon}
-            <span className="hidden sm:inline">{tab.label}</span>
-            {/* Mobile-only indicator */}
-            <span className="sm:hidden text-xs">
-              {tab.label.slice(0, 3)}
-            </span>
+            {/* The full label at every width. Phones showed the first three
+                letters ("Kon", "Int", "Not", "Uts"), which is also what
+                screen readers announced; the strip already scrolls. */}
+            <span>{tab.label}</span>
           </button>
         ))}
       </nav>

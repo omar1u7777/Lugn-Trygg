@@ -1119,27 +1119,7 @@
     "inLeaderboard": "In community leaderboard",
     "activeMember": "Active Member",
     "partOfUsers": "Part of {{count}} users",
-    "clickToShare": "💡 Click an achievement to share it with friends",
-    "guidelines": {
-      "title": "Community Guidelines",
-      "supportive": "Be supportive",
-      "supportiveDesc": "Encourage and uplift community members",
-      "respectful": "Be respectful",
-      "respectfulDesc": "Treat everyone with kindness and respect",
-      "privacy": "Protect privacy",
-      "privacyDesc": "Never share personal information",
-      "report": "Report issues",
-      "reportDesc": "Flag inappropriate content immediately"
-    },
-    "whyJoin": "Why join the community?",
-    "benefits": {
-      "motivation": "Motivation & support",
-      "motivationDesc": "Be encouraged by others on the same journey",
-      "accountability": "Accountability",
-      "accountabilityDesc": "Stay engaged with group challenges",
-      "sharedSuccess": "Shared success",
-      "sharedSuccessDesc": "Celebrate achievements together"
-    }
+    "clickToShare": "💡 Click an achievement to share it with friends"
   },
   "ai": {
     "stories": {
