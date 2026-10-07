@@ -117,7 +117,7 @@ python-json-logger==4.1.0
 # Utilities
 Pillow==12.3.0
 python-dateutil==2.9.0.post0
-pytz==2026.3.post1
+pytz==2026.5
 
 # Two-Factor Authentication
 pyotp==2.10.0
