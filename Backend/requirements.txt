@@ -91,7 +91,7 @@ google-cloud-firestore==2.28.1
 # is running so the environment is at least reproducible; the trigger itself —
 # one unbounded stream over every user — is fixed in data_retention_service by
 # paging. If that error returns, these two pins are the lever to move.
-grpcio==1.83.0
+grpcio==1.84.0
 grpcio-status==1.83.0
 google-api-core==2.34.0
 
