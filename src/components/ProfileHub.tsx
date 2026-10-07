@@ -1027,6 +1027,8 @@ const ProfileHub: React.FC = () => {
           await deleteAccount(user.user_id, password);
         }}
         onCancel={() => setDeleteAccountModal(false)}
+        // The backend has ended the session; leave the signed-in app.
+        onDeleted={() => { void logout(); }}
       />
 
       {/* Snackbar */}

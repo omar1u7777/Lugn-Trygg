@@ -1803,7 +1803,26 @@
     "settingsLoadFailed": "Could not load your saved settings. Reload the page before changing anything.",
     "memberForDays_one": "Member for {{count}} day",
     "memberForDays_other": "Member for {{count}} days",
-    "pushBlocked": "Your browser is blocking notifications from Lugn & Trygg. Allow them in your browser settings and try again."
+    "pushBlocked": "Your browser is blocking notifications from Lugn & Trygg. Allow them in your browser settings and try again.",
+    "deleteFlow": {
+      "title": "Delete your account?",
+      "warningClosed": "The account is closed at once and you are signed out",
+      "warningData": "Your mood logs, journal entries, conversations and other data are permanently erased after {{days}} days",
+      "warningFinal": "After that, nothing can be restored",
+      "alternative": "Just need a break? You can sign out and come back whenever you like, without losing anything.",
+      "continue": "Continue",
+      "confirmTitle": "Confirm deletion",
+      "confirmText": "If you change your mind within {{days}} days, support can restore the account. Email {{email}} from the address you signed up with.",
+      "confirmWord": "DELETE",
+      "typeToConfirm": "Type \"{{word}}\" to confirm:",
+      "passwordLabel": "Confirm with your password:",
+      "passwordRequired": "Your password is required to delete the account",
+      "failed": "The account could not be deleted. Check your password and try again.",
+      "submit": "Delete account",
+      "doneTitle": "Your account is closed",
+      "doneText": "All your data will be permanently erased by {{date}}. If you change your mind before then, email {{email}}.",
+      "doneButton": "Sign out"
+    }
   },
   "wellnessGoalLabels": {
     "Hantera stress": {

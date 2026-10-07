@@ -1803,7 +1803,26 @@
     "settingsLoadFailed": "Kunne ikke hente dine lagrede innstillinger. Last inn siden på nytt før du endrer noe.",
     "memberForDays_one": "Medlem i {{count}} dag",
     "memberForDays_other": "Medlem i {{count}} dager",
-    "pushBlocked": "Nettleseren blokkerer varsler fra Lugn & Trygg. Tillat dem i nettleserinnstillingene og prøv igjen."
+    "pushBlocked": "Nettleseren blokkerer varsler fra Lugn & Trygg. Tillat dem i nettleserinnstillingene og prøv igjen.",
+    "deleteFlow": {
+      "title": "Slette kontoen din?",
+      "warningClosed": "Kontoen stenges med en gang, og du logges ut",
+      "warningData": "Humørloggene, dagboksnotatene, samtalene og andre data slettes permanent etter {{days}} dager",
+      "warningFinal": "Etter det kan ingenting gjenopprettes",
+      "alternative": "Trenger du bare en pause? Du kan logge ut og komme tilbake når du vil, uten at noe forsvinner.",
+      "continue": "Fortsett",
+      "confirmTitle": "Bekreft sletting",
+      "confirmText": "Angrer du deg innen {{days}} dager, kan kundestøtte gjenopprette kontoen. Send e-post til {{email}} fra adressen du registrerte deg med.",
+      "confirmWord": "SLETT",
+      "typeToConfirm": "Skriv «{{word}}» for å bekrefte:",
+      "passwordLabel": "Bekreft med passordet ditt:",
+      "passwordRequired": "Passord kreves for å slette kontoen",
+      "failed": "Kontoen kunne ikke slettes. Sjekk passordet og prøv igjen.",
+      "submit": "Slett kontoen",
+      "doneTitle": "Kontoen din er stengt",
+      "doneText": "Alle dataene dine slettes permanent senest {{date}}. Angrer du deg før det, send e-post til {{email}}.",
+      "doneButton": "Logg ut"
+    }
   },
   "wellnessGoalLabels": {
     "Hantera stress": {

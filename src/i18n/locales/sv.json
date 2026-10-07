@@ -1803,7 +1803,26 @@
     "settingsLoadFailed": "Kunde inte hämta dina sparade inställningar. Ladda om sidan innan du ändrar något.",
     "memberForDays_one": "Medlem i {{count}} dag",
     "memberForDays_other": "Medlem i {{count}} dagar",
-    "pushBlocked": "Webbläsaren blockerar notiser från Lugn & Trygg. Tillåt dem i webbläsarens inställningar och försök igen."
+    "pushBlocked": "Webbläsaren blockerar notiser från Lugn & Trygg. Tillåt dem i webbläsarens inställningar och försök igen.",
+    "deleteFlow": {
+      "title": "Radera ditt konto?",
+      "warningClosed": "Kontot stängs direkt och du loggas ut",
+      "warningData": "Dina humörloggar, dagboksanteckningar, samtal och övrig data raderas permanent efter {{days}} dagar",
+      "warningFinal": "Efter det går ingenting att återställa",
+      "alternative": "Vill du bara ta en paus? Du kan logga ut och komma tillbaka när du vill, utan att något försvinner.",
+      "continue": "Fortsätt",
+      "confirmTitle": "Bekräfta radering",
+      "confirmText": "Ångrar du dig inom {{days}} dagar kan supporten återställa kontot. Mejla {{email}} från den adress du registrerade dig med.",
+      "confirmWord": "RADERA",
+      "typeToConfirm": "Skriv \"{{word}}\" för att bekräfta:",
+      "passwordLabel": "Bekräfta med ditt lösenord:",
+      "passwordRequired": "Lösenord krävs för att radera kontot",
+      "failed": "Kontot kunde inte raderas. Kontrollera ditt lösenord och försök igen.",
+      "submit": "Radera kontot",
+      "doneTitle": "Ditt konto är stängt",
+      "doneText": "All din data raderas permanent senast {{date}}. Ångrar du dig innan dess, mejla {{email}}.",
+      "doneButton": "Logga ut"
+    }
   },
   "wellnessGoalLabels": {
     "Hantera stress": {
