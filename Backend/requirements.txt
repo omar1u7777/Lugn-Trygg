@@ -39,7 +39,7 @@ openai==1.58.1
 # AI & ML - Google Cloud (pinned, minimal)
 google-cloud-speech==2.40.0
 google-cloud-language==2.20.0
-google-cloud-storage==3.13.0
+google-cloud-storage==3.16.0
 
 # ML & Data Science (pinned)
 scikit-learn==1.8.0
