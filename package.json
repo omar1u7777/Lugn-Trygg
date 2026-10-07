@@ -54,7 +54,7 @@
     "tailwind-merge": "^3.4.0",
     "web-vitals": "^3.5.0",
     "whatwg-fetch": "^3.6.20",
-    "zod": "^4.3.6"
+    "zod": "^4.6.5"
   },
   "//engines": "Declares the floor, not a ceiling: local development runs newer Node than production and that is fine. What matters is that CI builds on the SAME version Vercel does — CI ran 20 while Vercel built on 22.x, so a build could pass every check and still differ in production. .nvmrc and .github/workflows/frontend-ci.yml both pin 22 to match Vercel; change them together.",
   "engines": {
