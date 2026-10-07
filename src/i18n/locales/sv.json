@@ -1656,7 +1656,9 @@
     "compact": {
       "streakDays_one": "🔥 {{count}} dag",
       "streakDays_other": "🔥 {{count}} dagar"
-    }
+    },
+    "moreRecommendations": "Fler rekommendationer 📚",
+    "matchingRecommendations": "Rekommendationer som matchar"
   },
   "wellnessHub": {
     "title": "Välmåendebibliotek",
