@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { analytics } from '../services/analytics';
@@ -494,6 +494,17 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     filteredRecommendations, sortLabel,
   } = useRecommendationFilters(recommendations);
 
+  // Each recommendation once. Unfiltered, the first three are featured and the
+  // list below holds the rest; filtered, the featured row steps aside and the
+  // list holds every match.
+  const FEATURED_COUNT = 3;
+  const showFeatured = !hasActiveFilters;
+  const moreRecommendations = useMemo(() => {
+    if (!showFeatured) return filteredRecommendations;
+    const featuredIds = new Set(recommendations.slice(0, FEATURED_COUNT).map((rec) => rec.id));
+    return filteredRecommendations.filter((rec) => !featuredIds.has(rec.id));
+  }, [showFeatured, filteredRecommendations, recommendations]);
+
   const getRecommendationMatchReason = (recommendation: Recommendation): string | null => {
     const recommendationText = `${recommendation.title} ${recommendation.description} ${recommendation.tags.join(' ')} ${recommendation.category}`.toLowerCase();
 
@@ -976,13 +987,13 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       </div>
 
       {/* Featured Recommendations */}
-      {!loading && !error && recommendations.length > 0 && (
+      {!loading && !error && showFeatured && recommendations.length > 0 && (
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
             {t('recommendations.featured.title', '🌟 Rekommenderat för Dig')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {recommendations.slice(0, 3).map((recommendation) => (
+            {recommendations.slice(0, FEATURED_COUNT).map((recommendation) => (
               <div
                 key={`featured-${recommendation.id}`}
                 className="bg-linear-to-br from-primary-50 to-secondary-50 dark:from-primary-900/20 dark:to-secondary-900/20 rounded-xl border border-primary-200 dark:border-primary-800 p-6 hover:shadow-lg transition-all duration-300"
@@ -1129,20 +1140,21 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         </div>
       )}
 
-      {/* All Recommendations Section */}
-      {!loading && !error && filteredRecommendations.length > 0 && (
+      {/* The rest. "Alla rekommendationer" used to repeat the three cards
+          shown just above under "Rekommenderat för dig" (UI audit Dup-4). */}
+      {!loading && !error && moreRecommendations.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              {t('recommendations.allRecommendations', 'Alla Rekommendationer 📚')}
+              {showFeatured ? t('recommendations.moreRecommendations') : t('recommendations.matchingRecommendations')}
             </h2>
             <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {t('recommendations.filter.resultsCount', '{{count}} resultat', { count: filteredRecommendations.length })}
+              {t('recommendations.filter.resultsCount', '{{count}} resultat', { count: moreRecommendations.length })}
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            {filteredRecommendations.map((recommendation) => (
+            {moreRecommendations.map((recommendation) => (
               <RecommendationCard
                 key={recommendation.id}
                 recommendation={recommendation}
