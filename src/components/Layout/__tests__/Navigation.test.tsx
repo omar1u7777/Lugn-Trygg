@@ -36,6 +36,7 @@ vi.mock('react-i18next', () => ({
         'settings.darkMode': 'Mörkt läge',
         'settings.lightMode': 'Ljust läge',
         'navigation.unlockUnlimited': 'Uppgradera till premium',
+        'navigation.openMenu': 'Öppna meny',
       };
       return translations[key] || key;
     },
@@ -51,13 +52,6 @@ vi.mock('../ProfileDropdown', () => ({
   __esModule: true,
   default: ({ isPremium, planLabel }: { isPremium?: boolean; planLabel?: string }) => (
     <div>
-      <button
-        aria-label="Byt till mörkt läge"
-        onClick={() => mockToggleTheme()}
-      >
-        Tema
-      </button>
-      <div data-testid="language-switcher" />
       <button
         title="Logga ut"
         onClick={() => mockLogout()}
@@ -120,27 +114,12 @@ describe('Navigation', () => {
       expect(mockLogout).toHaveBeenCalledTimes(1);
     });
 
-    it('renders theme toggle button', () => {
+    it('has no upgrade button or menu drawer of its own (UI audit N-1, Dup-11)', () => {
+      // The sidebar's upgrade card and the bottom bar's "Utforska" sheet are
+      // the single upgrade entry and route list for each screen size.
       renderNavigation();
-      const themeButton = screen.getByLabelText('Byt till mörkt läge');
-      expect(themeButton).toBeInTheDocument();
-    });
-
-    it('calls toggleTheme when theme button is clicked', () => {
-      renderNavigation();
-      const themeButton = screen.getByLabelText('Byt till mörkt läge');
-      fireEvent.click(themeButton);
-      expect(mockToggleTheme).toHaveBeenCalledTimes(1);
-    });
-
-    it('renders language switcher', () => {
-      renderNavigation();
-      expect(screen.getByTestId('language-switcher')).toBeInTheDocument();
-    });
-
-    it('shows upgrade link for free users', () => {
-      renderNavigation();
-      expect(screen.getByLabelText('Uppgradera till premium')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Uppgradera till premium')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Öppna meny' })).toBeNull();
     });
 
     it('does not show premium badge for free users', () => {
@@ -167,10 +146,6 @@ describe('Navigation', () => {
       expect(screen.getByText('Premium')).toBeInTheDocument();
     });
 
-    it('does not show upgrade link for premium users', () => {
-      renderNavigation();
-      expect(screen.queryByLabelText('Uppgradera till premium')).toBeNull();
-    });
   });
 
   describe('when not logged in', () => {
@@ -199,7 +174,12 @@ describe('Navigation', () => {
 
     it('still renders theme toggle', () => {
       renderNavigation('/');
-      expect(screen.getByLabelText('Byt till mörkt läge')).toBeInTheDocument();
+      expect(screen.getAllByLabelText('Byt till mörkt läge').length).toBeGreaterThan(0);
+    });
+
+    it('keeps the menu button, since there is no bottom bar when signed out', () => {
+      renderNavigation('/');
+      expect(screen.getByRole('button', { name: 'Öppna meny' })).toBeInTheDocument();
     });
   });
 });

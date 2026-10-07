@@ -28,7 +28,8 @@ import {
   SparklesIcon,
   StarIcon,
   CreditCardIcon,
-  GiftIcon
+  GiftIcon,
+  ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 
 interface TabPanelProps {
@@ -67,7 +68,7 @@ interface ProfileStats {
 
 const ProfileHub: React.FC = () => {
   const { t } = useTranslation();
-  const { user, setUser } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
   const { plan, isPremium, isTrial, usage, getRemainingMoodLogs, getRemainingMessages } = useSubscription();
   /*
@@ -851,6 +852,22 @@ const ProfileHub: React.FC = () => {
               onClick={() => setDeleteAccountModal(true)}
             >
               {t('profileHub.deleteAccount')}
+            </Button>
+            {/* Below lg the "Profil" tab in the bottom bar is the account entry
+                (there is no account menu in the header there), so signing out
+                has to be reachable from this page. From lg the header's account
+                menu has it, and showing it twice is what the audit flagged. */}
+            <Button
+              variant="outline"
+              className="lg:hidden w-full min-h-[44px] flex items-center justify-center gap-2 md:col-span-2"
+              onClick={() => {
+                if (window.confirm(t('navigation.confirmLogout'))) {
+                  logout();
+                }
+              }}
+            >
+              <ArrowRightOnRectangleIcon className="w-5 h-5" aria-hidden="true" />
+              <span>{t('navigation.logout')}</span>
             </Button>
           </div>
         </div>

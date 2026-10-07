@@ -6,17 +6,12 @@ import {
   FREE_NAV_ITEMS,
   PREMIUM_NAV_ITEMS,
   SECONDARY_LINKS,
-  type NavItem,
 } from '../../config/navItems';
 import {
-  UserCircleIcon,
   SparklesIcon,
   ChevronDownIcon,
   ChevronUpIcon,
 } from '@heroicons/react/24/outline';
-import {
-  UserCircleIcon as UserCircleIconSolid,
-} from '@heroicons/react/24/solid';
 
 const PREMIUM_PATHS = new Set(PREMIUM_NAV_ITEMS.map(i => i.path));
 
@@ -27,9 +22,6 @@ const isPremiumPath = (pathname: string): boolean =>
   );
 
 
-const BOTTOM_ITEMS: NavItem[] = [
-  { path: '/profile', labelKey: 'sidebar.profile', labelDefault: 'Profil', icon: UserCircleIcon, iconActive: UserCircleIconSolid },
-];
 
 /**
  * Sidebar Navigation Component
@@ -44,7 +36,10 @@ const BOTTOM_ITEMS: NavItem[] = [
 const Sidebar: React.FC = memo(() => {
   const { t } = useTranslation();
   const location = useLocation();
-  const { isPremium } = useSubscription();
+  const { isPremium, isTrial } = useSubscription();
+  // A trial unlocks everything; it should not see a locked premium section or
+  // an upgrade card (UI audit Dup-11).
+  const hasFullAccess = isPremium || isTrial;
 
   // Centralized, robust active-state helper using React Router's matchPath.
   const isActiveRoute = useCallback(
@@ -61,7 +56,7 @@ const Sidebar: React.FC = memo(() => {
   }, [location.pathname]);
 
   // Memoize the data, not the JSX.
-  const navItems = useMemo(() => (isPremium ? [...FREE_NAV_ITEMS, ...PREMIUM_NAV_ITEMS] : FREE_NAV_ITEMS), [isPremium]);
+  const navItems = useMemo(() => (hasFullAccess ? [...FREE_NAV_ITEMS, ...PREMIUM_NAV_ITEMS] : FREE_NAV_ITEMS), [hasFullAccess]);
 
   return (
     <aside
@@ -111,7 +106,7 @@ const Sidebar: React.FC = memo(() => {
           })}
 
           {/* Collapsible premium section — reduces sidebar clutter for free users */}
-          {!isPremium && (
+          {!hasFullAccess && (
             <>
               <button
                 type="button"
@@ -177,7 +172,7 @@ const Sidebar: React.FC = memo(() => {
         </div>
 
         {/* Premium Upgrade Card */}
-        {!isPremium && (
+        {!hasFullAccess && (
           <PremiumUpgradeCard />
         )}
 
@@ -210,34 +205,8 @@ const Sidebar: React.FC = memo(() => {
           })}
         </div>
       </nav>
-
-      {/* Bottom Navigation */}
-      <div className="p-4 border-t border-[#f2e4d4] dark:border-slate-700">
-        {BOTTOM_ITEMS.map((item) => {
-          const active = isActiveRoute(item.path, item.allowNested);
-          const Icon = active ? item.iconActive : item.icon;
-          const label = t(item.labelKey, item.labelDefault);
-
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              title={label}
-              className={`
-                flex w-full min-w-0 items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
-                ${active
-                  ? 'bg-[#2c8374] text-white shadow-md'
-                  : 'text-[#6d645d] hover:bg-[#f2e4d4] hover:text-[#2f2a24] dark:text-gray-400 dark:hover:bg-slate-800'
-                }
-              `}
-              aria-current={active ? 'page' : undefined}
-            >
-              <Icon className="w-5 h-5" />
-              <span className="min-w-0 line-clamp-2 leading-5">{label}</span>
-            </Link>
-          );
-        })}
-      </div>
+      {/* No "Profil" link here: the account menu in the header is the one
+          entry to /profile on desktop. Both were shown at once (UI audit N-3). */}
     </aside>
   );
 });
