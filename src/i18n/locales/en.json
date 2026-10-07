@@ -1631,19 +1631,18 @@
       "updateTimeFailed": "Could not update reminder time. Try again."
     },
     "cbt": {
-      "selectMood": "Select your current mood",
       "errorLoad": "CBT data could not be loaded right now. Try again later.",
       "errorLoadShort": "CBT data could not be loaded right now.",
-      "mood": {
-        "neutral": "Neutral mood",
-        "highAnxiety": "High anxiety",
-        "lowMood": "Low mood",
-        "depression": "Depression",
-        "stress": "Stress",
-        "good": "Feeling good"
-      },
       "disclaimerPrefix": "⚠️ Important:",
-      "disclaimerBody": "These CBT exercises complement — they do not replace — professional psychotherapy. If you are seeking care, contact a licensed psychologist or psychotherapist. Crisis: {{emergency}} | Suicide Line: {{suicideLine}} | {{healthcare}}"
+      "disclaimerBody": "These CBT exercises complement — they do not replace — professional psychotherapy. If you are seeking care, contact a licensed psychologist or psychotherapist. Crisis: {{emergency}} | Suicide Line: {{suicideLine}} | {{healthcare}}",
+      "selectFocus": "What do you want to practise?",
+      "focus": {
+        "general": "Core skills",
+        "anxiety": "Anxiety and worry",
+        "stress": "Stress",
+        "thoughts": "Negative thoughts",
+        "activation": "Getting started with activities"
+      }
     },
     "disclaimer": {
       "crisisNumber": "🔹 Crisis numbers (Sweden): {{emergency}} (emergency) or {{healthcare}} (healthcare guide)",

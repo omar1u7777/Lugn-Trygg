@@ -1631,19 +1631,18 @@
       "updateTimeFailed": "Kunne ikke oppdatere påminnelsestiden. Prøv igjen."
     },
     "cbt": {
-      "selectMood": "Velg ditt nåværende humør",
       "errorLoad": "KBT-data kunne ikke lastes akkurat nå. Prøv igjen senere.",
       "errorLoadShort": "KBT-data kunne ikke lastes akkurat nå.",
-      "mood": {
-        "neutral": "Nøytralt humør",
-        "highAnxiety": "Høy angst",
-        "lowMood": "Lavt humør",
-        "depression": "Depresjon",
-        "stress": "Stress",
-        "good": "Føler meg bra"
-      },
       "disclaimerPrefix": "⚠️ Viktig:",
-      "disclaimerBody": "Disse kognitive øvelsene er et supplement til — ikke en erstatning for — profesjonell psykoterapi. Søker du behandling, kontakt autorisert psykolog eller psykoterapeut. Krise: {{emergency}} | Selvmordslinjen: {{suicideLine}} | {{healthcare}}"
+      "disclaimerBody": "Disse kognitive øvelsene er et supplement til — ikke en erstatning for — profesjonell psykoterapi. Søker du behandling, kontakt autorisert psykolog eller psykoterapeut. Krise: {{emergency}} | Selvmordslinjen: {{suicideLine}} | {{healthcare}}",
+      "selectFocus": "Hva vil du øve på?",
+      "focus": {
+        "general": "Grunnleggende ferdigheter",
+        "anxiety": "Angst og uro",
+        "stress": "Stress",
+        "thoughts": "Negative tanker",
+        "activation": "Komme i gang med aktiviteter"
+      }
     },
     "disclaimer": {
       "crisisNumber": "🔹 Krisenumre (Sverige): {{emergency}} (akutt) eller {{healthcare}} (helseguiden)",
