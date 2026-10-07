@@ -2,17 +2,15 @@
  * The application's navigation items, in one place.
  *
  * These lived inside Sidebar.tsx, which is `hidden lg:flex`. Below 1024px the
- * sidebar is not rendered at all, and the hamburger menu held only an /upgrade
- * link and the profile dropdown — so eight routes had no reachable entry point
+ * sidebar is not rendered at all, so eight routes had no reachable entry point
  * on a phone: /analytics, /crisis, /feedback, /integrations, /mood/advanced,
  * /mood/forecast, /referral and /weekly-analysis. /crisis is what makes that a
  * defect rather than an inconvenience.
  *
- * Exporting them from Sidebar.tsx would have been a smaller diff, but a
- * component file that also exports plain data breaks react-refresh (eslint says
- * so) and leaves the data owned by one of its two consumers. They belong beside
- * appRoutes and crisisResources instead: one definition, two renderers, and a
- * link added here shows up in both without anyone remembering to do it twice.
+ * Two renderers read these lists: the sidebar from lg, and the bottom bar's
+ * "Utforska" sheet below it. A link added here shows up in both without anyone
+ * remembering to do it twice, and MobileNavigation.test.tsx fails if the sheet
+ * ever drops one.
  */
 import React from 'react';
 import {
@@ -76,16 +74,6 @@ export interface SecondaryLink {
 }
 
 /** Always-visible items (available on the free plan). */
-/*
- * Exported because the sidebar is `hidden lg:flex`. Below 1024px it does not
- * exist, and the hamburger menu rendered only an /upgrade link and the profile
- * dropdown — so eight routes had no reachable entry point at all on a phone,
- * /crisis among them. A crisis page you cannot navigate to on a phone is the
- * one that matters least where it works and most where it does not.
- *
- * The lists live here rather than in a new module so there is exactly one
- * definition; Navigation renders the same three arrays into the mobile menu.
- */
 export const FREE_NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', labelKey: 'sidebar.home', labelDefault: 'Hem', icon: HomeIcon, iconActive: HomeIconSolid },
   { path: '/mood-basic', labelKey: 'sidebar.mood', labelDefault: 'Humör', icon: FaceSmileIcon, iconActive: FaceSmileIconSolid },

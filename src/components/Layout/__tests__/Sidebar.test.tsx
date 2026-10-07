@@ -30,7 +30,8 @@ describe('Sidebar', { timeout: 20000 }, () => {
     expect(dashboardLink?.getAttribute('aria-current')).toBe('page');
     expect(container.querySelector('a[href="/mood-basic"]')).toBeTruthy();
     expect(container.querySelector('a[href="/ai-chat"]')).toBeTruthy();
-    expect(container.querySelector('a[href="/profile"]')).toBeTruthy();
+    // The header's account menu is the one entry to /profile on desktop.
+    expect(container.querySelector('a[href="/profile"]')).toBeNull();
   });
 
   it('links to the crisis support page for free users', () => {
@@ -49,6 +50,15 @@ describe('Sidebar', { timeout: 20000 }, () => {
 
     expect(container.textContent).toContain('Uppgradera');
     expect(container.querySelector('a[href="/upgrade"]')).toBeTruthy();
+  });
+
+  it('treats a trial as full access: every route, no upgrade card (UI audit Dup-11)', () => {
+    mockUseSubscription.mockReturnValue({ isPremium: false, isTrial: true });
+    const { container } = renderSidebar();
+
+    expect(container.querySelector('a[href="/journal"]')).toBeTruthy();
+    expect(container.querySelector('a[href="/upgrade"]')).toBeNull();
+    expect(container.querySelector('#premium-nav-section')).toBeNull();
   });
 
   it('hides upgrade card for premium users', () => {

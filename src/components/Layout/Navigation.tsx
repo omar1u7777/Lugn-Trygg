@@ -1,15 +1,13 @@
-import React, { memo, useMemo, useState } from "react";
+import React, { memo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useSubscription } from "../../contexts/SubscriptionContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import { SparklesIcon, Bars3Icon } from "@heroicons/react/24/solid";
+import { Bars3Icon } from "@heroicons/react/24/solid";
 import MobileMenu from "./MobileMenu";
 import ProfileDropdown from "./ProfileDropdown";
-import LoadingSpinner from "../ui/LoadingSpinner";
-import { FREE_NAV_ITEMS, PREMIUM_NAV_ITEMS, SECONDARY_LINKS } from "../../config/navItems";
 
 // 🎨 Theme Toggle Button - Separerad komponent för DRY-princip
 const ThemeToggleButton = memo<{ className?: string }>(({ className = "" }) => {
@@ -33,54 +31,17 @@ const ThemeToggleButton = memo<{ className?: string }>(({ className = "" }) => {
 
 ThemeToggleButton.displayName = "ThemeToggleButton";
 
-// 👤 Authenticated Navigation - Separerad för prestanda
+// 👤 Account menu for signed-in users (desktop only, see Navigation below).
+//
+// The "Lås upp obegränsad tillgång" button that sat here was one of five
+// upgrade entry points on the same screen (UI audit Dup-11). On desktop the
+// sidebar's upgrade card is the one that stays.
 const AuthenticatedNav = memo(() => {
-  const { plan, loading: subscriptionLoading } = useSubscription();
-  const { t } = useTranslation();
-  
-  const focusRing = "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-500 focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900";
-  
-  // ✅ useMemo för prestanda - förhindra onödiga beräkningar
-  const isPremium = useMemo(() => 
-    plan.tier === "premium" || plan.tier === "enterprise", 
-    [plan.tier]
-  );
-  
-  const planBadgeLabel = useMemo(() => 
-    plan.tier === "enterprise" ? "Enterprise" : "Premium", 
-    [plan.tier]
-  );
+  const { plan } = useSubscription();
+  const isPremium = plan.tier === "premium" || plan.tier === "enterprise";
+  const planBadgeLabel = plan.tier === "enterprise" ? "Enterprise" : "Premium";
 
-  return (
-    <>
-      {/* Loading State */}
-      {subscriptionLoading ? (
-        <div className="flex items-center gap-2 px-3 py-2 min-h-[44px]">
-          <LoadingSpinner size="sm" />
-          <span className="text-xs text-gray-500 dark:text-gray-400">{t('common.loading')}</span>
-        </div>
-      ) : (
-        <>
-          {/* 🎯 Uppgradera-knapp - Förbättrad med specifika benefits */}
-          {!isPremium && (
-            <Link
-              to="/upgrade"
-              className={`hidden lg:flex items-center gap-2 bg-white dark:bg-slate-800 border-2 border-emerald-500/30 hover:border-emerald-500 dark:border-emerald-500/30 dark:hover:border-emerald-500 px-4 py-2 rounded-xl transition-all duration-200 min-h-[44px] group ${focusRing}`}
-              aria-label={t('navigation.unlockUnlimited')}
-            >
-              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                {t('navigation.unlockUnlimited')}
-              </span>
-              <SparklesIcon className="w-4 h-4 text-emerald-500 group-hover:rotate-12 transition-transform" />
-            </Link>
-          )}
-        </>
-      )}
-
-      {/* Profile Dropdown - Innehåller tema, språk, logout */}
-      <ProfileDropdown isPremium={isPremium} planLabel={planBadgeLabel} />
-    </>
-  );
+  return <ProfileDropdown isPremium={isPremium} planLabel={planBadgeLabel} />;
 });
 
 AuthenticatedNav.displayName = "AuthenticatedNav";
@@ -145,82 +106,6 @@ GuestNav.displayName = "GuestNav";
  * - Loading states för minskad osäkerhet
  * - Mobile menu istället för dold scroll
  */
-/**
- * The sidebar's links, for the hamburger menu.
- *
- * The sidebar is `hidden lg:flex`, so below 1024px it is not rendered at all —
- * and the hamburger held only an /upgrade link and the profile dropdown. Eight
- * routes were therefore unreachable on a phone: /analytics, /crisis, /feedback,
- * /integrations, /mood/advanced, /mood/forecast, /referral and /weekly-analysis.
- *
- * /crisis is why this is a defect rather than an inconvenience.
- *
- * Rendered from the same three arrays the sidebar renders, so a link added
- * there appears here without anyone remembering to do it twice.
- */
-const MobileNavLinks = memo<{ onNavigate: () => void }>(({ onNavigate }) => {
-  const { t } = useTranslation();
-  const { pathname } = useLocation();
-
-  const groups = [
-    { key: "free", items: FREE_NAV_ITEMS },
-    { key: "premium", items: PREMIUM_NAV_ITEMS },
-  ];
-
-  const linkClass = (active: boolean) =>
-    `flex items-center gap-3 px-3 py-3 rounded-xl font-medium transition-colors min-h-[44px] ${
-      active
-        ? "bg-[#2c8374] text-white"
-        : "text-[#6d645d] hover:bg-[#f2e4d4] hover:text-[#2f2a24] dark:text-gray-300 dark:hover:bg-slate-800 dark:hover:text-white"
-    }`;
-
-  return (
-    <nav className="flex flex-col gap-1 overflow-y-auto" aria-label={t("navigation.mainNav")}>
-      {groups.map(({ key, items }) => (
-        <React.Fragment key={key}>
-          {items.map((item) => {
-            const active = pathname === item.path;
-            const Icon = active ? item.iconActive : item.icon;
-            const label = t(item.labelKey, item.labelDefault);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={onNavigate}
-                aria-current={active ? "page" : undefined}
-                className={linkClass(active)}
-              >
-                <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
-                <span className="truncate">{label}</span>
-              </Link>
-            );
-          })}
-        </React.Fragment>
-      ))}
-
-      <hr className="my-2 border-gray-200 dark:border-slate-700" />
-
-      {SECONDARY_LINKS.map((link) => {
-        const active = pathname === link.path;
-        const Icon = link.icon;
-        const label = t(link.labelKey, link.labelDefault);
-        return (
-          <Link
-            key={link.path}
-            to={link.path}
-            onClick={onNavigate}
-            aria-current={active ? "page" : undefined}
-            className={linkClass(active)}
-          >
-            <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
-            <span className="truncate">{label}</span>
-          </Link>
-        );
-      })}
-    </nav>
-  );
-});
-MobileNavLinks.displayName = "MobileNavLinks";
 
 const Navigation: React.FC = () => {
   const { isLoggedIn } = useAuth();
@@ -257,34 +142,45 @@ const Navigation: React.FC = () => {
           </span>
         </Link>
 
-        {/* 📱 Desktop Navigation */}
-        <div className="hidden md:flex items-center gap-3">
-          {isLoggedIn ? <AuthenticatedNav /> : <GuestNav />}
-        </div>
+        {/*
+          One menu per screen size (UI audit N-1, Dup-6, Dup-11).
 
-        {/* 📱 Mobile Hamburger Menu Button */}
-        <button
-          type="button"
-          onClick={() => setShowMobileMenu(true)}
-          className={`lg:hidden flex items-center justify-center w-11 h-11 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 text-[#6d645d] dark:text-gray-400 rounded-xl transition-all duration-200 min-h-[44px] min-w-[44px] ${focusRing}`}
-          aria-label={t('navigation.openMenu')}
-        >
-          <Bars3Icon className="w-6 h-6" />
-        </button>
+          Signed in, below lg the bottom bar and its "Utforska" sheet are the
+          navigation and the "Profil" tab is the account entry; from lg the
+          sidebar and this account menu are. The hamburger drawer used to list
+          every route again below lg, and between md and lg it also repeated
+          the account menu shown next to it in this header.
+
+          Signed out there is no bottom bar, so the drawer stays, below md,
+          where the header itself has no room for login, register, theme and
+          language.
+        */}
+        {isLoggedIn ? (
+          <div className="hidden lg:flex items-center gap-3 ml-auto">
+            <AuthenticatedNav />
+          </div>
+        ) : (
+          <>
+            <div className="hidden md:flex items-center gap-3 ml-auto">
+              <GuestNav />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowMobileMenu(true)}
+              className={`md:hidden flex items-center justify-center w-11 h-11 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 text-[#6d645d] dark:text-gray-400 rounded-xl transition-all duration-200 min-h-[44px] min-w-[44px] ${focusRing}`}
+              aria-label={t('navigation.openMenu')}
+            >
+              <Bars3Icon className="w-6 h-6" />
+            </button>
+          </>
+        )}
       </nav>
 
-      {/* Mobile Menu */}
-      <MobileMenu isOpen={showMobileMenu} onClose={() => setShowMobileMenu(false)}>
-        {isLoggedIn ? (
-          <>
-            <MobileNavLinks onNavigate={() => setShowMobileMenu(false)} />
-            <hr className="my-2 border-gray-200 dark:border-slate-700" />
-            <AuthenticatedNav />
-          </>
-        ) : (
+      {!isLoggedIn && (
+        <MobileMenu isOpen={showMobileMenu} onClose={() => setShowMobileMenu(false)}>
           <GuestNav />
-        )}
-      </MobileMenu>
+        </MobileMenu>
+      )}
     </>
   );
 };
