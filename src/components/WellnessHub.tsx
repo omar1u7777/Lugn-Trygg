@@ -19,7 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import RelaxingSounds from './RelaxingSounds';
-import WellnessGoalsOnboarding from './Wellness/WellnessGoalsOnboarding';
+import WellnessGoalsDialog from './Wellness/WellnessGoalsDialog';
 import useAuth from '../hooks/useAuth';
 import { useWellnessTimer } from '../hooks/useWellnessTimer';
 import { useAudioPlayback } from '../hooks/useAudioPlayback';
@@ -297,6 +297,7 @@ const WellnessHub: React.FC = () => {
 
   // UI State
   const [showGoalsModal, setShowGoalsModal] = useState(false);
+  const closeGoalsModal = useCallback(() => setShowGoalsModal(false), []);
   const [activeBreathingExercise, setActiveBreathingExercise] = useState<MeditationOption | null>(null);
   const [selectedSleepStory, setSelectedSleepStory] = useState<MeditationOption | null>(null);
   const [sleepStoryPlaying, setSleepStoryPlaying] = useState(false);
@@ -894,32 +895,16 @@ const WellnessHub: React.FC = () => {
           </div>
         )}
 
-        {/* Goals Modal */}
-        {showGoalsModal && (
-          <div className="fixed inset-0 z-1100 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
-              <button
-                onClick={() => setShowGoalsModal(false)}
-                aria-label={t('wellnessHub.close')}
-                className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10 min-h-[44px] min-w-[44px] flex items-center justify-center"
-              >
-                <XMarkIcon className="w-6 h-6 text-gray-500" />
-              </button>
-
-              <div className="p-2 sm:p-4">
-                <WellnessGoalsOnboarding
-                  {...(user?.user_id ? { userId: user.user_id } : {})}
-                  initialGoals={userGoals}
-                  mode={userGoals.length > 0 ? 'edit' : 'onboarding'}
-                  onComplete={(goals) => {
-                    setUserGoals(goals);
-                    setShowGoalsModal(false);
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
+        <WellnessGoalsDialog
+          open={showGoalsModal}
+          userId={user?.user_id}
+          goals={userGoals}
+          onSaved={(goals) => {
+            setUserGoals(goals);
+            setShowGoalsModal(false);
+          }}
+          onClose={closeGoalsModal}
+        />
 
         {/* Breathing Exercise Modal */}
         {activeBreathingExercise && (

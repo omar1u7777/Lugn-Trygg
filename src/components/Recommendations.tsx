@@ -32,6 +32,7 @@ import { useRecommendations } from '../hooks/useRecommendations';
 import { CrisisAlertModal } from './recommendations/CrisisAlertModal';
 import { NotificationSettingsModal } from './recommendations/NotificationSettingsModal';
 import { CompactRecommendations } from './recommendations/CompactRecommendations';
+import WellnessGoalsDialog from './Wellness/WellnessGoalsDialog';
 import { CBTSection } from './recommendations/CBTSection';
 import { DebugPanel } from './recommendations/DebugPanel';
 import { RecommendationCard } from './recommendations/RecommendationCard';
@@ -69,6 +70,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
   const [userPreferences] = useState<string[]>(['mindfulness', 'stress', 'anxiety']);
   const [fetchedWellnessGoals, setFetchedWellnessGoals] = useState<string[]>([]);
+  const [showGoalsDialog, setShowGoalsDialog] = useState(false);
+  const closeGoalsDialog = useCallback(() => setShowGoalsDialog(false), []);
   const [goalsUnavailable, setGoalsUnavailable] = useState(false);
   const [showContentModal, setShowContentModal] = useState(false);
   const [completedRecommendationIds, setCompletedRecommendationIds] = useState<Record<string, boolean>>({});
@@ -1040,9 +1043,20 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
       {/* User Preferences */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-6 sm:mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-          {t('recommendations.preferences.title', 'Dina Intressen & Wellness-mål')}
-        </h3>
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {t('recommendations.preferences.title', 'Dina Intressen & Wellness-mål')}
+          </h3>
+          {user?.user_id && (
+            <button
+              type="button"
+              onClick={() => setShowGoalsDialog(true)}
+              className="shrink-0 px-3 py-2 min-h-[44px] text-sm font-medium text-primary-700 dark:text-primary-300 border border-primary-300 dark:border-primary-700 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20"
+            >
+              {t('dashboard.changeGoals')}
+            </button>
+          )}
+        </div>
 
         {/* Wellness Goals Display */}
         {fetchedWellnessGoals.length > 0 && (
@@ -2012,30 +2026,23 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           </div>
         </div>
 
-        {/* Call to Action */}
-        <div className="text-center mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
-          <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            {t('recommendations.footer.ctaTitle', 'Redo att Ta Nästa Steg? 🌟')}
-          </h4>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            {t('recommendations.footer.ctaBody', 'Fortsätt din resa mot bättre mental hälsa med våra dagliga utmaningar och meditationer')}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
-            >
-              {t('recommendations.footer.goToDashboard', 'Gå Till Dashboard')}
-            </button>
-            <button
-              onClick={() => navigate('/wellness')}
-              className="px-6 py-3 border border-primary-600 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 font-medium rounded-lg transition-colors"
-            >
-              {t('recommendations.footer.updateGoals', 'Uppdatera Dina Mål')}
-            </button>
-          </div>
-        </div>
+        {/*
+          A "Redo att ta nästa steg?" footer sat here with "Gå till dashboard"
+          (the navigation already has it) and "Uppdatera dina mål", which only
+          went to /wellness and left the person to find the goals card there
+          (UI audit Dup-18). "Ändra mål" above opens the editor in place.
+        */}
       </div>
+      <WellnessGoalsDialog
+        open={showGoalsDialog}
+        userId={user?.user_id}
+        goals={fetchedWellnessGoals}
+        onSaved={(goals) => {
+          setFetchedWellnessGoals(goals);
+          setShowGoalsDialog(false);
+        }}
+        onClose={closeGoalsDialog}
+      />
     </div>
   );
 });
