@@ -6,7 +6,8 @@ import { useFocusTrap } from '../Accessibility/SkipLink';
 
 interface WellnessGoalsDialogProps {
   open: boolean;
-  userId?: string;
+  /** Callers pass the auth user's id, which is undefined until it loads. */
+  userId?: string | undefined;
   /** The goals the person has now; the editor opens with them selected. */
   goals: string[];
   onSaved: (goals: string[]) => void;
