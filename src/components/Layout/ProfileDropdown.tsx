@@ -9,8 +9,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { extractDisplayName } from '../../utils/nameUtils';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
-import { useTheme } from '../../contexts/ThemeContext';
 
 interface ProfileDropdownProps {
   isPremium?: boolean;
@@ -20,7 +18,6 @@ interface ProfileDropdownProps {
 const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isPremium, planLabel }) => {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
-  const { isDarkMode, toggleTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
@@ -117,28 +114,9 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isPremium, planLabel 
 
             <div className="border-t border-gray-200 dark:border-slate-700 my-2" />
 
-            {/* Theme Toggle */}
-            <button
-              onClick={() => {
-                toggleTheme();
-                setIsOpen(false);
-              }}
-              className="flex items-center justify-between w-full px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-              role="menuitem"
-            >
-              <span>{t('navigation.theme')}</span>
-              <span className="text-lg">{isDarkMode ? '☀️' : '🌙'}</span>
-            </button>
-
-            {/* Language Switcher */}
-            <div className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-700">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700 dark:text-gray-300">{t('navigation.language')}</span>
-                <LanguageSwitcher compact />
-              </div>
-            </div>
-
-            <div className="border-t border-gray-200 dark:border-slate-700 my-2" />
+            {/* Theme and language were also here, one click away from the
+                same controls under Inställningar (UI audit Dup-6). They live
+                there only. */}
 
             {/* Logout Button */}
             <button

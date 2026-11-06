@@ -27,7 +27,15 @@ import { logger } from '../utils/logger';
 // ----------------------------------------------------------------------
 
 interface WorldClassGamificationProps {
-  onClose: () => void;
+  /** Omitted when embedded in a page that has its own navigation. */
+  onClose?: () => void;
+  /**
+   * The achievement list here is computed in the browser from six hardcoded
+   * rules. /rewards shows the backend's badges in its own tab, so it turns
+   * this off rather than show a second, differently counted list next to it
+   * (UI audit Dup-8, D-2).
+   */
+  showAchievements?: boolean;
 }
 
 interface Achievement {
@@ -130,7 +138,7 @@ const RarityBadge: React.FC<{ rarity: Achievement['rarity'] }> = ({ rarity }) =>
 // Main Component
 // ----------------------------------------------------------------------
 
-const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose }) => {
+const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose, showAchievements = true }) => {
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -280,9 +288,11 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
               {t('gamification.celebrateProgress')}
             </p>
           </div>
-          <button onClick={onClose} className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-xs hover:shadow-md transition-all border border-gray-100 dark:border-gray-700 min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label={t('common.close')}>
-            <XMarkIcon className="w-6 h-6 text-gray-500" />
-          </button>
+          {onClose && (
+            <button onClick={onClose} className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-xs hover:shadow-md transition-all border border-gray-100 dark:border-gray-700 min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label={t('common.close')}>
+              <XMarkIcon className="w-6 h-6 text-gray-500" />
+            </button>
+          )}
         </header>
 
         {/* Hero Section - Level & Progress */}
@@ -336,13 +346,15 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
               accentColor="bg-orange-500"
               className="bg-linear-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-orange-100 dark:border-orange-800/30"
             />
-            <BentoCard
-              title={`${stats.achievementsUnlocked}/${stats.totalAchievements}`}
-              subtitle={t('gamification.unlockedAchievements')}
-              icon={<TrophyIcon />}
-              accentColor="bg-yellow-500"
-              className="bg-linear-to-br from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-yellow-100 dark:border-yellow-800/30"
-            />
+            {showAchievements && (
+              <BentoCard
+                title={`${stats.achievementsUnlocked}/${stats.totalAchievements}`}
+                subtitle={t('gamification.unlockedAchievements')}
+                icon={<TrophyIcon />}
+                accentColor="bg-yellow-500"
+                className="bg-linear-to-br from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-yellow-100 dark:border-yellow-800/30"
+              />
+            )}
           </div>
         </div>
 
@@ -365,6 +377,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
         </div>
 
         {/* Achievements Section */}
+        {showAchievements && (
         <section className="mb-12">
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
             <TrophyIcon className="w-6 h-6 text-yellow-500" />
@@ -400,8 +413,10 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
           )}
         </section>
 
+        )}
+
         {/* Locked Achievements */}
-        {lockedList.length > 0 && (
+        {showAchievements && lockedList.length > 0 && (
           <section>
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2 opacity-80">
               <LockClosedIcon className="w-6 h-6 text-gray-400" />

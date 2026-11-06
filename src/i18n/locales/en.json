@@ -653,7 +653,8 @@
     "weeksUnit_one": "week",
     "weeksUnit_other": "weeks",
     "weeks_one": "{{count}} week",
-    "weeks_other": "{{count}} weeks"
+    "weeks_other": "{{count}} weeks",
+    "shareEmail": "Email"
   },
   "healthIntegrations": {
     "title": "Health integrations (OAuth)",
@@ -805,7 +806,7 @@
     "stopRecording": "Stop recording",
     "startRecording": "Record voice",
     "audioRecorded": "Voice recording ready",
-    "hideAdvanced": "▼ Hide advanced options",
+    "hideAdvanced": "▼ Fewer options",
     "showAdvanced": "▶ More options",
     "context": "Context (optional)",
     "contextPlaceholder": "e.g. \"home\", \"at work\", \"outside\"",
@@ -1118,27 +1119,7 @@
     "inLeaderboard": "In community leaderboard",
     "activeMember": "Active Member",
     "partOfUsers": "Part of {{count}} users",
-    "clickToShare": "💡 Click an achievement to share it with friends",
-    "guidelines": {
-      "title": "Community Guidelines",
-      "supportive": "Be supportive",
-      "supportiveDesc": "Encourage and uplift community members",
-      "respectful": "Be respectful",
-      "respectfulDesc": "Treat everyone with kindness and respect",
-      "privacy": "Protect privacy",
-      "privacyDesc": "Never share personal information",
-      "report": "Report issues",
-      "reportDesc": "Flag inappropriate content immediately"
-    },
-    "whyJoin": "Why join the community?",
-    "benefits": {
-      "motivation": "Motivation & support",
-      "motivationDesc": "Be encouraged by others on the same journey",
-      "accountability": "Accountability",
-      "accountabilityDesc": "Stay engaged with group challenges",
-      "sharedSuccess": "Shared success",
-      "sharedSuccessDesc": "Celebrate achievements together"
-    }
+    "clickToShare": "💡 Click an achievement to share it with friends"
   },
   "ai": {
     "stories": {
@@ -1445,18 +1426,12 @@
           "available": "Around the clock"
         },
         "suicideLine": {
-          "title": "Suicide Line (Sweden)",
-          "subtitle": "Phone line for you in crisis",
-          "description": "Talk about suicidal thoughts and existential distress",
+          "title": "Mind Suicide Line (Sweden)",
+          "subtitle": "Phone and chat for you in crisis",
+          "description": "Talk about suicidal thoughts and existential distress. Anonymous, by phone or in the chat.",
           "action": "Call {{number}}",
-          "available": "Around the clock"
-        },
-        "mindChat": {
-          "title": "Mind Suicide Line",
-          "subtitle": "Online chat service",
-          "description": "Anonymous chat if you have suicidal thoughts. The same service is also reachable by phone.",
-          "action": "Open chat",
-          "available": "Around the clock"
+          "available": "Around the clock",
+          "chatAction": "Chat"
         },
         "healthcare": {
           "title": "Healthcare Guide 1177",
@@ -1656,19 +1631,18 @@
       "updateTimeFailed": "Could not update reminder time. Try again."
     },
     "cbt": {
-      "selectMood": "Select your current mood",
       "errorLoad": "CBT data could not be loaded right now. Try again later.",
       "errorLoadShort": "CBT data could not be loaded right now.",
-      "mood": {
-        "neutral": "Neutral mood",
-        "highAnxiety": "High anxiety",
-        "lowMood": "Low mood",
-        "depression": "Depression",
-        "stress": "Stress",
-        "good": "Feeling good"
-      },
       "disclaimerPrefix": "⚠️ Important:",
-      "disclaimerBody": "These CBT exercises complement — they do not replace — professional psychotherapy. If you are seeking care, contact a licensed psychologist or psychotherapist. Crisis: {{emergency}} | Suicide Line: {{suicideLine}} | {{healthcare}}"
+      "disclaimerBody": "These CBT exercises complement — they do not replace — professional psychotherapy. If you are seeking care, contact a licensed psychologist or psychotherapist. Crisis: {{emergency}} | Suicide Line: {{suicideLine}} | {{healthcare}}",
+      "selectFocus": "What do you want to practise?",
+      "focus": {
+        "general": "Core skills",
+        "anxiety": "Anxiety and worry",
+        "stress": "Stress",
+        "thoughts": "Negative thoughts",
+        "activation": "Getting started with activities"
+      }
     },
     "disclaimer": {
       "crisisNumber": "🔹 Crisis numbers (Sweden): {{emergency}} (emergency) or {{healthcare}} (healthcare guide)",
@@ -1682,7 +1656,9 @@
     "compact": {
       "streakDays_one": "🔥 {{count}} day",
       "streakDays_other": "🔥 {{count}} days"
-    }
+    },
+    "moreRecommendations": "More recommendations 📚",
+    "matchingRecommendations": "Matching recommendations"
   },
   "wellnessHub": {
     "title": "Wellness Library",
@@ -1802,7 +1778,27 @@
     "deleting": "Deleting...",
     "settingsLoadFailed": "Could not load your saved settings. Reload the page before changing anything.",
     "memberForDays_one": "Member for {{count}} day",
-    "memberForDays_other": "Member for {{count}} days"
+    "memberForDays_other": "Member for {{count}} days",
+    "pushBlocked": "Your browser is blocking notifications from Lugn & Trygg. Allow them in your browser settings and try again.",
+    "deleteFlow": {
+      "title": "Delete your account?",
+      "warningClosed": "The account is closed at once and you are signed out",
+      "warningData": "Your mood logs, journal entries, conversations and other data are permanently erased after {{days}} days",
+      "warningFinal": "After that, nothing can be restored",
+      "alternative": "Just need a break? You can sign out and come back whenever you like, without losing anything.",
+      "continue": "Continue",
+      "confirmTitle": "Confirm deletion",
+      "confirmText": "If you change your mind within {{days}} days, support can restore the account. Email {{email}} from the address you signed up with.",
+      "confirmWord": "DELETE",
+      "typeToConfirm": "Type \"{{word}}\" to confirm:",
+      "passwordLabel": "Confirm with your password:",
+      "passwordRequired": "Your password is required to delete the account",
+      "failed": "The account could not be deleted. Check your password and try again.",
+      "submit": "Delete account",
+      "doneTitle": "Your account is closed",
+      "doneText": "All your data will be permanently erased by {{date}}. If you change your mind before then, email {{email}}.",
+      "doneButton": "Sign out"
+    }
   },
   "wellnessGoalLabels": {
     "Hantera stress": {
@@ -2485,17 +2481,11 @@
     "exporting": "Exporting…",
     "exportSuccess": "Data exported successfully!",
     "downloadData": "Download Data",
-    "deleteData": "Delete All My Data",
-    "deleteDataTitle": "Delete All Your Data",
-    "deleteDataWarning": "This action is permanent and cannot be undone. All your mood logs, memories, and personal data will be deleted forever.",
-    "deleteDataConfirm": "To confirm, please type \"delete my data\" below:",
-    "confirmDelete": "Delete Forever",
-    "confirmTextMismatch": "Please type the confirmation text exactly",
-    "deleting": "Deleting…",
     "loading": "Loading privacy settings…",
     "loadFailed": "Failed to load privacy settings",
     "exportFailed": "Export failed",
-    "deleteFailed": "Deletion failed"
+    "monthsShort": "mo",
+    "deleteViaAccount": "Want your data erased? Use \"Delete account\" under Account Actions below. The account is closed at once and all data is permanently erased within 30 days."
   },
   "wellnessGoals": {
     "skip": "Skip",

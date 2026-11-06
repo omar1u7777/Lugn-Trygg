@@ -8,6 +8,7 @@ import React, { Component, ReactNode } from 'react';
 import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { logger } from '../../utils/logger';
 import { captureException } from '../../services/sentryClient';
+import { isStaleBundleError, recoverFromStaleBundle } from '../../utils/staleBundle';
 
 
 interface Props {
@@ -21,6 +22,8 @@ interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: React.ErrorInfo | null;
+  /** A stale chunk after a deploy; the page is reloading onto the new one. */
+  reloading: boolean;
 }
 
 export class FeatureErrorBoundary extends Component<Props, State> {
@@ -30,15 +33,29 @@ export class FeatureErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
+      reloading: false,
     };
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
-    return { hasError: true, error };
+    // These boundaries wrap the lazy routes, so they see a stale chunk before
+    // the app-level ErrorBoundary does. "Försök igen" cannot fix it (the file
+    // is gone from the deploy), a reload can.
+    const reloading = isStaleBundleError(error) && recoverFromStaleBundle();
+    return { hasError: true, error, reloading };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.setState({ errorInfo });
+
+    // Expected once per open tab after every deploy, and handled by the
+    // reload. Reported only when the reload limit is spent (below).
+    if (this.state.reloading) {
+      logger.warn(`[${this.props.featureName}] Stale chunk after deploy, reloading`, {
+        message: error.message,
+      });
+      return;
+    }
     
     // Always log to console so production errors are visible in DevTools
     console.error(`[FeatureErrorBoundary][${this.props.featureName}]`, error);
@@ -66,10 +83,20 @@ export class FeatureErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
+      reloading: false,
     });
   };
 
   render() {
+    if (this.state.hasError && this.state.reloading) {
+      return (
+        <div role="status" className="flex items-center justify-center gap-2 p-8 text-sm text-gray-600 dark:text-gray-300">
+          <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />
+          En ny version av appen finns. Laddar om…
+        </div>
+      );
+    }
+
     if (this.state.hasError) {
       // Custom fallback provided
       if (this.props.fallback) {

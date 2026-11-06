@@ -697,7 +697,8 @@
     "weeksUnit_one": "uke",
     "weeksUnit_other": "uker",
     "weeks_one": "{{count}} uke",
-    "weeks_other": "{{count}} uker"
+    "weeks_other": "{{count}} uker",
+    "shareEmail": "E-post"
   },
   "healthIntegrations": {
     "title": "Helseintegrasjoner (OAuth)",
@@ -865,7 +866,7 @@
     "stopRecording": "Stopp opptak",
     "startRecording": "Ta opp tale",
     "audioRecorded": "Taleopptak klart",
-    "hideAdvanced": "▼ Skjul avanserte alternativer",
+    "hideAdvanced": "▼ Færre alternativer",
     "showAdvanced": "▶ Flere alternativer",
     "context": "Kontekst (valgfritt)",
     "contextPlaceholder": "f.eks. \"hjemme\", \"på jobb\", \"ute\"",
@@ -1162,27 +1163,7 @@
     "inLeaderboard": "I community topplistan",
     "activeMember": "Aktiv Medlem",
     "partOfUsers": "En del av {{count}} användare",
-    "clickToShare": "",
-    "guidelines": {
-      "title": "Community-riktlinjer",
-      "supportive": "Var stöttande",
-      "supportiveDesc": "Uppmuntra och lyfta community-medlemmar",
-      "respectful": "Var respektfull",
-      "respectfulDesc": "Behandla alla med vänlighet och respekt",
-      "privacy": "Skydda integritet",
-      "privacyDesc": "Dela aldrig personlig information",
-      "report": "Rapportera problem",
-      "reportDesc": "Flagga olämpligt innehåll omedelbart"
-    },
-    "whyJoin": "Varför ansluta till communityn?",
-    "benefits": {
-      "motivation": "Motivation & stöd",
-      "motivationDesc": "Bli uppmuntrad av andra på samma resa",
-      "accountability": "Ansvarighet",
-      "sharedSuccess": "Delad framgång",
-      "sharedSuccessDesc": "Fira prestationer tillsammans",
-      "accountabilityDesc": "Håll dig engagerad med grupputmaningar"
-    }
+    "clickToShare": ""
   },
   "dashboardStats": {
     "sectionTitle": "Statistikk Oversikt",
@@ -1445,18 +1426,12 @@
           "available": "Døgnet rundt"
         },
         "suicideLine": {
-          "title": "Selvmordslinjen (Sverige)",
-          "subtitle": "Telefonvakt for deg i krise",
-          "description": "Samtale om selvmordstanker og eksistensiell angst",
+          "title": "Mind Selvmordslinjen (Sverige)",
+          "subtitle": "Telefon og chat for deg i krise",
+          "description": "Samtale om selvmordstanker og eksistensiell angst. Anonymt, på telefon eller i chatten.",
           "action": "Ring {{number}}",
-          "available": "Døgnet rundt"
-        },
-        "mindChat": {
-          "title": "Mind Selvmordslinjen",
-          "subtitle": "Chattjeneste på nett",
-          "description": "Anonym chat for deg med selvmordstanker. Samme tjeneste kan også nås på telefon.",
-          "action": "Åpne chat",
-          "available": "Døgnet rundt"
+          "available": "Døgnet rundt",
+          "chatAction": "Chat"
         },
         "healthcare": {
           "title": "Vårdguiden 1177 (Sverige)",
@@ -1656,19 +1631,18 @@
       "updateTimeFailed": "Kunne ikke oppdatere påminnelsestiden. Prøv igjen."
     },
     "cbt": {
-      "selectMood": "Velg ditt nåværende humør",
       "errorLoad": "KBT-data kunne ikke lastes akkurat nå. Prøv igjen senere.",
       "errorLoadShort": "KBT-data kunne ikke lastes akkurat nå.",
-      "mood": {
-        "neutral": "Nøytralt humør",
-        "highAnxiety": "Høy angst",
-        "lowMood": "Lavt humør",
-        "depression": "Depresjon",
-        "stress": "Stress",
-        "good": "Føler meg bra"
-      },
       "disclaimerPrefix": "⚠️ Viktig:",
-      "disclaimerBody": "Disse kognitive øvelsene er et supplement til — ikke en erstatning for — profesjonell psykoterapi. Søker du behandling, kontakt autorisert psykolog eller psykoterapeut. Krise: {{emergency}} | Selvmordslinjen: {{suicideLine}} | {{healthcare}}"
+      "disclaimerBody": "Disse kognitive øvelsene er et supplement til — ikke en erstatning for — profesjonell psykoterapi. Søker du behandling, kontakt autorisert psykolog eller psykoterapeut. Krise: {{emergency}} | Selvmordslinjen: {{suicideLine}} | {{healthcare}}",
+      "selectFocus": "Hva vil du øve på?",
+      "focus": {
+        "general": "Grunnleggende ferdigheter",
+        "anxiety": "Angst og uro",
+        "stress": "Stress",
+        "thoughts": "Negative tanker",
+        "activation": "Komme i gang med aktiviteter"
+      }
     },
     "disclaimer": {
       "crisisNumber": "🔹 Krisenumre (Sverige): {{emergency}} (akutt) eller {{healthcare}} (helseguiden)",
@@ -1682,7 +1656,9 @@
     "compact": {
       "streakDays_one": "🔥 {{count}} dag",
       "streakDays_other": "🔥 {{count}} dager"
-    }
+    },
+    "moreRecommendations": "Flere anbefalinger 📚",
+    "matchingRecommendations": "Anbefalinger som passer"
   },
   "wellnessHub": {
     "title": "Velværebibliotek",
@@ -1802,7 +1778,27 @@
     "deleting": "Sletter...",
     "settingsLoadFailed": "Kunne ikke hente dine lagrede innstillinger. Last inn siden på nytt før du endrer noe.",
     "memberForDays_one": "Medlem i {{count}} dag",
-    "memberForDays_other": "Medlem i {{count}} dager"
+    "memberForDays_other": "Medlem i {{count}} dager",
+    "pushBlocked": "Nettleseren blokkerer varsler fra Lugn & Trygg. Tillat dem i nettleserinnstillingene og prøv igjen.",
+    "deleteFlow": {
+      "title": "Slette kontoen din?",
+      "warningClosed": "Kontoen stenges med en gang, og du logges ut",
+      "warningData": "Humørloggene, dagboksnotatene, samtalene og andre data slettes permanent etter {{days}} dager",
+      "warningFinal": "Etter det kan ingenting gjenopprettes",
+      "alternative": "Trenger du bare en pause? Du kan logge ut og komme tilbake når du vil, uten at noe forsvinner.",
+      "continue": "Fortsett",
+      "confirmTitle": "Bekreft sletting",
+      "confirmText": "Angrer du deg innen {{days}} dager, kan kundestøtte gjenopprette kontoen. Send e-post til {{email}} fra adressen du registrerte deg med.",
+      "confirmWord": "SLETT",
+      "typeToConfirm": "Skriv «{{word}}» for å bekrefte:",
+      "passwordLabel": "Bekreft med passordet ditt:",
+      "passwordRequired": "Passord kreves for å slette kontoen",
+      "failed": "Kontoen kunne ikke slettes. Sjekk passordet og prøv igjen.",
+      "submit": "Slett kontoen",
+      "doneTitle": "Kontoen din er stengt",
+      "doneText": "Alle dataene dine slettes permanent senest {{date}}. Angrer du deg før det, send e-post til {{email}}.",
+      "doneButton": "Logg ut"
+    }
   },
   "wellnessGoalLabels": {
     "Hantera stress": {
@@ -2485,17 +2481,11 @@
     "exporting": "Eksporterer…",
     "exportSuccess": "Opplysningene ble eksportert!",
     "downloadData": "Last ned data",
-    "deleteData": "Slett alle opplysningene mine",
-    "deleteDataTitle": "Slett alle opplysningene dine",
-    "deleteDataWarning": "Handlingen er permanent og kan ikke angres. Alle humørloggene, minnene og personopplysningene dine slettes for alltid.",
-    "deleteDataConfirm": "Skriv \"slett dataene mine\" nedenfor for å bekrefte:",
-    "confirmDelete": "Slett permanent",
-    "confirmTextMismatch": "Skriv bekreftelsesteksten nøyaktig",
-    "deleting": "Sletter…",
     "loading": "Laster personverninnstillinger…",
     "loadFailed": "Kunne ikke laste personverninnstillingene",
     "exportFailed": "Eksporten mislyktes",
-    "deleteFailed": "Slettingen mislyktes"
+    "monthsShort": "mnd",
+    "deleteViaAccount": "Vil du slette dataene dine? Bruk «Slett konto» under Kontohandlinger lenger ned. Kontoen stenges med en gang, og alle data slettes permanent innen 30 dager."
   },
   "wellnessGoals": {
     "skip": "Hopp over",

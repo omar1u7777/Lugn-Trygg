@@ -56,11 +56,16 @@ describe('crisis contact data has one source', () => {
     expect(dialled).not.toContain('0900');
   });
 
-  it('gives the Mind card a phone number, not only a chat link', () => {
-    // BUG-35: on this page Mind used to appear as chat and nothing else, which
-    // was the third different presentation of the same service in one app.
-    const mind = CRISIS_RESOURCES.find((r) => r.id === 'mindChat');
-    expect(mind?.phone).toBe(CRISIS_NUMBERS.suicideLine);
+  it('gives Mind one card with both its phone number and its chat', () => {
+    // BUG-35: on this page Mind used to appear as chat and nothing else. Then
+    // it appeared twice, as a phone card and a chat card under two names
+    // (UI audit Dup-14). One card, both ways in.
+    const mindCards = CRISIS_RESOURCES.filter(
+      (r) => r.phone === CRISIS_NUMBERS.suicideLine || r.chat?.includes('mind.se'),
+    );
+    expect(mindCards).toHaveLength(1);
+    expect(mindCards[0].phone).toBe(CRISIS_NUMBERS.suicideLine);
+    expect(mindCards[0].chat).toBe('https://mind.se/chatt/');
   });
 });
 

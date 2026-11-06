@@ -697,7 +697,8 @@
     "weeksUnit_one": "vecka",
     "weeksUnit_other": "veckor",
     "weeks_one": "{{count}} vecka",
-    "weeks_other": "{{count}} veckor"
+    "weeks_other": "{{count}} veckor",
+    "shareEmail": "E-post"
   },
   "healthIntegrations": {
     "title": "Hälsointegreringar (OAuth)",
@@ -893,7 +894,7 @@
     "stopRecording": "Stoppa inspelning",
     "startRecording": "Spela in röst",
     "audioRecorded": "Röstinspelning klar",
-    "hideAdvanced": "▼ Dölj avancerade alternativ",
+    "hideAdvanced": "▼ Färre alternativ",
     "showAdvanced": "▶ Fler alternativ",
     "context": "Kontext (valfritt)",
     "contextPlaceholder": "t.ex. \"hemma\", \"på jobbet\", \"ute\"",
@@ -1162,27 +1163,7 @@
     "inLeaderboard": "I community topplistan",
     "activeMember": "Aktiv Medlem",
     "partOfUsers": "En del av {{count}} användare",
-    "clickToShare": "",
-    "guidelines": {
-      "title": "Community-riktlinjer",
-      "supportive": "Var stöttande",
-      "supportiveDesc": "Uppmuntra och lyfta community-medlemmar",
-      "respectful": "Var respektfull",
-      "respectfulDesc": "Behandla alla med vänlighet och respekt",
-      "privacy": "Skydda integritet",
-      "privacyDesc": "Dela aldrig personlig information",
-      "report": "Rapportera problem",
-      "reportDesc": "Flagga olämpligt innehåll omedelbart"
-    },
-    "whyJoin": "Varför ansluta till communityn?",
-    "benefits": {
-      "motivation": "Motivation & stöd",
-      "motivationDesc": "Bli uppmuntrad av andra på samma resa",
-      "accountability": "Ansvarighet",
-      "accountabilityDesc": "Håll dig engagerad med grupputmaningar",
-      "sharedSuccess": "Delad framgång",
-      "sharedSuccessDesc": "Fira prestationer tillsammans"
-    }
+    "clickToShare": ""
   },
   "dashboardStats": {
     "sectionTitle": "Statistik Översikt",
@@ -1445,18 +1426,12 @@
           "available": "Dygnet runt"
         },
         "suicideLine": {
-          "title": "Självmordslinjen",
-          "subtitle": "Telefonjour för dig i kris",
-          "description": "Samtal om självmordstankar och existentiell ångest",
-          "action": "Ring {{number}}",
-          "available": "Dygnet runt"
-        },
-        "mindChat": {
           "title": "Mind Självmordslinjen",
-          "subtitle": "Chattjour online",
-          "description": "Anonym chatt för dig med självmordstankar. Samma tjänst nås även på telefon.",
-          "action": "Öppna chatt",
-          "available": "Dygnet runt"
+          "subtitle": "Telefon och chatt för dig i kris",
+          "description": "Samtal om självmordstankar och existentiell ångest. Anonymt, på telefon eller i chatten.",
+          "action": "Ring {{number}}",
+          "available": "Dygnet runt",
+          "chatAction": "Chatta"
         },
         "healthcare": {
           "title": "Vårdguiden 1177",
@@ -1656,19 +1631,18 @@
       "updateTimeFailed": "Kunde inte uppdatera påminnelsetiden. Försök igen."
     },
     "cbt": {
-      "selectMood": "Välj ditt nuvarande mående",
       "errorLoad": "CBT-data kunde inte laddas just nu. Försök igen senare.",
       "errorLoadShort": "CBT-data kunde inte laddas just nu.",
-      "mood": {
-        "neutral": "Neutralt mående",
-        "highAnxiety": "Hög ångest",
-        "lowMood": "Nedstämd",
-        "depression": "Depression",
-        "stress": "Stress",
-        "good": "Mår bra"
-      },
       "disclaimerPrefix": "⚠️ Viktigt:",
-      "disclaimerBody": "Dessa KBT-övningar är ett komplement till — inte en ersättning för — professionell psykoterapi. Söker du vård, kontakta legitimerad psykolog eller psykoterapeut. Kris: {{emergency}} | Självmordslinjen: {{suicideLine}} | {{healthcare}}"
+      "disclaimerBody": "Dessa KBT-övningar är ett komplement till — inte en ersättning för — professionell psykoterapi. Söker du vård, kontakta legitimerad psykolog eller psykoterapeut. Kris: {{emergency}} | Självmordslinjen: {{suicideLine}} | {{healthcare}}",
+      "selectFocus": "Vad vill du öva på?",
+      "focus": {
+        "general": "Grundläggande färdigheter",
+        "anxiety": "Ångest och oro",
+        "stress": "Stress",
+        "thoughts": "Negativa tankar",
+        "activation": "Komma igång med aktiviteter"
+      }
     },
     "disclaimer": {
       "crisisNumber": "🔹 Krisnummer Sverige: {{emergency}} (akut) eller {{healthcare}} (vårdguiden)",
@@ -1682,7 +1656,9 @@
     "compact": {
       "streakDays_one": "🔥 {{count}} dag",
       "streakDays_other": "🔥 {{count}} dagar"
-    }
+    },
+    "moreRecommendations": "Fler rekommendationer 📚",
+    "matchingRecommendations": "Rekommendationer som matchar"
   },
   "wellnessHub": {
     "title": "Välmåendebibliotek",
@@ -1802,7 +1778,27 @@
     "deleting": "Raderar...",
     "settingsLoadFailed": "Kunde inte hämta dina sparade inställningar. Ladda om sidan innan du ändrar något.",
     "memberForDays_one": "Medlem i {{count}} dag",
-    "memberForDays_other": "Medlem i {{count}} dagar"
+    "memberForDays_other": "Medlem i {{count}} dagar",
+    "pushBlocked": "Webbläsaren blockerar notiser från Lugn & Trygg. Tillåt dem i webbläsarens inställningar och försök igen.",
+    "deleteFlow": {
+      "title": "Radera ditt konto?",
+      "warningClosed": "Kontot stängs direkt och du loggas ut",
+      "warningData": "Dina humörloggar, dagboksanteckningar, samtal och övrig data raderas permanent efter {{days}} dagar",
+      "warningFinal": "Efter det går ingenting att återställa",
+      "alternative": "Vill du bara ta en paus? Du kan logga ut och komma tillbaka när du vill, utan att något försvinner.",
+      "continue": "Fortsätt",
+      "confirmTitle": "Bekräfta radering",
+      "confirmText": "Ångrar du dig inom {{days}} dagar kan supporten återställa kontot. Mejla {{email}} från den adress du registrerade dig med.",
+      "confirmWord": "RADERA",
+      "typeToConfirm": "Skriv \"{{word}}\" för att bekräfta:",
+      "passwordLabel": "Bekräfta med ditt lösenord:",
+      "passwordRequired": "Lösenord krävs för att radera kontot",
+      "failed": "Kontot kunde inte raderas. Kontrollera ditt lösenord och försök igen.",
+      "submit": "Radera kontot",
+      "doneTitle": "Ditt konto är stängt",
+      "doneText": "All din data raderas permanent senast {{date}}. Ångrar du dig innan dess, mejla {{email}}.",
+      "doneButton": "Logga ut"
+    }
   },
   "wellnessGoalLabels": {
     "Hantera stress": {
@@ -2485,17 +2481,11 @@
     "exporting": "Exporterar…",
     "exportSuccess": "Uppgifterna exporterades!",
     "downloadData": "Ladda ned data",
-    "deleteData": "Radera alla mina uppgifter",
-    "deleteDataTitle": "Radera alla dina uppgifter",
-    "deleteDataWarning": "Åtgärden är permanent och kan inte ångras. Alla dina humörloggar, minnen och personuppgifter raderas för alltid.",
-    "deleteDataConfirm": "Skriv \"radera mina uppgifter\" nedan för att bekräfta:",
-    "confirmDelete": "Radera permanent",
-    "confirmTextMismatch": "Skriv bekräftelsetexten exakt",
-    "deleting": "Raderar…",
     "loading": "Laddar integritetsinställningar…",
     "loadFailed": "Kunde inte ladda integritetsinställningarna",
     "exportFailed": "Exporten misslyckades",
-    "deleteFailed": "Raderingen misslyckades"
+    "monthsShort": "mån",
+    "deleteViaAccount": "Vill du radera din data? Använd \"Radera konto\" under Kontoåtgärder längre ner. Kontot stängs direkt och all data raderas permanent inom 30 dagar."
   },
   "wellnessGoals": {
     "skip": "Hoppa över",

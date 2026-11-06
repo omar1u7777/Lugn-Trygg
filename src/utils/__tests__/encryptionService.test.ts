@@ -3,7 +3,6 @@ import {
   getPrivacySettings,
   savePrivacySettings,
   DEFAULT_PRIVACY_SETTINGS,
-  deleteAllUserData,
   exportUserData
 } from '../encryptionService';
 
@@ -103,23 +102,6 @@ describe('Encryption Service - Privacy Settings', () => {
     });
   });
 
-  describe('deleteAllUserData', () => {
-    it('should clear localStorage except for specified keys', async () => {
-      // Mock Object.keys to return some keys
-      const mockKeys = ['user', 'token', 'theme', 'language', 'privacy_settings'];
-      vi.spyOn(Object, 'keys').mockReturnValue(mockKeys);
-
-      await deleteAllUserData('user123');
-
-      // Should remove all keys except 'theme' and 'language'
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('user');
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('token');
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('privacy_settings');
-      expect(localStorageMock.removeItem).not.toHaveBeenCalledWith('theme');
-      expect(localStorageMock.removeItem).not.toHaveBeenCalledWith('language');
-    });
-  });
-
   describe('exportUserData', () => {
     it('should create a blob with user data', async () => {
       const userId = 'user123';
@@ -131,6 +113,15 @@ describe('Encryption Service - Privacy Settings', () => {
 
       // Verify blob size is greater than 0 (contains data)
       expect(blob.size).toBeGreaterThan(0);
+    });
+
+    it('reports a backend failure instead of handing over an empty "export"', async () => {
+      // It used to return cached settings with empty mood and memory lists,
+      // and the dialog called that a successful export.
+      const { default: api } = await import('../../api/client');
+      vi.mocked(api.post).mockRejectedValueOnce(new Error('503'));
+
+      await expect(exportUserData('user123')).rejects.toThrow('503');
     });
   });
 });

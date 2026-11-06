@@ -2,10 +2,15 @@
 Create or promote a Firebase user to admin role.
 
 Usage:
-  python scripts/create_admin.py                  # Creates a NEW admin user
-  python scripts/create_admin.py <existing_email>  # Promotes existing user to admin
+  python scripts/create_admin.py <email>   # Promotes an existing user, or creates
+                                           # one (asks for a password)
+
+The password is read from the ADMIN_PASSWORD environment variable or prompted
+for. This script used to ship a default address and password, which made the
+first admin account's credentials public to anyone who could read the repo.
 """
 
+import getpass
 import os
 import sys
 
@@ -14,11 +19,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.firebase_config import auth, db
 
-ADMIN_EMAIL = "admin@lugn-trygg.com"
-ADMIN_PASSWORD = "LugnTrygg@Admin2026!"
+MIN_PASSWORD_LENGTH = 16
 
 
-def create_admin(email: str = ADMIN_EMAIL, password: str = ADMIN_PASSWORD):
+def _read_new_password() -> str | None:
+    password = os.getenv("ADMIN_PASSWORD") or getpass.getpass("New admin password: ")
+    if len(password) < MIN_PASSWORD_LENGTH:
+        print(f"❌ Use at least {MIN_PASSWORD_LENGTH} characters for an admin password.")
+        return None
+    return password
+
+
+def create_admin(email: str):
     """Create a new admin user or promote an existing one."""
     if db is None or auth is None:
         print("❌ Firebase not initialized. Check serviceAccountKey.json")
@@ -33,6 +45,9 @@ def create_admin(email: str = ADMIN_EMAIL, password: str = ADMIN_PASSWORD):
         pass
 
     if user_record is None:
+        password = _read_new_password()
+        if password is None:
+            return
         # Create new Firebase Auth user
         try:
             user_record = auth.create_user(
@@ -73,7 +88,6 @@ def create_admin(email: str = ADMIN_EMAIL, password: str = ADMIN_PASSWORD):
     print("🔑 ADMIN CREDENTIALS")
     print("=" * 50)
     print(f"  Email:    {email}")
-    print(f"  Password: {'*' * 8} (set during creation)")
     print(f"  UID:      {uid[:8]}***")
     print("  Role:     admin")
     print("=" * 50)
@@ -82,11 +96,7 @@ def create_admin(email: str = ADMIN_EMAIL, password: str = ADMIN_PASSWORD):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        # Promote existing user
-        existing_email = sys.argv[1]
-        print(f"🔄 Promoting {existing_email} to admin...")
-        create_admin(email=existing_email, password="(unchanged)")
-    else:
-        print("🆕 Creating new admin account...")
-        create_admin()
+    if len(sys.argv) != 2:
+        print(__doc__)
+        sys.exit(2)
+    create_admin(email=sys.argv[1])

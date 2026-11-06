@@ -94,18 +94,28 @@ export const CBTSection: React.FC<CBTSectionProps> = ({
         </div>
         <div className="flex items-center gap-2">
           {cbtLoading && <span className="text-sm text-blue-600 dark:text-blue-300">{t('recommendations.cbt.loading', 'Laddar...')}</span>}
+          {/*
+            These read as a mood ("Neutralt mående", "Nedstämd", "Depression",
+            "Mår bra"...), six of them overlapping, one of them a diagnosis
+            (UI audit Dup-5). What the choice actually does is set the
+            session's focus in the CBT engine, one focus per value, so that is
+            what they now say. "Mår bra" is gone: the engine has no focus for
+            it and fell back to the same choice as letting it decide.
+          */}
+          <label htmlFor="cbt-focus" className="text-sm text-gray-700 dark:text-gray-300">
+            {t('recommendations.cbt.selectFocus')}
+          </label>
           <select
-            value={cbtCurrentMood}
+            id="cbt-focus"
+            value={cbtCurrentMood === 'good' ? 'neutral' : cbtCurrentMood}
             onChange={(e) => setCbtCurrentMood(e.target.value)}
-            className="text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-1 focus:ring-2 focus:ring-primary-500"
-            aria-label={t('recommendations.cbt.selectMood', 'Välj ditt nuvarande mående')}
+            className="text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 min-h-[44px] focus:ring-2 focus:ring-primary-500"
           >
-            <option value="neutral">{t('recommendations.cbt.mood.neutral', 'Neutralt mående')}</option>
-            <option value="high_anxiety">{t('recommendations.cbt.mood.highAnxiety', 'Hög ångest')}</option>
-            <option value="low_mood">{t('recommendations.cbt.mood.lowMood', 'Nedstämd')}</option>
-            <option value="depression">{t('recommendations.cbt.mood.depression', 'Depression')}</option>
-            <option value="stress">{t('recommendations.cbt.mood.stress', 'Stress')}</option>
-            <option value="good">{t('recommendations.cbt.mood.good', 'Mår bra')}</option>
+            <option value="neutral">{t('recommendations.cbt.focus.general')}</option>
+            <option value="high_anxiety">{t('recommendations.cbt.focus.anxiety')}</option>
+            <option value="stress">{t('recommendations.cbt.focus.stress')}</option>
+            <option value="low_mood">{t('recommendations.cbt.focus.thoughts')}</option>
+            <option value="depression">{t('recommendations.cbt.focus.activation')}</option>
           </select>
         </div>
       </div>
