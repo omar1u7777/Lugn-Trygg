@@ -15,6 +15,7 @@ that support can reopen the account within those 30 days, and this is how.
 from __future__ import annotations
 
 import logging
+import os
 from datetime import UTC, datetime
 from typing import Any
 
@@ -26,6 +27,16 @@ except ImportError:  # pragma: no cover - the client library is a hard dependenc
 logger = logging.getLogger(__name__)
 
 DELETION_MARKER_FIELDS = ('deleted_at', 'deletion_reason', 'hard_delete_after')
+
+# Erasure cannot be undone, and the query has only been exercised against test
+# data. Until the operator sets this to "true" on the service, each night only
+# reports how many accounts it would erase. Read the count in the logs
+# (account_erasure_report), check it is plausible, then switch it on.
+ERASURE_ENABLED_ENV = 'ACCOUNT_ERASURE_ENABLED'
+
+
+def erasure_enabled() -> bool:
+    return os.getenv(ERASURE_ENABLED_ENV, '').strip().lower() == 'true'
 
 
 def _parse_timestamp(value: Any) -> datetime | None:
@@ -92,7 +103,9 @@ def erase_due_accounts(now: datetime | None = None) -> dict[str, Any]:
     that fails, keeps the profile and its marker for the next night's retry.
 
     Returns a summary in the shape the retention job reports, with `success`
-    False when any account could not be erased.
+    False when any account could not be erased. With erasure not enabled
+    (see ERASURE_ENABLED_ENV) nothing is deleted, `report_only` is True and
+    `due` says how many accounts would have been.
     """
     from src.firebase_config import auth, db
 
@@ -106,6 +119,13 @@ def erase_due_accounts(now: datetime | None = None) -> dict[str, Any]:
     except Exception as exc:
         logger.exception("Could not list accounts due for erasure")
         return {'success': False, 'error': str(exc), 'erased': 0, 'failed': 0}
+
+    if not erasure_enabled():
+        logger.warning(
+            "Account erasure is in report-only mode (%s is not 'true'): %d account(s) are due",
+            ERASURE_ENABLED_ENV, len(due),
+        )
+        return {'success': True, 'report_only': True, 'due': len(due), 'erased': 0, 'failed': 0}
 
     erased = 0
     failed: list[str] = []

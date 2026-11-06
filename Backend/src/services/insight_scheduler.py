@@ -148,6 +148,14 @@ class InsightNotificationScheduler:
             logger.error("🚨 Account erasure incomplete: %s", result.get('error'))
             return
 
+        if result.get('report_only'):
+            telemetry.event(
+                "account_erasure_report",
+                "Account erasure is report-only; nothing was deleted",
+                due=result.get('due', 0),
+            )
+            return
+
         telemetry.event(
             "account_erasure_completed",
             "Deleted-account erasure finished",

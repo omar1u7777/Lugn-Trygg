@@ -68,6 +68,42 @@ class TestWhichAccountsAreDue:
         assert find_due_accounts(_db_with(naive, zulu), NOW) == ['naive-user', 'zulu-user']
 
 
+@pytest.fixture
+def erasure_on(monkeypatch):
+    monkeypatch.setenv('ACCOUNT_ERASURE_ENABLED', 'true')
+
+
+class TestReportOnlyUntilSwitchedOn:
+    """Erasure cannot be undone, so it ships reporting a count until the
+    operator has seen that count and sets ACCOUNT_ERASURE_ENABLED=true."""
+
+    def _run(self, monkeypatch, value):
+        if value is None:
+            monkeypatch.delenv('ACCOUNT_ERASURE_ENABLED', raising=False)
+        else:
+            monkeypatch.setenv('ACCOUNT_ERASURE_ENABLED', value)
+        auth, purge = MagicMock(), MagicMock()
+        with patch('src.firebase_config.db', _db_with(_closed('gone-user', 1), _closed('fresh-user', -3))), \
+             patch('src.firebase_config.auth', auth), \
+             patch('src.routes.privacy_routes.purge_user_data', purge):
+            result = erase_due_accounts(NOW)
+        return result, auth, purge
+
+    @pytest.mark.parametrize('value', [None, '', 'false', 'yes', '1'])
+    def test_anything_but_true_deletes_nothing(self, monkeypatch, value):
+        result, auth, purge = self._run(monkeypatch, value)
+
+        auth.delete_user.assert_not_called()
+        purge.assert_not_called()
+        assert result == {'success': True, 'report_only': True, 'due': 1, 'erased': 0, 'failed': 0}
+
+    def test_true_erases(self, monkeypatch):
+        result, _, purge = self._run(monkeypatch, 'TRUE')
+        purge.assert_called_once_with('gone-user')
+        assert result['erased'] == 1
+
+
+@pytest.mark.usefixtures('erasure_on')
 class TestErasure:
     def _run(self, docs, auth=None, purge=None):
         auth = auth or MagicMock()
@@ -190,3 +226,9 @@ class TestTheNightlyRunAlertsOnFailure:
         telemetry = self._run({'success': True, 'erased': 3, 'failed': 0})
         assert not telemetry.critical.called
         assert telemetry.event.call_args[0][0] == 'account_erasure_completed'
+
+    def test_report_only_logs_the_count_not_a_completion(self):
+        telemetry = self._run({'success': True, 'report_only': True, 'due': 4, 'erased': 0, 'failed': 0})
+        assert not telemetry.critical.called
+        assert telemetry.event.call_args[0][0] == 'account_erasure_report'
+        assert telemetry.event.call_args.kwargs['due'] == 4
