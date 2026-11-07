@@ -24,6 +24,8 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
+from src.utils.log_ref import log_ref
+
 from ..config import (
     ACCESS_TOKEN_EXPIRES,
     FIREBASE_WEB_API_KEY,
@@ -152,7 +154,7 @@ class AuthService:
             ) from firestore_error
 
         user = User(uid=str(firebase_user.uid), email=str(email))
-        logger.info(f"✅ User registered with UID: {firebase_user.uid}")
+        logger.info("✅ User registered: %s", log_ref(firebase_user.uid))
 
         # Audit log
         AuthService._audit_log("USER_REGISTER", str(firebase_user.uid), {"email": _mask_email(email)})
@@ -238,10 +240,10 @@ class AuthService:
             try:
                 AuthRepository().update_last_login(user_uid)
             except Exception:
-                logger.warning("Failed to update last_login for user %s***", str(user_uid)[:8])
+                logger.warning("Failed to update last_login for %s", log_ref(user_uid))
 
             user = User(uid=str(user_uid), email=str(user_email))
-            logger.info("Login successful for user: %s***", str(user_uid)[:8])
+            logger.info("Login successful for %s", log_ref(user_uid))
 
             # Audit log
             AuthService._audit_log("USER_LOGIN", str(user_uid), {"email": _mask_email(email)})
@@ -328,7 +330,7 @@ class AuthService:
                 logger.warning("Failed to update last_login for user %s", user_id)
 
             user = User(uid=str(user_record.uid), email=str(user_record.email))
-            logger.info(f"✅ Login successful for user with UID: {user_record.uid}")
+            logger.info("✅ Login successful for %s", log_ref(user_record.uid))
 
             # Audit log
             AuthService._audit_log("USER_LOGIN", str(user_record.uid), {"email": _mask_email(str(user_record.email))})
@@ -549,7 +551,7 @@ class AuthService:
             if refresh_token:
                 _, revoke_error = AuthService.revoke_refresh_token(refresh_token, reason="logout")
                 if revoke_error:
-                    logger.warning("Targeted refresh token revoke failed for user %s: %s", user_id, revoke_error)
+                    logger.warning("Targeted refresh token revoke failed for %s: %s", log_ref(user_id), type(revoke_error).__name__)
                     AuthRepository().revoke_all_user_sessions(user_id, "logout_fallback")
             else:
                 AuthRepository().revoke_all_user_sessions(user_id, "logout")
@@ -728,7 +730,7 @@ class AuthService:
             audit_service = AuditService()
             audit_service.log_event("WEBAUTHN_REGISTER", user_id, {"credential_id": credential_id_b64})
 
-            logger.info(f"WebAuthn credential registered successfully for user {user_id}")
+            logger.info("WebAuthn credential registered for %s", log_ref(user_id))
             return True
 
         except Exception as e:
@@ -747,7 +749,7 @@ class AuthService:
                 credential_ids.append(base64url_to_bytes(cred_data["credential_id"]))
 
             if not credential_ids:
-                logger.warning(f"No WebAuthn credentials found for user {user_id}")
+                logger.warning("No WebAuthn credentials found for %s", log_ref(user_id))
                 return None
 
             # Generate authentication options using webauthn library

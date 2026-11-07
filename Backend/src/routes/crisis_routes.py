@@ -14,6 +14,7 @@ from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.crisis_intervention import crisis_intervention_service
 from src.services.rate_limiting import rate_limit_by_endpoint
+from src.utils.log_ref import log_ref
 from src.utils.response_utils import APIResponse
 
 crisis_bp = Blueprint('crisis', __name__)
@@ -128,7 +129,7 @@ def assess_crisis_risk():
             'needs_immediate_attention': assessment.overall_risk_level in ['critical', 'high']
         }
 
-        logger.info(f"📊 Crisis assessment completed for user {user_id[:8]}... Risk: {assessment.overall_risk_level}")
+        logger.info("📊 Crisis assessment completed for %s, risk: %s", log_ref(user_id), assessment.overall_risk_level)
 
         return APIResponse.success(response_data, "Crisis assessment completed")
 
@@ -280,7 +281,7 @@ def get_intervention_protocol(risk_level: str):
             'swedish_guidance': protocol.swedish_guidance
         }
 
-        logger.info(f"📋 Protocol retrieved for {risk_level} risk level by user {user_id[:8]}...")
+        logger.info("📋 Protocol retrieved for %s risk level by %s", risk_level, log_ref(user_id))
 
         return APIResponse.success(protocol_data, f"Protocol for {risk_level} risk level")
 
