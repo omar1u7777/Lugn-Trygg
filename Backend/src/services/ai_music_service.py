@@ -289,16 +289,18 @@ class NeuralAmbientSynthesizer:
             # Slight detuning for richness
             detune = random.uniform(-0.5, 0.5)
 
-            # ADSR envelope for each note (long attack, long release)
-            attack = int(self.sample_rate * (2 + i * 0.5))
-            release = int(self.sample_rate * 5)
+            # ADSR envelope for each note (long attack, long release), each at
+            # most half the clip: fixed 2-4.5 s and 5 s ramps did not fit a
+            # clip under 5 s, and overlapped in one under 9.5 s.
+            attack = min(int(self.sample_rate * (2 + i * 0.5)), samples // 2)
+            release = min(int(self.sample_rate * 5), samples // 2)
 
             note = np.sin(2 * np.pi * (freq + detune) * t)
 
             # Create envelope
             env = np.ones(samples)
             env[:attack] = np.linspace(0, 1, attack)
-            env[-release:] = np.linspace(1, 0, release)
+            env[samples - release:] = np.linspace(1, 0, release)
 
             # Decreasing amplitude for higher harmonics
             amplitude = 1.0 / (i + 1)
@@ -323,8 +325,9 @@ class NeuralAmbientSynthesizer:
         """Create fade in/out envelope."""
         envelope = np.ones(samples)
 
-        fade_in_samples = int(sample_rate * fade_in)
-        fade_out_samples = int(sample_rate * fade_out)
+        # Each fade takes at most half the clip, so short clips fit too.
+        fade_in_samples = min(int(sample_rate * fade_in), samples // 2)
+        fade_out_samples = min(int(sample_rate * fade_out), samples // 2)
 
         # Fade in
         if fade_in_samples > 0:

@@ -397,14 +397,17 @@ def _get_adaptive_recommendation(mood: str, time_of_day: str, activity: str) -> 
     if activity == 'relaxing' and time_of_day in ['evening', 'night']:
         final_type = time_rec
 
+    # Other options, each once and never the recommendation itself;
+    # nature_sim is always a safe fallback.
+    alternatives = list(dict.fromkeys(
+        option for option in (mood_rec['type'], time_rec, activity_rec, 'nature_sim')
+        if option != final_type
+    ))
+
     return {
         'recommended_soundscape': final_type,
         'reasoning': mood_rec.get('reason', 'Personalized for your state'),
-        'alternatives': [
-            time_rec,
-            activity_rec,
-            'nature_sim'  # Always a safe fallback
-        ],
+        'alternatives': alternatives,
         'parameters': {
             'suggested_duration': 600 if final_type == 'deep_sleep' else 300,
             'volume': 0.6 if mood in ['anxious', 'stressed'] else 0.7,
