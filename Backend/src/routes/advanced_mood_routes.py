@@ -335,8 +335,11 @@ def assess_phq9():
 
         try:
             validated = PHQ9Request.model_validate(data)
-        except Exception as ve:
-            return APIResponse.bad_request(f"Invalid PHQ-9 input: {ve}")
+        except Exception:
+            # Pydantic's text quotes the input and links its own docs.
+            return APIResponse.bad_request(
+                "Invalid PHQ-9 input: answer all nine questions with a whole number from 0 to 3"
+            )
 
         responses = validated.responses
         result = calculate_phq9(responses)
@@ -413,8 +416,10 @@ def assess_gad7():
 
         try:
             validated = GAD7Request.model_validate(data)
-        except Exception as ve:
-            return APIResponse.bad_request(f"Invalid GAD-7 input: {ve}")
+        except Exception:
+            return APIResponse.bad_request(
+                "Invalid GAD-7 input: answer all seven questions with a whole number from 0 to 3"
+            )
 
         responses = validated.responses
         result = calculate_gad7(responses)

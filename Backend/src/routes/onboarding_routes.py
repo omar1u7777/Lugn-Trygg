@@ -12,6 +12,7 @@ from src.firebase_config import db
 from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
+from src.utils.client_error import ClientError
 from src.utils.response_utils import APIResponse
 from src.utils.wellness_goals import ALLOWED_WELLNESS_GOALS, extract_and_validate_wellness_goals
 
@@ -40,8 +41,8 @@ def save_user_goals(user_id: str):
         data = request.get_json(silent=True)
         try:
             validated_goals = extract_and_validate_wellness_goals(data, field_name='goals')
-        except ValueError as validation_error:
-            return APIResponse.bad_request(str(validation_error))
+        except ClientError as invalid:
+            return APIResponse.from_client_error(invalid)
 
         if db is None:
             return APIResponse.error("Database connection unavailable", "DB_ERROR", 503)
@@ -129,8 +130,8 @@ def update_user_goals(user_id: str):
         data = request.get_json(silent=True)
         try:
             validated_goals = extract_and_validate_wellness_goals(data, field_name='goals')
-        except ValueError as validation_error:
-            return APIResponse.bad_request(str(validation_error))
+        except ClientError as invalid:
+            return APIResponse.from_client_error(invalid)
 
         if db is None:
             return APIResponse.error("Database connection unavailable", "DB_ERROR", 503)

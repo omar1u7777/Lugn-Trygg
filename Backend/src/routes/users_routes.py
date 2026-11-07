@@ -8,6 +8,7 @@ from ..firebase_config import db
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
+from ..utils.client_error import ClientError
 from ..utils.input_sanitization import sanitize_text
 from ..utils.response_utils import APIResponse
 from ..utils.wellness_goals import extract_and_validate_wellness_goals
@@ -351,9 +352,9 @@ def set_wellness_goals():
         data = request.get_json(silent=True)
         try:
             goals = extract_and_validate_wellness_goals(data, field_name='wellnessGoals')
-        except ValueError as validation_error:
-            logger.warning(f"Invalid wellnessGoals payload: {validation_error}")
-            return APIResponse.bad_request(str(validation_error))
+        except ClientError as invalid:
+            logger.warning("Invalid wellnessGoals payload: %s", invalid.message)
+            return APIResponse.from_client_error(invalid)
 
         logger.info(f"📝 Received wellness goals data: {goals}")
 

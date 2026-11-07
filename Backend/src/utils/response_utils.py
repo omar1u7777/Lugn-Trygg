@@ -11,6 +11,8 @@ from typing import Any
 
 from flask import jsonify
 
+from src.utils.client_error import ClientError
+
 logger = logging.getLogger(__name__)
 
 # Only include error details in debug mode to prevent information disclosure
@@ -122,6 +124,11 @@ class APIResponse:
     ) -> tuple:
         """Create a standardized 403 Forbidden response."""
         return APIResponse.error(message, "FORBIDDEN", 403, details)
+
+    @staticmethod
+    def from_client_error(err: ClientError) -> tuple:
+        """The response for an error whose message was written for the client."""
+        return APIResponse.error(err.message, err.code, err.status, err.details)
 
     @staticmethod
     def not_found(

@@ -116,7 +116,7 @@ def award_xp(user_id: str, action: str, amount: int | None = None) -> dict:
             'total_xp': 0,
             'level': 1,
             'leveled_up': False,
-            'error': str(e),
+            'error': 'XP not awarded',
         }
 
 

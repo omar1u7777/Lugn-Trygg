@@ -490,7 +490,7 @@ class MLForecaster:
             return {
                 "forecast": "ML-prognos misslyckades, använder fallback",
                 "confidence": 0.0,
-                "error": str(e),
+                "error": "Forecast failed",
                 "fallback": svc.predictive_mood_analytics(mood_history, days_ahead)
             }
 
