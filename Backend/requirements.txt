@@ -112,7 +112,7 @@ flasgger==0.9.7.1
 prometheus-client==0.26.0
 sentry-sdk[flask]==2.67.1
 structlog==26.1.0
-python-json-logger==4.1.0
+python-json-logger==4.2.0
 
 # Utilities
 Pillow==13.0.0
