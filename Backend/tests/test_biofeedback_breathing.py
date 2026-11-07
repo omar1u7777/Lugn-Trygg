@@ -45,7 +45,6 @@ try:
     metrics = analyzer.calculate_hrv_metrics(rr_intervals, timestamps)
 
     print('\n✅ HRV metrics calculated:')
-    print(f'   - Heart rate: {metrics.heart_rate:.1f} BPM')
     print(f'   - SDNN: {metrics.sdnn:.1f} ms (variability)')
     print(f'   - RMSSD: {metrics.rmssd:.1f} ms (short-term variability)')
     print(f'   - Resonance score: {metrics.resonance_score:.1f}%')

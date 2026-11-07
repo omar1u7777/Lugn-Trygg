@@ -324,7 +324,7 @@ def _process_audio_file(audio_file, user_id: str) -> dict:
 
     except Exception as e:
         logger.error(f"Audio processing failed: {e}")
-        return {'success': False, 'error': str(e)}
+        return {'success': False, 'error': 'Audio could not be processed'}
 
 
 def _process_photo_file(photo_file, user_id: str) -> dict:
@@ -400,7 +400,7 @@ def _process_photo_file(photo_file, user_id: str) -> dict:
 
     except Exception as e:
         logger.error(f"Photo processing failed: {e}")
-        return {'success': False, 'error': str(e)}
+        return {'success': False, 'error': 'Photo could not be processed'}
 
 
 def _analyze_multimodal_memory(content: str, audio_data: dict, photos: list) -> dict:

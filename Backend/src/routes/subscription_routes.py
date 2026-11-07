@@ -122,11 +122,11 @@ def create_checkout_session():
         # Determine price ID based on plan
         if plan == "premium":
             if billing_cycle == "yearly" and STRIPE_PRICE_PREMIUM_YEARLY:
-                price_id = STRIPE_PRICE_PREMIUM_YEARLY
+                price_setting, price_id = "STRIPE_PRICE_PREMIUM_YEARLY", STRIPE_PRICE_PREMIUM_YEARLY
             else:
-                price_id = STRIPE_PRICE_PREMIUM
+                price_setting, price_id = "STRIPE_PRICE_PREMIUM", STRIPE_PRICE_PREMIUM
         elif plan == "enterprise":
-            price_id = STRIPE_PRICE_ENTERPRISE
+            price_setting, price_id = "STRIPE_PRICE_ENTERPRISE", STRIPE_PRICE_ENTERPRISE
         else:
             logger.warning(f"❌ Invalid plan: {plan}")
             return APIResponse.bad_request("Ogiltig prenumerationsplan")
@@ -138,10 +138,10 @@ def create_checkout_session():
         # checkout the user can do nothing about. Catch the misconfiguration
         # here instead, and say plainly that it is a server-side config problem.
         if price_id in _PLACEHOLDER_PRICE_IDS or not price_id:
+            # Name the setting to fix; the buyer's choices stay out of the log.
             logger.error(
-                "❌ Stripe price ID for plan '%s' (billing_cycle '%s') is not configured — "
-                "resolved to placeholder %r. Set the STRIPE_PRICE_* environment variables.",
-                plan, billing_cycle, price_id,
+                "❌ %s is not set, so checkout cannot start. Set it to the Stripe price ID.",
+                price_setting,
             )
             return APIResponse.error(
                 "Betalning är inte konfigurerad just nu. Försök igen senare.",

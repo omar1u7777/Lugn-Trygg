@@ -56,3 +56,20 @@ def test_crisis_contact_logs_name_no_one(caplog):
     logged = caplog.text + ' '.join(result['errors'])
     assert 'Ann' not in logged
     assert '+4670' not in logged
+
+
+def test_critical_heart_rate_warning_logs_no_reading_and_no_uid(caplog):
+    from unittest.mock import MagicMock
+
+    from src.services.biofeedback_breathing_service import BiofeedbackBreathingService
+
+    service = BiofeedbackBreathingService()
+    service.hrv_analyzer.calculate_hrv_metrics = MagicMock(return_value=MagicMock(heart_rate=187.0))
+    session = service.start_session(UID)
+
+    with caplog.at_level(logging.WARNING):
+        service.process_heart_rate_data(session.session_id, [800.0], [None])
+
+    assert 'heart rate' in caplog.text.lower()
+    assert '187' not in caplog.text
+    assert UID[:8] not in caplog.text

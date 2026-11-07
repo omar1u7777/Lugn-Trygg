@@ -367,8 +367,11 @@ class InputSanitizer:
             try:
                 if not custom_validator(input_data):
                     errors.append("Custom validation failed")
-            except Exception as e:
-                errors.append(f"Custom validation error: {e}")
+            except Exception:
+                # The validator's message stays in the log: a 400 body is not
+                # the place for whatever the failing code had in hand.
+                logger.exception("Custom validator raised")
+                errors.append("Custom validation could not be completed")
 
         return {
             'valid': len(errors) == 0,

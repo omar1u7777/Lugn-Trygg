@@ -366,3 +366,40 @@ def test_audit_log_error(monkeypatch):
     monkeypatch.setattr(auth_mod, 'request', None)
     # Should not raise
     AuthService._audit_log('E', 'u', {'k': 'v'})
+
+
+def _signin_rejects_with(monkeypatch, message):
+    def fake_post(url, json=None, timeout=None):
+        return FakeResponse(400, {'error': {'message': message}})
+    monkeypatch.setattr('src.services.auth_service.requests', type('R', (), {'post': staticmethod(fake_post)})())
+    failed = []
+    # By path: other tests reload the module, so the class imported above can be stale.
+    monkeypatch.setattr('src.services.auth_service.AuthService.record_failed_attempt', staticmethod(failed.append))
+    return failed
+
+
+def test_firebase_rejection_logs_only_a_known_code(monkeypatch, caplog):
+    import logging
+
+    # The reply belongs to a request that carried the password, so its free
+    # text is never logged; only codes the service acts on are.
+    _signin_rejects_with(monkeypatch, 'INVALID_ARGUMENT : rejected value hunter2-secret')
+
+    with caplog.at_level(logging.WARNING):
+        user, err, _, _ = AuthService.login_user('a@b.com', 'hunter2-secret')
+
+    assert user is None and err
+    assert 'hunter2-secret' not in caplog.text
+    assert 'Firebase login failed: OTHER' in caplog.text
+
+
+@pytest.mark.parametrize('message', [
+    'INVALID_LOGIN_CREDENTIALS',
+    'TOO_MANY_ATTEMPTS_TRY_LATER : Access to this account has been temporarily disabled.',
+])
+def test_firebase_credential_errors_still_count_towards_lockout(monkeypatch, message):
+    failed = _signin_rejects_with(monkeypatch, message)
+
+    AuthService.login_user('a@b.com', 'wrong-password')
+
+    assert failed == ['a@b.com']

@@ -220,11 +220,11 @@ def metrics():
                 },
                 message='System metrics retrieved (monitoring service not initialized)'
             )
-    except Exception as e:
+    except Exception:
+        logger.exception("Failed to collect metrics")
         return APIResponse.error(
             message='Failed to collect metrics',
             error_code='METRICS_ERROR',
-            details={'error': str(e)}
         )
 
 @health_bp.route('/db', methods=['GET', 'OPTIONS'])
@@ -266,14 +266,14 @@ def database_health():
             message='Database is healthy'
         )
 
-    except Exception as e:
+    except Exception:
+        logger.exception("Database health check failed")
         return APIResponse.error(
             message='Database health check failed',
             error_code='DB_UNHEALTHY',
             status_code=503,
             details={
                 'status': 'unhealthy',
-                'error': str(e),
                 'timestamp': datetime.now(UTC).isoformat()
             }
         )
@@ -313,7 +313,8 @@ def advanced_health_check():
                 db.collection('_health_check').limit(1).get()
                 return {'connectivity': True, 'status': 'connected'}
             except Exception as e:
-                return {'connectivity': False, 'error': str(e)}
+                logger.warning("Firestore health probe failed: %s", e)
+                return {'connectivity': False, 'error': 'Firestore unreachable'}
 
         health_check_service.register_database_check(check_firebase)
 
@@ -334,5 +335,4 @@ def advanced_health_check():
         return APIResponse.error(
             message='Advanced health check failed',
             error_code='HEALTH_CHECK_ERROR',
-            details={'error': str(e)}
         )

@@ -87,7 +87,7 @@ class BreachNotificationService:
         except Exception as e:
             logger.error(f"Error in breach detection: {str(e)}")
             return {
-                'error': str(e),
+                'error': 'Assessment failed',
                 'is_breach': False,
                 'requires_notification': False
             }

@@ -79,7 +79,7 @@ class HealthAnalyticsService:
             logger.error(f"Error analyzing health-mood correlation: {str(e)}")
             return {
                 'status': 'error',
-                'message': str(e),
+                'message': 'Could not analyse health and mood data',
                 'patterns': [],
                 'recommendations': self._get_generic_recommendations()
             }

@@ -178,7 +178,7 @@ class PredictiveAnalyticsService:
             logger.error(f"Error training predictive model: {str(e)}")
             return {
                 'success': False,
-                'error': str(e),
+                'error': 'Model training failed',
                 'model_path': None
             }
 
@@ -269,7 +269,7 @@ class PredictiveAnalyticsService:
             logger.error(f"Error predicting mood trend: {str(e)}")
             return {
                 'success': False,
-                'error': str(e),
+                'error': 'Prediction failed',
                 'predictions': []
             }
 
@@ -455,7 +455,7 @@ class PredictiveAnalyticsService:
                 'confidence': 0,
                 'indicators': [],
                 'recommendations': ['Kunde inte analysera risk - kontakta support om du mår dåligt'],
-                'error': str(e)
+                'error': 'Risk analysis failed'
             }
 
     def _generate_crisis_recommendations(self, risk_level: str, indicators: list[str]) -> list[str]:

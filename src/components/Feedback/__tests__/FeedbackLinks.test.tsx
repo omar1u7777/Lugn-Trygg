@@ -43,9 +43,10 @@ beforeEach(() => {
 describe('the feedback page does not send users to developer resources', () => {
   it('links to no GitHub repository at all', () => {
     const { container } = render(<FeedbackForm />);
+    // Compare hosts, not substrings: "github.com" can appear anywhere in a URL.
     const github = Array.from(container.querySelectorAll('a[href]'))
-      .map((a) => a.getAttribute('href') ?? '')
-      .filter((href) => href.includes('github.com'));
+      .map((a) => new URL(a.getAttribute('href') ?? '', 'https://app.invalid').hostname)
+      .filter((host) => host === 'github.com' || host.endsWith('.github.com'));
 
     expect(github).toEqual([]);
   });

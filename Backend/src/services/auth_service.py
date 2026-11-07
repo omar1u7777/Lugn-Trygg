@@ -66,6 +66,30 @@ _auth: "_firebase_auth_type" = firebase_auth  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
+# Sign-in error codes from Firebase that login_user acts on. The reply belongs
+# to a request that carried the user's password, so its free text is never
+# logged or re-raised: a code from this table is, and anything else is OTHER.
+_FIREBASE_SIGNIN_ERRORS = {code: code for code in (
+    'INVALID_LOGIN_CREDENTIALS',
+    'INVALID_PASSWORD',
+    'EMAIL_NOT_FOUND',
+    'INVALID_EMAIL',
+    'USER_DISABLED',
+    'OPERATION_NOT_ALLOWED',
+    'TOO_MANY_ATTEMPTS_TRY_LATER',
+)}
+
+
+def _firebase_signin_error(response: Any) -> str:
+    """The known error code in a failed Firebase sign-in reply, or OTHER."""
+    try:
+        message = str(response.json()['error']['message'])
+    except (ValueError, KeyError, TypeError):
+        return 'OTHER'
+    # Some codes carry an explanation: "TOO_MANY_ATTEMPTS_TRY_LATER : Access ..."
+    return _FIREBASE_SIGNIN_ERRORS.get(message.split(' ', 1)[0], 'OTHER')
+
+
 def _mask_email(email: str) -> str:
     """Mask email for safe logging: user@example.com -> u***@example.com"""
     if not email or '@' not in email:
@@ -218,11 +242,9 @@ class AuthService:
             }, timeout=10)
 
             if signin_response.status_code != 200:
-                error_data = signin_response.json()
-                error_message = error_data.get("error", {}).get("message", "UNKNOWN_ERROR")
-                sanitized_error = str(error_message).replace('\n', '').replace('\r', '')[:200]
-                logger.warning("Firebase login failed: %s", sanitized_error)
-                raise Exception(f"Firebase auth failed: {sanitized_error}")
+                error_code = _firebase_signin_error(signin_response)
+                logger.warning("Firebase login failed: %s", error_code)
+                raise Exception(f"Firebase auth failed: {error_code}")
 
             signin_data = signin_response.json()
             user_uid = signin_data.get("localId")

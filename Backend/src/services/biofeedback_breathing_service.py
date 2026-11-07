@@ -20,6 +20,7 @@ import logging
 
 # WebSocket support — flask-socketio is a REQUIRED dependency (see requirements.txt)
 import os as _os
+import secrets
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -348,7 +349,9 @@ class BiofeedbackBreathingService:
             except ValueError:
                 pattern = BreathingPattern.COHERENCE_6BPM
 
-        session_id = f"breath_{user_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        # Random, not built from the uid and a timestamp: the id is logged and
+        # passed around, and it must be neither a uid in disguise nor guessable.
+        session_id = f"breath_{secrets.token_urlsafe(16)}"
 
         session = BreathingSession(
             session_id=session_id,
@@ -388,9 +391,11 @@ class BiofeedbackBreathingService:
 
         # SAFETY CHECK: Monitor heart rate
         if metrics.heart_rate > HEART_RATE_CRITICAL_THRESHOLD:
+            # The reading is health data and the session id embeds the uid,
+            # so the log keeps neither: the threshold and a pseudonym suffice.
             logger.warning(
-                f"CRITICAL: Heart rate {metrics.heart_rate} BPM in session "
-                f"{session_id} - user should stop immediately"
+                "CRITICAL: heart rate above %d BPM for %s - user should stop immediately",
+                HEART_RATE_CRITICAL_THRESHOLD, log_ref(session.user_id),
             )
             # Return feedback with critical warning
             return RealTimeFeedback(

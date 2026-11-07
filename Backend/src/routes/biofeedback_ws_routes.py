@@ -10,6 +10,7 @@ from flask import Blueprint, g, request
 
 from src.services.auth_service import AuthService
 from src.services.biofeedback_breathing_service import SOCKETIO_AVAILABLE, BreathingPattern, get_biofeedback_service
+from src.utils.log_ref import log_ref
 from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ def register_biofeedback_websocket_handlers(socketio):
                     # Join user-specific room
                     from flask_socketio import join_room
                     join_room(user_id)
-                    logger.info(f"User {user_id} joined biofeedback room")
+                    logger.info("%s joined biofeedback room", log_ref(user_id))
         except Exception as e:
             logger.warning(f"Auth failed for biofeedback connection: {e}")
 
@@ -220,7 +221,7 @@ def start_session_rest():
 
     except ValueError as e:
         logger.warning("Invalid session parameters: %s", e)
-        return APIResponse.bad_request(str(e))
+        return APIResponse.bad_request('Invalid session parameters')
     except Exception:
         logger.exception("Failed to start biofeedback session")
         return APIResponse.error('Failed to start session', 'INTERNAL_ERROR', 500)
@@ -262,7 +263,7 @@ def submit_heart_rate_data(session_id: str):
 
     except ValueError as e:
         logger.warning("Invalid HRV data for session %s: %s", session_id, e)
-        return APIResponse.bad_request(str(e))
+        return APIResponse.bad_request('Invalid heart rate data')
     except Exception:
         logger.exception("Failed to process heart rate data for session %s", session_id)
         return APIResponse.error('Failed to process heart rate data', 'INTERNAL_ERROR', 500)
@@ -283,7 +284,7 @@ def end_session_rest(session_id: str):
 
     except ValueError as e:
         logger.warning("Invalid session end request for %s: %s", session_id, e)
-        return APIResponse.bad_request(str(e))
+        return APIResponse.bad_request('Invalid session end request')
     except Exception:
         logger.exception("Failed to end biofeedback session %s", session_id)
         return APIResponse.error('Failed to end session', 'INTERNAL_ERROR', 500)
