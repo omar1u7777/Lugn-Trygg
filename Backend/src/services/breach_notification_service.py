@@ -347,9 +347,10 @@ class BreachNotificationService:
                     }
 
             except Exception as e:
+                logger.error("Encryption round trip failed: %s", e)
                 return {
                     'compliant': False,
-                    'issues': [f'Encryption validation failed: {str(e)}'],
+                    'issues': ['Encryption validation failed'],
                     'recommendations': ['Check cryptography library installation and key format']
                 }
 
@@ -357,7 +358,7 @@ class BreachNotificationService:
             logger.error(f"Encryption compliance validation failed: {str(e)}")
             return {
                 'compliant': False,
-                'issues': [f'Validation error: {str(e)}'],
+                'issues': ['Validation error'],
                 'recommendations': ['Contact system administrator']
             }
 

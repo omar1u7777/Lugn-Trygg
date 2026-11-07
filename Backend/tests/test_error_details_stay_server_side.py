@@ -163,3 +163,71 @@ def test_metrics_keep_details_even_in_debug(client, auth_csrf_headers, mock_auth
 
     assert response.status_code == 500
     assert DETAIL not in response.get_data(as_text=True)
+
+
+@pytest.mark.parametrize('path, answers', [
+    ('/api/v1/advanced-mood/assess/phq9', {'little_interest': 9}),
+    ('/api/v1/advanced-mood/assess/gad7', {'feeling_nervous': 9}),
+])
+def test_assessment_validation_shows_no_library_text(client, auth_csrf_headers, mock_auth_service, path, answers):
+    response = client.post(path, json={'responses': answers}, headers=auth_csrf_headers)
+
+    assert response.status_code == 400
+    body = response.get_data(as_text=True)
+    assert 'pydantic' not in body and 'input_value' not in body
+
+
+@pytest.mark.parametrize('path, field', [
+    ('/api/v1/onboarding/goals/testuser1234567890ab', 'goals'),
+    ('/api/v1/users/wellness-goals', 'wellnessGoals'),
+])
+def test_goal_validation_passes_on_only_its_own_messages(client, auth_csrf_headers, mock_auth_service, mocker,
+                                                        path, field):
+    # A ValueError from inside validation that the validator did not write.
+    mocker.patch('src.utils.wellness_goals.sanitize_text', side_effect=ValueError(DETAIL))
+
+    response = client.post(path, json={field: ['Minska stress']}, headers=auth_csrf_headers)
+
+    assert response.status_code >= 400
+    assert DETAIL not in response.get_data(as_text=True)
+
+
+def test_readiness_names_no_firebase_error(client, mocker):
+    mocker.patch('src.routes.health_routes.db', MagicMock(collection=_boom))
+
+    response = client.get('/api/health/ready')
+
+    assert DETAIL not in response.get_data(as_text=True)
+
+
+def test_encryption_check(monkeypatch, mocker):
+    from src.services.breach_notification_service import breach_notification_service
+
+    monkeypatch.setenv('HIPAA_ENCRYPTION_KEY', 'any-key')
+    mocker.patch('cryptography.fernet.Fernet', side_effect=_boom)
+
+    result = breach_notification_service.validate_encryption_compliance()
+
+    assert result['compliant'] is False
+    assert DETAIL not in repr(result)
+
+
+def test_forecast_failure():
+    from src.services.ai.ml_forecaster import MLForecaster
+
+    entry = MagicMock(get=_boom)
+    result = MLForecaster(MagicMock()).predictive_mood_forecasting_simple([entry] * 3, 7)
+
+    assert result['confidence'] == 0.0
+    assert DETAIL not in repr(result)
+
+
+def test_xp_award_failure(mocker):
+    from src.services.rewards_helper import award_xp
+
+    mocker.patch('src.firebase_config.db', MagicMock(collection=_boom))
+
+    result = award_xp('user-1', 'mood_logged')
+
+    assert result['xp_gained'] == 0
+    assert DETAIL not in repr(result)
