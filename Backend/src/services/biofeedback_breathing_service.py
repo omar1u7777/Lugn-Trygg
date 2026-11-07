@@ -20,7 +20,7 @@ import logging
 
 # WebSocket support — flask-socketio is a REQUIRED dependency (see requirements.txt)
 import os as _os
-import secrets
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -350,8 +350,9 @@ class BiofeedbackBreathingService:
                 pattern = BreathingPattern.COHERENCE_6BPM
 
         # Random, not built from the uid and a timestamp: the id is logged and
-        # passed around, and it must be neither a uid in disguise nor guessable.
-        session_id = f"breath_{secrets.token_urlsafe(16)}"
+        # passed around, so it must not be a uid in disguise. It is an
+        # identifier, not a credential: only the owner may use a session.
+        session_id = f"breath_{uuid.uuid4().hex}"
 
         session = BreathingSession(
             session_id=session_id,
