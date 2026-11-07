@@ -36,7 +36,7 @@
     },
     {
       "key": "audioFixturePath",
-      "value": "C:/Users/OMAL0013/Downloads/Lugn-Trygg/Backend/postman/fixtures/test_audio.mp3"
+      "value": "Backend/postman/fixtures/test_audio.mp3"
     }
   ],
   "event": [

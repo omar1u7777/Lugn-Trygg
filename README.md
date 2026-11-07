@@ -43,11 +43,11 @@ The application is a **monorepo** with a React single-page application at the ro
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  Client (Browser / PWA)                                      │
-│  React 18 · TypeScript · Tailwind CSS · Vite                │
+│  React 19 · TypeScript · Tailwind CSS · Vite                │
 └────────────────────┬─────────────────────────────────────────┘
                      │  HTTPS (Axios)
 ┌────────────────────▼─────────────────────────────────────────┐
-│  API Gateway — Flask 3.0                                     │
+│  API Gateway — Flask 3.1                                     │
 │  34 Blueprints · JWT Auth · Rate limiting · CORS             │
 ├──────────────┬───────────────┬────────────────┬──────────────┤
 │  Firebase    │  Redis        │  Stripe        │  OpenAI      │
@@ -58,10 +58,10 @@ The application is a **monorepo** with a React single-page application at the ro
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| Frontend | React 18, TypeScript, Vite | SPA with code-split lazy routes |
+| Frontend | React 19, TypeScript, Vite | SPA with code-split lazy routes |
 | Styling | Tailwind CSS, Headless UI, Framer Motion | Responsive UI, dark mode, animations |
 | State | React Context (Auth, Theme, Subscription, i18n) | Global state without external libs |
-| Backend | Flask 3.0, Python 3.11+ | REST API with 34 blueprint modules |
+| Backend | Flask 3.1, Python 3.11+ | REST API with 34 blueprint modules |
 | Database | Firebase Firestore | NoSQL document store (tested with 49 000+ seeded documents) |
 | Auth | Firebase Auth + custom JWT | Dual token system with refresh flow |
 | Cache | Redis 7 (prod) / in-memory (dev) | Rate limiting, session data |
@@ -108,31 +108,31 @@ The application is a **monorepo** with a React single-page application at the ro
 
 | Package | Version | Role |
 |---------|---------|------|
-| React | 18.x | UI framework |
+| React | 19.x | UI framework |
 | TypeScript | 5.x | Type safety |
-| Vite | 5.x | Build tool & dev server |
-| Tailwind CSS | 3.x | Utility-first styling |
+| Vite | 7.x | Build tool & dev server |
+| Tailwind CSS | 4.x | Utility-first styling |
 | Headless UI | 2.x | Accessible UI primitives |
 | Heroicons | 2.x | Icon system |
-| React Router | 6.x | Client-side routing |
+| React Router | 7.x | Client-side routing |
 | Axios | 1.x | HTTP client |
-| Framer Motion | 10.x | Animations |
-| Recharts | 2.x | Charts and data viz |
-| i18next | 25.x | Internationalisation |
-| Firebase JS SDK | 10.x | Client auth & realtime |
+| Framer Motion | 11.x | Animations |
+| Recharts | 3.x | Charts and data viz |
+| i18next | 26.x | Internationalisation |
+| Firebase JS SDK | 12.x | Client auth & realtime |
 
 ### Backend
 
 | Package | Version | Role |
 |---------|---------|------|
-| Flask | 3.0 | Web framework |
-| firebase-admin | 6.x | Firestore, Auth, Storage |
+| Flask | 3.1 | Web framework |
+| firebase-admin | 7.x | Firestore, Auth, Storage |
 | PyJWT | 2.x | Custom JWT tokens |
-| Flask-Limiter | 3.x | Rate limiting |
-| Stripe | 7.x | Payment processing |
+| Flask-Limiter | 4.x | Rate limiting |
+| Stripe | 15.x | Payment processing |
 | OpenAI | 1.x | AI features |
-| Redis | 5.x | Production cache |
-| Sentry SDK | 1.x | Error tracking |
+| Redis | 8.x | Production cache |
+| Sentry SDK | 2.x | Error tracking |
 | gunicorn / waitress | — | Production WSGI server |
 
 ---
@@ -204,7 +204,7 @@ lugn-trygg/
 │   ├── i18n/                   #   Internationalisation setup
 │   ├── pages/                  #   Route-level page components
 │   ├── services/               #   Client-side services (analytics, PWA, offline)
-│   ├── translations/           #   Language JSON files (sv, en)
+│   ├── translations/           #   Language JSON files (sv, en, no)
 │   ├── types/                  #   TypeScript type definitions
 │   ├── utils/                  #   Utility functions (encryption, performance, …)
 │   ├── App.tsx                 #   Root component with route definitions
@@ -273,7 +273,7 @@ Backend environment is configured in `Backend/.env` — see `Backend/README.md` 
 | `npm run test` | Run Vitest unit tests |
 | `npm run test:e2e` | Run Playwright E2E tests |
 | `npm run test:coverage` | Generate test coverage report |
-| `npm run lint` | ESLint check (zero warnings enforced) |
+| `npm run lint` | ESLint check (errors fail CI) |
 | `npm run type-check` | TypeScript type validation |
 | `npm run build:analyze` | Build with bundle visualiser |
 
@@ -372,5 +372,4 @@ Full Swagger documentation is available at `/api/docs` when the backend is runni
 
 Copyright &copy; 2025 Omar Alhaek. All rights reserved.
 
-This software is proprietary. Unauthorized copying, distribution, or modification is prohibited. See [COPYRIGHT](COPYRIGHT) for details.</content>
-<filePath>c:\Projekt\Lugn-Trygg-main_klar\README.md
+This software is proprietary. Unauthorized copying, distribution, or modification is prohibited. See [LICENSE](LICENSE) for details.
