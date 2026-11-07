@@ -375,7 +375,7 @@ test.describe('🔗 API Integration Tests', () => {
 
     for (const endpoint of protectedEndpoints) {
       // Test without auth
-      const noAuthTest = await page.evaluate(async (endpoint) => {
+      const anonymousCall = await page.evaluate(async (endpoint) => {
         try {
           const response = await fetch(`http://localhost:5001/${endpoint.path}`, {
             method: endpoint.method,
@@ -394,11 +394,11 @@ test.describe('🔗 API Integration Tests', () => {
         }
       }, endpoint);
 
-      console.log(`🚫 No auth test for ${endpoint.name}: status=${noAuthTest.status}`);
-      expect(noAuthTest.isUnauthorized || noAuthTest.status === 401 || noAuthTest.status === 403).toBe(true);
+      console.log(`🚫 No auth test for ${endpoint.name}: status=${anonymousCall.status}`);
+      expect(anonymousCall.isUnauthorized || anonymousCall.status === 401 || anonymousCall.status === 403).toBe(true);
 
       // Test with auth
-      const withAuthTest = await page.evaluate(async ({ endpoint, token }) => {
+      const signedInCall = await page.evaluate(async ({ endpoint, token }) => {
         try {
           const response = await fetch(`http://localhost:5001/${endpoint.path}`, {
             method: endpoint.method,
@@ -418,8 +418,8 @@ test.describe('🔗 API Integration Tests', () => {
         }
       }, { endpoint, token: authToken });
 
-      console.log(`✅ With auth test for ${endpoint.name}:`, withAuthTest);
-      expect(withAuthTest.isSuccess).toBe(true);
+      console.log(`✅ With auth test for ${endpoint.name}:`, signedInCall);
+      expect(signedInCall.isSuccess).toBe(true);
     }
   });
 
