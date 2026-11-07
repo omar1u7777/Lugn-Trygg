@@ -73,6 +73,47 @@ class TestIntegrationRoutes:
         assert stored['refresh_token'].startswith('enc:v1:')
         assert unseal(stored['refresh_token']) == 'refresh-token'
 
+    @pytest.mark.parametrize('stored_state', [
+        None,  # expired or unknown state: the error redirect
+        {'provider': 'fitbit', 'user_id': 'testuserid123456789012'},  # provider mismatch
+    ])
+    def test_oauth_callback_ignores_a_supplied_frontend_url(self, client, mocker, stored_state):
+        # Anyone can deploy *.vercel.app; the callback must not redirect there.
+        mocker.patch('src.services.oauth_service.oauth_service._get_state', return_value=stored_state)
+        mocker.patch('src.routes.integration_routes.audit_log')
+
+        response = client.get(
+            '/api/integration/oauth/google_fit/callback?code=1&state=s'
+            '&frontend_url=https://phishing.vercel.app'
+        )
+
+        from src.config import FRONTEND_URL
+        location = response.headers.get('Location', '')
+        assert response.status_code in (301, 302)
+        assert location.startswith(f'{FRONTEND_URL}/integrations?')
+        assert 'phishing' not in location
+
+    def test_oauth_callback_success_redirect_uses_configured_frontend(self, client, mock_db, mocker, monkeypatch):
+        from cryptography.fernet import Fernet
+        monkeypatch.setenv('API_KEY_ENCRYPTION_KEY', Fernet.generate_key().decode())
+        mocker.patch(
+            'src.services.oauth_service.oauth_service._get_state',
+            return_value={'provider': 'google_fit', 'user_id': 'testuserid123456789012'},
+        )
+        mocker.patch(
+            'src.services.oauth_service.oauth_service.exchange_code_for_token',
+            return_value={'user_id': 'testuserid123456789012', 'access_token': 'a', 'expires_in': 3600},
+        )
+        mocker.patch('src.routes.integration_routes.audit_log')
+
+        response = client.get(
+            '/api/integration/oauth/google_fit/callback?code=1&state=s'
+            '&frontend_url=https://lugn-trygg.vercel.app.evil.example'
+        )
+
+        from src.config import FRONTEND_URL
+        assert response.headers['Location'] == f'{FRONTEND_URL}/integrations?success=true&provider=google_fit'
+
     def test_oauth_status_connected(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         token_doc = mock_db.collection('oauth_tokens').document('test-user-id_google_fit')
         token_doc.get.return_value = MagicMock(
