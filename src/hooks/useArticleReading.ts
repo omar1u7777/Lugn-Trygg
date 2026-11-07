@@ -77,8 +77,11 @@ export function useArticleReading({ userId, announce, updateProgress }: UseArtic
       articleReadingTimerRef.current = null;
     }
 
+    // Count the words a reader sees. Parsing the HTML (no scripts run in a
+    // DOMParser document) gives the real text; stripping tags with a regex
+    // misses nested or malformed markup.
     const totalWords = neuroscienceArticleSections.reduce((total, section) => {
-      const textContent = section.content.replace(/<[^>]*>/g, '');
+      const textContent = new DOMParser().parseFromString(section.content, 'text/html').body.textContent ?? '';
       return total + textContent.split(/\s+/).filter(word => word.length > 0).length;
     }, 0);
 
