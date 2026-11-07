@@ -24,7 +24,7 @@ requests==2.34.2
 # Security & Encryption
 bcrypt==3.2.2
 pycryptodome==3.23.0
-cryptography==50.0.0
+cryptography==50.0.2
 bleach==6.4.0
 
 # Caching & Rate Limiting
