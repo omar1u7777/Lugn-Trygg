@@ -36,6 +36,7 @@ except ImportError:
 from src.firebase_config import db
 from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
+from src.services.crisis_signal import escalate_if_in_crisis
 from src.services.memory_analysis_service import get_memory_analysis_service
 from src.services.photo_analysis_service import get_photo_analysis_service
 from src.services.rate_limiting import rate_limit_by_endpoint
@@ -233,6 +234,9 @@ def create_multimedia_memory():
         }
 
         db.collection('memories').document(memory_id).set(memory_data)
+
+        # Crisis words or a very low mood get the same response as in a mood log
+        escalate_if_in_crisis(user_id, content, 'memory', mood_score=mood)
 
         # 5. Audit logging
         audit_log(
