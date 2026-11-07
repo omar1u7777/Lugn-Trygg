@@ -45,7 +45,7 @@ google-cloud-storage==3.13.0
 scikit-learn==1.8.0
 numpy==2.4.6
 pandas==3.0.0
-joblib==1.5.3
+joblib==1.6.0
 
 # Deep Learning - LSTM Mood Forecasting
 # tensorflow-cpu EXCLUDED from free-tier deploy: RAM footprint ~500 MB on import alone,
