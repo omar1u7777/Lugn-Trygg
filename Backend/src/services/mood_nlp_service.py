@@ -4,6 +4,7 @@ Replaces simplistic keyword extraction with deep semantic understanding
 """
 
 import logging
+import re
 from dataclasses import dataclass
 
 # Transformers with graceful fallback
@@ -17,6 +18,8 @@ except ImportError:
     logger.warning("Transformers not available, using fallback")
 
 logger = logging.getLogger(__name__)
+
+_WORD_RE = re.compile(r'\w+')
 
 
 @dataclass
@@ -38,21 +41,38 @@ class SwedishMoodNLP:
     Provides clinically-relevant emotion detection with cultural adaptation.
     """
 
-    # Swedish emotion vocabulary - culturally validated
+    # Swedish emotion vocabulary as word stems: a stem matches any word that
+    # starts with it ("glad" matches "gladare", "nedstämd" "nedstämdhet").
+    # Matching inside words read "hopplöst" (hopeless) as "hopp" (hope).
     EMOTION_CATEGORIES = {
         'positive': [
-            'glädje', 'tacksamhet', 'energi', 'lugn', 'nöje',
-            'stolthet', 'hopp', 'kärlek', 'entusiasm', 'harmoni'
+            'glad', 'glädje', 'lycklig', 'tacksam', 'energi', 'lugn', 'nöj',
+            'tillfreds', 'stolt', 'hoppas', 'hoppfull', 'kärlek', 'älsk',
+            'entusias', 'harmoni', 'trygg'
         ],
         'negative': [
-            'sorg', 'ångest', 'oro', 'ilska', 'trötthet',
-            'nedstämdhet', 'hopplöshet', 'skam', 'skuld', 'ensamhet'
+            'sorg', 'ledsen', 'ångest', 'oro', 'ilsk', 'trött', 'nedstämd',
+            'deprimerad', 'hopplös', 'meningslös', 'värdelös', 'olycklig',
+            'skam', 'skuld', 'ensam', 'stress', 'skräck', 'rädsla'
         ],
         'clinical': [
-            'depression', 'panik', 'suicid', 'självskada', 'trauma',
+            'depression', 'panik', 'suicid', 'självmord', 'självskada', 'trauma',
             'dissociation', 'mani', 'paranoia', 'tvång'
         ]
     }
+
+    # A positive stem followed by "-lös" ("-less") is negative: glädjelös.
+    PRIVATIVE_SUFFIX = 'lös'
+    # One of these within the two words before a term flips its polarity.
+    NEGATORS = frozenset({'inte', 'aldrig', 'ej', 'knappast'})
+
+    # Explicit statements of suicidal intent: one is enough for high risk.
+    SUICIDAL_EXPLICIT = re.compile(
+        r'\b(självmord|suicid|vill dö|vill inte leva|inte vill leva|orkar inte leva'
+        r'|ta mitt liv|ta livet av mig|döda mig|sluta leva|bättre utan mig)'
+    )
+    # Words that can carry the same meaning but often do not ("min katt är död").
+    SUICIDAL_AMBIGUOUS = re.compile(r'\b(dö|död|döden|försvinna|inte orka)\b')
 
     def __init__(self):
         self.tokenizer = None
@@ -165,30 +185,27 @@ class SwedishMoodNLP:
 
     def _semantic_analysis(self, text: str, context: list[str] | None) -> MoodAnalysis:
         """Semantic analysis using Swedish emotion vocabulary."""
-        text_lower = text.lower()
-
-        # Count emotion category occurrences
-        pos_score = sum(1 for word in self.EMOTION_CATEGORIES['positive'] if word in text_lower)
-        neg_score = sum(1 for word in self.EMOTION_CATEGORIES['negative'] if word in text_lower)
-        clinical_score = sum(1 for word in self.EMOTION_CATEGORIES['clinical'] if word in text_lower)
+        pos_score, neg_score, clinical_score = self._polarity_counts(text)
 
         # Calculate valence
         total = pos_score + neg_score + 1  # +1 to avoid division by zero
         valence = (pos_score - neg_score) / total
 
-        # Boost negative if clinical terms present
+        clinical_indicators = self._detect_clinical_markers(text)
+        at_risk = clinical_indicators['suicidal_ideation'] > 0 or clinical_indicators['hopelessness'] > 0
+
+        # Clinical terms or risk markers outweigh any positive words around them
         if clinical_score > 0:
             valence = min(valence - 0.3 * clinical_score, -0.5)
-
-        # Detect clinical indicators
-        clinical_indicators = self._detect_clinical_markers(text)
+        if at_risk:
+            valence = min(valence, -0.5)
 
         # Estimate arousal and dominance
         arousal = self._estimate_arousal(text)
         dominance = self._estimate_dominance(text)
 
         # Identify emotions
-        emotions = self._identify_emotions(text)
+        emotions = self._identify_emotions(text, at_risk=at_risk)
 
         # Calculate intensity
         intensity = self._calculate_intensity(text, valence, arousal)
@@ -209,10 +226,11 @@ class SwedishMoodNLP:
         text_lower = text.lower()
         markers = {}
 
-        # Suicidal ideation markers (Swedish)
-        suicide_terms = ['dö', 'suicid', 'självmord', 'inte orka', 'sluta', 'försvinna', 'död']
-        markers['suicidal_ideation'] = sum(0.3 for term in suicide_terms if term in text_lower)
-        markers['suicidal_ideation'] = min(markers['suicidal_ideation'], 1.0)
+        # Suicidal ideation markers (Swedish), matched as words and phrases:
+        # "dö" used to match inside "dörr" and "döttrar".
+        explicit = len(self.SUICIDAL_EXPLICIT.findall(text_lower))
+        ambiguous = len(self.SUICIDAL_AMBIGUOUS.findall(text_lower))
+        markers['suicidal_ideation'] = min(0.6 * explicit + 0.3 * ambiguous, 1.0)
 
         # Hopelessness
         hopelessness_terms = ['hopplös', 'meningslös', 'poänglös', 'aldrig bättre', 'inget värde']
@@ -269,18 +287,39 @@ class SwedishMoodNLP:
 
         return max(0.0, min(1.0, 0.5 + (control_count - loss_count) * 0.15))
 
-    def _identify_emotions(self, text: str) -> dict[str, any]:
+    def _polarity_counts(self, text: str) -> tuple[int, int, int]:
+        """Positive, negative and clinical terms in `text`, after negation."""
+        words = _WORD_RE.findall(text.lower())
+        positive = negative = clinical = 0
+
+        for i, word in enumerate(words):
+            if any(word.startswith(stem) for stem in self.EMOTION_CATEGORIES['clinical']):
+                clinical += 1
+            positive_stem = next((s for s in self.EMOTION_CATEGORIES['positive'] if word.startswith(s)), None)
+            if positive_stem and self.PRIVATIVE_SUFFIX in word[len(positive_stem):]:
+                polarity = -1
+            elif positive_stem:
+                polarity = 1
+            elif any(word.startswith(stem) for stem in self.EMOTION_CATEGORIES['negative']):
+                polarity = -1
+            else:
+                continue
+            if self.NEGATORS.intersection(words[max(0, i - 2):i]):
+                polarity = -polarity
+            if polarity > 0:
+                positive += 1
+            else:
+                negative += 1
+
+        return positive, negative, clinical
+
+    def _identify_emotions(self, text: str, at_risk: bool = False) -> dict[str, any]:
         """Identify specific emotions from text."""
-        text_lower = text.lower()
-
-        emotion_scores = {}
-
-        # Score each emotion category
-        for category, words in self.EMOTION_CATEGORIES.items():
-            if category != 'clinical':
-                score = sum(1 for word in words if word in text_lower)
-                if score > 0:
-                    emotion_scores[category] = score
+        positive, negative, _ = self._polarity_counts(text)
+        emotion_scores = {name: count for name, count in (('positive', positive), ('negative', negative)) if count}
+        if at_risk:
+            # Risk markers decide the reading, whatever words surround them.
+            emotion_scores['negative'] = max(emotion_scores.values(), default=0) + 1
 
         # Determine primary emotion
         if emotion_scores:
