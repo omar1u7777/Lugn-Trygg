@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from src.utils.log_ref import log_ref
+
 logger = logging.getLogger(__name__)
 
 # Import semantic crisis detector when available
@@ -545,7 +547,7 @@ class CrisisInterventionService:
         Returns:
             CrisisAssessment with risk level and intervention recommendations
         """
-        logger.info("Assessing crisis risk for user %s", str(user_context.get('user_id', 'unknown')).replace('\n', '').replace('\r', '')[:50])
+        logger.info("Assessing crisis risk for %s", log_ref(user_context.get('user_id')))
 
         active_indicators = []
         total_risk_score = 0.0

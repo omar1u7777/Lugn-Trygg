@@ -71,7 +71,7 @@ class TestSanitizeUrl:
     def test_normal_url_preserved(self):
         from src.utils.input_sanitization import sanitize_url
         result = sanitize_url("https://example.com/page")
-        assert "https://example.com" in result
+        assert result == "https://example.com/page"
 
 
 class TestSanitizeFilename:

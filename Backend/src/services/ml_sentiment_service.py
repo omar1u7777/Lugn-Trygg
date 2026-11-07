@@ -20,6 +20,14 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# E-mail addresses are stripped before scoring. The previous pattern,
+# \S+@\S+\.\S+, has three overlapping \S+ runs: a message of 8 000 '@'
+# characters kept a worker busy for over four minutes. Here a match can only
+# start at the beginning of a token, the local part cannot contain '@', and
+# every domain label ends at its own '.', so each character is examined a
+# bounded number of times.
+_EMAIL_RE = re.compile(r"(?<!\S)[^\s@]+@(?:[^\s@.]+\.)+[^\s@.]+")
+
 # ---------------------------------------------------------------------------
 # Training corpus — Swedish + English phrases with sentiment labels
 # In production this would be loaded from a file / Firestore, but embedding
@@ -379,7 +387,7 @@ class MLSentimentService:
         """Lowercase, strip excess whitespace, remove URLs / emails."""
         text = text.lower().strip()
         text = re.sub(r"https?://[^\s]+", "", text)
-        text = re.sub(r"\S+@\S+\.\S+", "", text)
+        text = _EMAIL_RE.sub("", text)
         text = re.sub(r"\s+", " ", text)
         return text.strip()
 

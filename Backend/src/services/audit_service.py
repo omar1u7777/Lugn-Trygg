@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any
 from cryptography.fernet import Fernet
 from google.cloud.firestore import FieldFilter
 
+from src.utils.log_ref import log_ref
+
 from ..firebase_config import db
 
 if TYPE_CHECKING:
@@ -65,7 +67,7 @@ class AuditService:
                   ip_address: str | None = None, user_agent: str | None = None) -> None:
         """Log audit event to Firestore with HIPAA compliance"""
         if not self.cipher:
-            logger.debug(f"Audit logging disabled (no encryption): {event_type} for user {user_id[:8]}***")
+            logger.debug("Audit logging disabled (no encryption): %s for %s", event_type, log_ref(user_id))
             return
 
         try:
@@ -86,7 +88,7 @@ class AuditService:
             doc_ref = _db.collection("audit_logs").document()
             doc_ref.set(audit_entry)
 
-            logger.info("Audit log created: %s for user %s***", str(event_type)[:50], str(user_id)[:8])
+            logger.info("Audit log created: %s for %s", str(event_type)[:50], log_ref(user_id))
 
             # Apply retention policy periodically (not on every log)
             # Use a simple hash-based approach to run ~1% of the time

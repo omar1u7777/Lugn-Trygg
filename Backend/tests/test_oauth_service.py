@@ -128,7 +128,7 @@ class TestGetAuthorizationUrl:
         assert 'authorization_url' in result
         assert result['provider'] == 'samsung'
         from urllib.parse import urlparse
-        assert 'samsung.com' in urlparse(result['authorization_url']).hostname
+        assert urlparse(result['authorization_url']).hostname == 'us.account.samsung.com'
         assert 'scope=samsung.shealth.read' in result['authorization_url']
 
     def test_get_authorization_url_withings(self, service):
@@ -142,7 +142,7 @@ class TestGetAuthorizationUrl:
         assert 'authorization_url' in result
         assert result['provider'] == 'withings'
         from urllib.parse import urlparse
-        assert 'withings.com' in urlparse(result['authorization_url']).hostname
+        assert urlparse(result['authorization_url']).hostname == 'account.withings.com'
         assert 'scope=user.metrics' in result['authorization_url']
 
     def test_get_authorization_url_stores_state(self, service):

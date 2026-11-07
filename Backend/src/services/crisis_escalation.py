@@ -30,6 +30,7 @@ except ImportError:
 
 from src.firebase_config import db
 from src.middleware.error_handler import with_circuit_breaker
+from src.utils.log_ref import log_ref
 
 logger = logging.getLogger(__name__)
 
@@ -325,7 +326,7 @@ class CrisisEscalationService:
         try:
             user_doc = db.collection('users').document(user_id).get()
             if not user_doc.exists:
-                logger.warning(f"User {user_id[:8]}... not found")
+                logger.warning("User %s not found", log_ref(user_id))
                 return {}
 
             data = user_doc.to_dict() or {}
@@ -350,7 +351,7 @@ class CrisisEscalationService:
             }
 
         except Exception as e:
-            logger.error(f"Failed to fetch user data: {e}")
+            logger.error("Failed to fetch user data: %s", type(e).__name__)
             return {}
 
     @with_circuit_breaker('twilio_sms')
@@ -398,7 +399,8 @@ class CrisisEscalationService:
             logger.info(f"📱 User SMS sent: SID={message.sid}")
             return True
         except Exception as e:
-            logger.error(f"❌ Twilio SMS failed: {e}")
+            # Twilio errors quote the destination number; keep only the type.
+            logger.error("❌ Twilio SMS failed: %s", type(e).__name__)
             raise
 
     async def _notify_emergency_contacts(self, alert: CrisisAlert, contacts: list[dict]) -> dict:
@@ -412,7 +414,9 @@ class CrisisEscalationService:
         user_name = "Användaren"  # Privacy - don't reveal full name
         result: dict = {'sms_delivered': 0, 'email_delivered': 0, 'errors': []}
 
-        for contact in contacts:
+        # Contacts are third parties who never agreed to appear in our logs:
+        # they are referred to by position only, never by name or number.
+        for index, contact in enumerate(contacts, start=1):
             contact_name = contact.get('name', 'Kontakt')
             phone = contact.get('phone')
             email = contact.get('email')
@@ -441,12 +445,13 @@ class CrisisEscalationService:
                         from_=self.twilio_phone,
                         to=phone
                     )
-                    logger.info(f"📱 Emergency contact SMS sent to {contact_name[:3]}***")
+                    logger.info("📱 Emergency contact SMS sent (contact %d of %d)", index, len(contacts))
                     result['sms_delivered'] += 1
 
                 except Exception as e:
-                    logger.error(f"❌ Failed to SMS contact {contact_name[:3]}***: {str(e)[:50]}")
-                    result['errors'].append(f"contact_sms: {str(e)[:80]}")
+                    # Twilio errors quote the destination number; keep only the type.
+                    logger.error("❌ Failed to SMS contact %d of %d: %s", index, len(contacts), type(e).__name__)
+                    result['errors'].append(f"contact_sms: {type(e).__name__}")
 
             # Email to contact
             if email and notify_email and self.sendgrid_client:
@@ -457,12 +462,12 @@ class CrisisEscalationService:
                         alert=alert,
                         user_name=user_name
                     )
-                    logger.info(f"📧 Emergency contact email sent to {contact_name[:3]}***")
+                    logger.info("📧 Emergency contact email sent (contact %d of %d)", index, len(contacts))
                     result['email_delivered'] += 1
 
                 except Exception as e:
-                    logger.error(f"❌ Failed to email contact {contact_name[:3]}***: {str(e)[:50]}")
-                    result['errors'].append(f"contact_email: {str(e)[:80]}")
+                    logger.error("❌ Failed to email contact %d of %d: %s", index, len(contacts), type(e).__name__)
+                    result['errors'].append(f"contact_email: {type(e).__name__}")
 
         return result
 

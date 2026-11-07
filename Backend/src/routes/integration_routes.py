@@ -2,7 +2,7 @@ import logging
 import os
 import re
 from datetime import UTC, datetime, timedelta
-from urllib.parse import urlparse
+from urllib.parse import urlencode
 
 import requests
 from flask import Blueprint, g, redirect, request
@@ -34,32 +34,16 @@ USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,40}$')
 logger = logging.getLogger(__name__)
 
 
-def _validate_redirect_url(url: str, default: str) -> str:
-    """Validate redirect URL against a strict allowlist of hostnames."""
-    try:
-        parsed = urlparse(url)
-        hostname = parsed.hostname or ''
-        scheme = parsed.scheme
-        if scheme not in ('http', 'https'):
-            return default
-        allowed_hosts = [
-            'lugn-trygg.vercel.app',
-        ]
-        # [S5] Only allow localhost redirects in non-production environments
-        if not IS_PRODUCTION:
-            allowed_hosts.append('localhost')
-        # Check exact match or Vercel preview deployments (*.vercel.app)
-        if hostname in allowed_hosts:
-            return url
-        if hostname.endswith('.vercel.app') and hostname.count('.') == 2:
-            return url
-        # Check env-configured frontend
-        default_parsed = urlparse(default)
-        if hostname == default_parsed.hostname:
-            return url
-        return default
-    except Exception:
-        return default
+def _integrations_redirect(**params: str):
+    """Redirect to the configured frontend's integrations page.
+
+    The OAuth callback used to take the destination from a `frontend_url`
+    query parameter and accept any *.vercel.app host, so a link through the
+    callback could send a user who had just authorised a health provider to
+    a site anyone can deploy on Vercel. Nothing in the frontend sends that
+    parameter; the destination is now always the configured FRONTEND_URL.
+    """
+    return redirect(f"{_FRONTEND_URL_RAW}/integrations?{urlencode(params)}")
 
 
 integration_bp = Blueprint('integration', __name__)
@@ -226,11 +210,7 @@ def oauth_callback(provider):
                 user_id='unknown',
                 details={'provider': provider_clean, 'reason': 'state_not_found_or_expired'}
             )
-            default_frontend = _FRONTEND_URL_RAW
-            frontend_url = _validate_redirect_url(
-                request.args.get('frontend_url', default_frontend), default_frontend
-            )
-            return redirect(f"{frontend_url}/integrations?error=state_expired&provider={provider_clean}")
+            return _integrations_redirect(error='state_expired', provider=provider_clean)
 
         if stored_state.get('provider') != provider_clean:
             logger.warning(
@@ -242,11 +222,7 @@ def oauth_callback(provider):
                 user_id=stored_state.get('user_id', 'unknown'),
                 details={'provider': provider_clean, 'reason': 'provider_mismatch'}
             )
-            default_frontend = _FRONTEND_URL_RAW
-            frontend_url = _validate_redirect_url(
-                request.args.get('frontend_url', default_frontend), default_frontend
-            )
-            return redirect(f"{frontend_url}/integrations?error=state_mismatch&provider={provider_clean}")
+            return _integrations_redirect(error='state_mismatch', provider=provider_clean)
 
         # State is valid — proceed with token exchange (which also deletes the
         # state to prevent replay).
@@ -286,22 +262,13 @@ def oauth_callback(provider):
             }
         )
 
-        # Redirect to frontend success page - validate frontend_url
-        default_frontend = _FRONTEND_URL_RAW  # [S5] module-level validated value
-        frontend_url = request.args.get('frontend_url', default_frontend)
-        # Only allow known frontend URLs using strict validation
-        frontend_url = _validate_redirect_url(frontend_url, default_frontend)
-
         logger.info("OAuth flow complete: redirecting to frontend for provider %s", provider_clean)
-        return redirect(f"{frontend_url}/integrations?success=true&provider={provider_clean}")
+        return _integrations_redirect(success='true', provider=provider_clean)
 
     except Exception:
         logger.exception("Error in OAuth callback")
-        default_frontend = _FRONTEND_URL_RAW  # [S5] module-level validated value
-        frontend_url = request.args.get('frontend_url', default_frontend)
-        frontend_url = _validate_redirect_url(frontend_url, default_frontend)
         provider_clean = re.sub(r'[^a-zA-Z0-9_-]', '', str(provider))[:50]
-        return redirect(f"{frontend_url}/integrations?error=oauth_failed&provider={provider_clean}")
+        return _integrations_redirect(error='oauth_failed', provider=provider_clean)
 
 @integration_bp.route("/oauth/<provider>/disconnect", methods=["POST", "OPTIONS"])
 @rate_limit_by_endpoint

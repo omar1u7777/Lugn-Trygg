@@ -43,6 +43,7 @@ except ImportError:
 
 from src.firebase_config import db
 from src.services.audit_service import audit_log
+from src.utils.log_ref import log_ref
 
 logger = logging.getLogger(__name__)
 
@@ -361,7 +362,7 @@ class BiofeedbackBreathingService:
         self.active_sessions[session_id] = session
         self.session_data[session_id] = []
 
-        logger.info(f"Started biofeedback session {session_id} for {user_id}")
+        logger.info("Started biofeedback session %s for %s", session_id, log_ref(user_id))
 
         return session
 
