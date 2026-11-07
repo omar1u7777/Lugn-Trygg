@@ -1,4 +1,4 @@
-"""Swedish mood analysis (keyword path, which production runs: no transformers there)."""
+"""Swedish mood analysis: polarity, negation, clinical risk markers and the mood score."""
 
 import pytest
 
@@ -7,9 +7,7 @@ from src.services.mood_nlp_service import SwedishMoodNLP
 
 @pytest.fixture(scope='module')
 def nlp():
-    analyzer = SwedishMoodNLP()
-    analyzer.sentiment_pipeline = None  # the keyword path, even where transformers is installed
-    return analyzer
+    return SwedishMoodNLP()
 
 
 @pytest.mark.parametrize('text', [
@@ -79,3 +77,18 @@ def test_empty_text_is_neutral(nlp):
     assert result.valence == 0.0
     assert result.primary_emotion == 'neutral'
     assert result.confidence == 0.0
+
+
+@pytest.mark.parametrize('text, high_risk', [
+    ('Jag vill inte leva längre', True),
+    ('Jag känner mig glad idag', False),
+])
+def test_analyze_endpoint_reports_clinical_risk(client, auth_csrf_headers, mock_auth_service, mocker, text, high_risk):
+    mocker.patch('src.routes.advanced_mood_routes.audit_log')
+
+    response = client.post('/api/v1/advanced-mood/analyze', json={'text': text}, headers=auth_csrf_headers)
+
+    assert response.status_code == 200
+    data = response.get_json()['data']
+    assert data['high_clinical_risk'] is high_risk
+    assert (data['valence'] < 0) is high_risk

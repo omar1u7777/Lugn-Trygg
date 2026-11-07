@@ -1,21 +1,16 @@
 """
-Advanced Swedish BERT-based Mood NLP Service
-Replaces simplistic keyword extraction with deep semantic understanding
+Swedish mood analysis from text: valence, arousal, emotions and clinical
+risk markers, read from a vocabulary of Swedish word stems and phrases.
+
+There is no model behind it. An earlier BERT path loaded a base model with
+a freshly initialised, never trained classification head; its output was
+noise, and it would have replaced this analysis wherever transformers was
+installed.
 """
 
 import logging
 import re
 from dataclasses import dataclass
-
-# Transformers with graceful fallback
-try:
-    import torch
-    from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
-    TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    TRANSFORMERS_AVAILABLE = False
-    logger = logging.getLogger(__name__)
-    logger.warning("Transformers not available, using fallback")
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +31,7 @@ class MoodAnalysis:
 
 
 class SwedishMoodNLP:
-    """
-    Swedish BERT-based mood analysis using KB-BERT (Kungliga Biblioteket).
-    Provides clinically-relevant emotion detection with cultural adaptation.
-    """
+    """Clinically aware mood analysis of Swedish text."""
 
     # Swedish emotion vocabulary as word stems: a stem matches any word that
     # starts with it ("glad" matches "gladare", "nedstämd" "nedstämdhet").
@@ -74,49 +66,9 @@ class SwedishMoodNLP:
     # Words that can carry the same meaning but often do not ("min katt är död").
     SUICIDAL_AMBIGUOUS = re.compile(r'\b(dö|död|döden|försvinna|inte orka)\b')
 
-    def __init__(self):
-        self.tokenizer = None
-        self.model = None
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if TRANSFORMERS_AVAILABLE else None
-        self.sentiment_pipeline = None
-
-        if TRANSFORMERS_AVAILABLE:
-            self._load_model()
-
-    def _load_model(self):
-        """Load Swedish BERT model for sentiment/emotion analysis."""
-        try:
-            # KB-BERT is the best Swedish BERT model available
-            model_name = "KB/bert-base-swedish-cased"
-
-            logger.info(f"Loading Swedish BERT model: {model_name}")
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.model = AutoModelForSequenceClassification.from_pretrained(
-                model_name,
-                num_labels=3,  # negative, neutral, positive
-                ignore_mismatched_sizes=True
-            )
-            self.model.to(self.device)
-            self.model.eval()
-
-            # Load emotion classification pipeline
-            self.sentiment_pipeline = pipeline(
-                "sentiment-analysis",
-                model=self.model,
-                tokenizer=self.tokenizer,
-                device=0 if torch.cuda.is_available() else -1
-            )
-
-            logger.info("✅ Swedish BERT model loaded successfully")
-
-        except Exception as e:
-            logger.error(f"Failed to load BERT model: {e}")
-            self.tokenizer = None
-            self.model = None
-
     def analyze_mood_text(self, text: str, context: list[str] | None = None) -> MoodAnalysis:
         """
-        Analyze mood from Swedish text using BERT embeddings.
+        Analyze mood from Swedish text.
 
         Args:
             text: The mood text to analyze
@@ -127,61 +79,7 @@ class SwedishMoodNLP:
         """
         if not text or not text.strip():
             return self._default_analysis()
-
-        # Try BERT-based analysis first
-        if self.sentiment_pipeline and TRANSFORMERS_AVAILABLE:
-            try:
-                return self._bert_analysis(text, context)
-            except Exception as e:
-                logger.warning(f"BERT analysis failed: {e}, using fallback")
-
-        # Fallback to semantic keyword analysis
         return self._semantic_analysis(text, context)
-
-    def _bert_analysis(self, text: str, context: list[str] | None) -> MoodAnalysis:
-        """BERT-based deep semantic analysis."""
-        # Get BERT sentiment
-        result = self.sentiment_pipeline(text[:512])[0]  # Truncate to max length
-
-        label = result['label']
-        confidence = result['score']
-
-        # Map to valence (-1 to 1)
-        valence_map = {
-            'NEGATIVE': -0.7,
-            'NEUTRAL': 0.0,
-            'POSITIVE': 0.7
-        }
-        base_valence = valence_map.get(label, 0.0)
-
-        # Adjust by confidence
-        valence = base_valence * confidence
-
-        # Detect clinical indicators
-        clinical_indicators = self._detect_clinical_markers(text)
-
-        # Estimate arousal from linguistic features
-        arousal = self._estimate_arousal(text)
-
-        # Estimate dominance/control
-        dominance = self._estimate_dominance(text)
-
-        # Identify primary and secondary emotions
-        emotions = self._identify_emotions(text)
-
-        # Calculate intensity (1-10)
-        intensity = self._calculate_intensity(text, valence, arousal)
-
-        return MoodAnalysis(
-            valence=valence,
-            arousal=arousal,
-            dominance=dominance,
-            primary_emotion=emotions['primary'],
-            secondary_emotions=emotions['secondary'],
-            confidence=confidence,
-            intensity=intensity,
-            clinical_indicators=clinical_indicators
-        )
 
     def _semantic_analysis(self, text: str, context: list[str] | None) -> MoodAnalysis:
         """Semantic analysis using Swedish emotion vocabulary."""
@@ -216,7 +114,7 @@ class SwedishMoodNLP:
             dominance=dominance,
             primary_emotion=emotions['primary'],
             secondary_emotions=emotions['secondary'],
-            confidence=0.6,  # Lower confidence for fallback method
+            confidence=0.6,  # vocabulary-based: moderate confidence
             intensity=intensity,
             clinical_indicators=clinical_indicators
         )
