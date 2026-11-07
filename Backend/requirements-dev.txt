@@ -10,13 +10,13 @@ coverage==7.6.8
 
 # Code Quality
 flake8==7.1.1
-black==26.5.1
-pylint==4.0.6
+black==26.10.1
+pylint==4.0.9
 mypy==1.13.0
 ruff==0.16.1
 pre-commit==4.6.2
 bandit==1.8.2
-safety==3.8.1
+pip-audit==2.10.1
 
 # Development Tools
 ipython==8.30.0
