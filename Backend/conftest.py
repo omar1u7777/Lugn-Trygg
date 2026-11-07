@@ -7,8 +7,6 @@ collect_ignore_glob = ["*.txt", "*.md", "*.json", "*.html", "*.cfg"]
 collect_ignore = [
     "tests/e2e_live_test.py",
     "tests/test_ai_music.py",
-    "tests/test_biofeedback_breathing.py",
-    "tests/test_biofeedback_quick.py",
     "tests/test_complete_system.py",
     "tests/test_crisis_nlp.py",
     "tests/test_daily_insights_comprehensive.py",
