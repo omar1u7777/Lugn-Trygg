@@ -20,6 +20,7 @@ import logging
 
 # WebSocket support — flask-socketio is a REQUIRED dependency (see requirements.txt)
 import os as _os
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -348,7 +349,10 @@ class BiofeedbackBreathingService:
             except ValueError:
                 pattern = BreathingPattern.COHERENCE_6BPM
 
-        session_id = f"breath_{user_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        # Random, not built from the uid and a timestamp: the id is logged and
+        # passed around, so it must not be a uid in disguise. It is an
+        # identifier, not a credential: only the owner may use a session.
+        session_id = f"breath_{uuid.uuid4().hex}"
 
         session = BreathingSession(
             session_id=session_id,
@@ -365,6 +369,15 @@ class BiofeedbackBreathingService:
         logger.info("Started biofeedback session %s for %s", session_id, log_ref(user_id))
 
         return session
+
+    def owned_by_another_user(self, session_id: str, user_id: str | None) -> bool:
+        """True if the session is active and was started by someone other than `user_id`.
+
+        Callers answer such a request as if the session did not exist, so
+        its existence is not revealed either.
+        """
+        session = self.active_sessions.get(session_id)
+        return session is not None and session.user_id != user_id
 
     def process_heart_rate_data(self, session_id: str,
                                  rr_intervals: list[float],
@@ -388,9 +401,11 @@ class BiofeedbackBreathingService:
 
         # SAFETY CHECK: Monitor heart rate
         if metrics.heart_rate > HEART_RATE_CRITICAL_THRESHOLD:
+            # The reading is health data, so the log says only that the
+            # critical threshold was crossed, and names the user by pseudonym.
             logger.warning(
-                f"CRITICAL: Heart rate {metrics.heart_rate} BPM in session "
-                f"{session_id} - user should stop immediately"
+                "CRITICAL: heart rate above the critical threshold for %s - user should stop immediately",
+                log_ref(session.user_id),
             )
             # Return feedback with critical warning
             return RealTimeFeedback(

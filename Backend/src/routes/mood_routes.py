@@ -603,85 +603,12 @@ def log_mood() -> Response | tuple[Response, int]:
             # PERFORMANCE: Invalidate cache so next GET returns fresh data
             invalidate_mood_cache(user_id)
 
-            # CRISIS DETECTION: Check for crisis indicators after mood is saved
-            # Only trigger on clinically meaningful signals:
-            # 1. Very low mood score (≤ 3 on 1-10 scale)
-            # 2. Text containing crisis keywords (not just any text)
-            try:
-                from ..services.crisis_intervention import crisis_intervention_service
-                # Combine all user-provided text for crisis keyword scanning
-                crisis_text = ' '.join(filter(None, [note, mood_text, transcript or '']))
-                crisis_keywords = ['självmord', 'suicid', 'döda mig', 'döda', 'självskada',
-                                   'hopplos', 'hopplös', 'vill inte leva', 'ta mitt liv',
-                                   'hatar mig själv', 'värdelös', 'börda', 'far bättre utan mig']
-                has_crisis_keywords = bool(crisis_text) and any(kw in crisis_text.lower() for kw in crisis_keywords)
-
-                if final_score <= 3 or has_crisis_keywords:
-                    crisis_context = {
-                        'user_id': user_id,
-                        'mood_history': [{'sentiment_score': final_score}],
-                        'recent_text_content': crisis_text if has_crisis_keywords else '',
-                        'consecutive_low_mood_days': 0,
-                        'mood_score_drop_last_week': 0,
-                    }
-                    assessment = crisis_intervention_service.assess_crisis_risk(crisis_context)
-                    if assessment.overall_risk_level in ('critical', 'high'):
-                        logger.warning(
-                            "🚨 CRISIS DETECTED via mood log: user=%s risk=%s score=%.2f",
-                            user_id, assessment.overall_risk_level, assessment.risk_score
-                        )
-                        # Persist a record for care-team review / ML feature counting
-                        # (mood_predictor.py's _get_crisis_count reads this collection).
-                        # This write alone is NOT escalation — see enqueue below, which is
-                        # the actual durable path that reaches a human. A mood-log crisis
-                        # signal (e.g. an explicit self-harm phrase typed into a mood note)
-                        # used to stop here silently; it must go through the same durable
-                        # /crisis_tasks queue as the chat and WebSocket crisis paths.
-                        db.collection('crisis_alerts').add({
-                            'user_id': user_id,
-                            'risk_level': assessment.overall_risk_level,
-                            'risk_score': assessment.risk_score,
-                            'source': 'mood_log',
-                            'mood_score': final_score,
-                            'text_snippet': crisis_text[:200] if crisis_text else '',
-                            'created_at': datetime.now(UTC).isoformat(),
-                            'resolved': False,
-                        })
-                        audit_log('CRISIS_DETECTED', user_id, {
-                            'source': 'mood_log',
-                            'risk_level': assessment.overall_risk_level,
-                            'risk_score': assessment.risk_score,
-                        })
-                        try:
-                            from ..services.crisis_escalation import CrisisAlert
-                            from ..services.crisis_task_queue import (
-                                CrisisQueueUnavailableError,
-                                enqueue_crisis_escalation,
-                            )
-                            mood_crisis_alert = CrisisAlert(
-                                user_id=user_id,
-                                risk_level=assessment.overall_risk_level,
-                                risk_score=assessment.risk_score,
-                                detected_indicators=[
-                                    ind.swedish_description for ind in assessment.active_indicators
-                                ],
-                                text_snippet=crisis_text[:200] if crisis_text else '',
-                                timestamp=datetime.now(UTC),
-                                requires_immediate_action=assessment.overall_risk_level == 'critical',
-                            )
-                            enqueue_crisis_escalation(mood_crisis_alert)
-                        except CrisisQueueUnavailableError:
-                            logger.critical(
-                                "🚨 Mood-log crisis escalation could not be queued for "
-                                "user=%s. REQUIRES MANUAL REVIEW.", user_id,
-                            )
-                        except Exception as enqueue_err:
-                            logger.exception(
-                                "Mood-log crisis escalation enqueue failed (non-blocking): %s",
-                                enqueue_err,
-                            )
-            except Exception as crisis_err:
-                logger.warning(f"Crisis detection failed (non-blocking): {crisis_err}")
+            # CRISIS DETECTION after the mood is saved: a very low score or
+            # crisis words in the text go to a risk assessment and, at high
+            # risk, to the escalation queue. Memories take the same path.
+            from ..services.crisis_signal import escalate_if_in_crisis
+            crisis_text = ' '.join(filter(None, [note, mood_text, transcript or '']))
+            escalate_if_in_crisis(user_id, crisis_text, 'mood_log', mood_score=final_score)
 
         except Exception as db_error:
             logger.error(f"❌ Failed to save mood to database: {str(db_error)}", exc_info=True)

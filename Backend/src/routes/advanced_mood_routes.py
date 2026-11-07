@@ -1,6 +1,6 @@
 """
 Advanced Mood Routes - Professional API Endpoints
-Integrates Swedish BERT NLP, LSTM forecasting, and clinical assessments
+Integrates Swedish mood text analysis, LSTM forecasting, and clinical assessments
 """
 
 import logging
@@ -109,7 +109,7 @@ advanced_mood_bp = Blueprint('advanced_mood', __name__)
 
 
 # =============================================================================
-# Swedish BERT NLP Mood Analysis
+# Swedish Mood Text Analysis
 # =============================================================================
 
 @advanced_mood_bp.route('/analyze', methods=['POST'])
@@ -117,7 +117,7 @@ advanced_mood_bp = Blueprint('advanced_mood', __name__)
 @rate_limit_by_endpoint
 def analyze_mood_text():
     """
-    Analyze mood text using Swedish BERT NLP.
+    Analyze Swedish mood text, including clinical risk markers.
 
     Request:
         text: str - Mood description in Swedish
@@ -144,7 +144,7 @@ def analyze_mood_text():
 
         user_id = g.get('user_id')
 
-        # Analyze using Swedish BERT
+        # Analyze the text
         nlp = get_mood_nlp()
         analysis = nlp.analyze_mood_text(text)
 

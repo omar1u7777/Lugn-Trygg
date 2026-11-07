@@ -68,10 +68,12 @@ class HealthCheck:
                 'response_time': self.timeout,
                 'timestamp': datetime.now(UTC).isoformat()
             }
-        except Exception as e:
+        except Exception:
+            # The report goes to an HTTP response; the cause goes to the log.
+            logger.exception("Health check %s failed", self.name)
             self.last_result = {
                 'status': 'unhealthy',
-                'error': str(e),
+                'error': 'Check failed',
                 'response_time': time.time() - start_time,
                 'timestamp': datetime.now(UTC).isoformat()
             }
@@ -206,7 +208,7 @@ class HealthCheckService:
             }
         except Exception as e:
             logger.error(f"Error getting system info: {e}")
-            return {'error': str(e)}
+            return {'error': 'System info unavailable'}
 
     # Default health check implementations
 
@@ -279,10 +281,11 @@ class HealthCheckService:
                 'latency': 'unknown'  # Could implement ping check
             }
         except Exception as e:
+            logger.warning("Network connectivity check failed: %s", e)
             return {
                 'connectivity': False,
                 'status': 'disconnected',
-                'error': str(e)
+                'error': 'Network unreachable'
             }
 
     def _check_application_startup(self) -> dict[str, Any]:

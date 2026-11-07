@@ -47,3 +47,23 @@ class TestStripePriceConfigGuard:
         mock_stripe.checkout.Session.create.assert_called_once()
         sent_price = mock_stripe.checkout.Session.create.call_args.kwargs["line_items"][0]["price"]
         assert sent_price == "price_1ABCdefGHIjkl"
+
+    def test_log_names_the_setting_to_fix_and_nothing_about_the_buyer(self, client, csrf_headers, caplog):
+        import logging
+
+        with patch("src.routes.subscription_routes.STRIPE_AVAILABLE", True), \
+             patch("src.routes.subscription_routes.STRIPE_PRICE_PREMIUM_YEARLY", "price_premium_yearly"), \
+             patch("src.routes.subscription_routes.stripe"), \
+             caplog.at_level(logging.ERROR, logger="src.routes.subscription_routes"):
+            resp = client.post(
+                f"{BASE}/create-session",
+                json={"plan": "premium", "email": "user@example.com", "billing_cycle": "yearly"},
+                content_type="application/json",
+                headers=csrf_headers,
+            )
+
+        assert resp.status_code == 503
+        assert "STRIPE_PRICE_PREMIUM_YEARLY is not set" in caplog.text
+        # Billing details are the buyer's; the placeholder value says nothing new.
+        assert "billing" not in caplog.text.lower()
+        assert "price_premium_yearly" not in caplog.text

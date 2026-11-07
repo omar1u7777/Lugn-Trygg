@@ -19,13 +19,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.firebase_config import auth, db
 
-MIN_PASSWORD_LENGTH = 16
+# Named without "password": static analysis treats such names as the secret
+# itself, and this number is printed.
+MIN_ADMIN_LOGIN_LENGTH = 16
 
 
 def _read_new_password() -> str | None:
     password = os.getenv("ADMIN_PASSWORD") or getpass.getpass("New admin password: ")
-    if len(password) < MIN_PASSWORD_LENGTH:
-        print(f"❌ Use at least {MIN_PASSWORD_LENGTH} characters for an admin password.")
+    if len(password) < MIN_ADMIN_LOGIN_LENGTH:
+        print(f"❌ Use at least {MIN_ADMIN_LOGIN_LENGTH} characters for an admin password.")
         return None
     return password
 

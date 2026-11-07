@@ -367,14 +367,15 @@ test.describe('🔗 API Integration Tests', () => {
 
     // Test endpoints that require authentication
     const protectedEndpoints = [
-      { path: `api/mood/history/${userId}`, method: 'GET' },
-      { path: 'api/mood/log', method: 'POST', body: { user_id: userId, mood_score: 5 } },
-      { path: 'api/ai/chat', method: 'POST', body: { user_id: userId, message: 'test' } }
+      // `name` is what gets logged; the paths and bodies carry the user id.
+      { name: 'mood history', path: `api/mood/history/${userId}`, method: 'GET' },
+      { name: 'mood log', path: 'api/mood/log', method: 'POST', body: { user_id: userId, mood_score: 5 } },
+      { name: 'ai chat', path: 'api/ai/chat', method: 'POST', body: { user_id: userId, message: 'test' } }
     ];
 
     for (const endpoint of protectedEndpoints) {
       // Test without auth
-      const noAuthTest = await page.evaluate(async (endpoint) => {
+      const anonymousCall = await page.evaluate(async (endpoint) => {
         try {
           const response = await fetch(`http://localhost:5001/${endpoint.path}`, {
             method: endpoint.method,
@@ -384,20 +385,20 @@ test.describe('🔗 API Integration Tests', () => {
             body: endpoint.body ? JSON.stringify(endpoint.body) : undefined
           });
           return {
-            endpoint: endpoint.path,
+            endpoint: endpoint.name,
             status: response.status,
             isUnauthorized: response.status === 401 || response.status === 403
           };
         } catch (e) {
-          return { endpoint: endpoint.path, error: (e as Error).message };
+          return { endpoint: endpoint.name, error: (e as Error).message };
         }
       }, endpoint);
 
-      console.log(`🚫 No auth test for ${endpoint.path}: status=${noAuthTest.status}`);
-      expect(noAuthTest.isUnauthorized || noAuthTest.status === 401 || noAuthTest.status === 403).toBe(true);
+      console.log(`🚫 No auth test for ${endpoint.name}: status=${anonymousCall.status}`);
+      expect(anonymousCall.isUnauthorized || anonymousCall.status === 401 || anonymousCall.status === 403).toBe(true);
 
       // Test with auth
-      const withAuthTest = await page.evaluate(async ({ endpoint, token }) => {
+      const signedInCall = await page.evaluate(async ({ endpoint, token }) => {
         try {
           const response = await fetch(`http://localhost:5001/${endpoint.path}`, {
             method: endpoint.method,
@@ -408,17 +409,17 @@ test.describe('🔗 API Integration Tests', () => {
             body: endpoint.body ? JSON.stringify(endpoint.body) : undefined
           });
           return {
-            endpoint: endpoint.path,
+            endpoint: endpoint.name,
             status: response.status,
             isSuccess: response.status >= 200 && response.status < 300
           };
         } catch (e) {
-          return { endpoint: endpoint.path, error: (e as Error).message };
+          return { endpoint: endpoint.name, error: (e as Error).message };
         }
       }, { endpoint, token: authToken });
 
-      console.log(`✅ With auth test for ${endpoint.path}:`, withAuthTest);
-      expect(withAuthTest.isSuccess).toBe(true);
+      console.log(`✅ With auth test for ${endpoint.name}:`, signedInCall);
+      expect(signedInCall.isSuccess).toBe(true);
     }
   });
 

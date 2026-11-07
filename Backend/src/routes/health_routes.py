@@ -15,6 +15,7 @@ from src.services.auth_service import AuthService
 from src.services.health_check_service import health_check_service, run_health_checks
 from src.services.monitoring_service import get_monitoring_service
 from src.services.rate_limiting import rate_limit_by_endpoint
+from src.utils.log_ref import log_ref
 from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
@@ -138,12 +139,12 @@ def metrics():
     user_id = g.get('user_id')
     try:
         user_doc = db.collection("users").document(user_id).get()
-        if user_doc.exists:
-            user_data = user_doc.to_dict()
-            is_admin = user_data.get("role") == "admin" or user_data.get("is_admin", False)
-            if not is_admin:
-                logger.warning(f"Non-admin user {user_id} attempted to access /metrics")
-                return APIResponse.forbidden('Admin access required')
+        # Fail closed: without a profile there is nothing showing an admin.
+        user_data = (user_doc.to_dict() or {}) if user_doc.exists else {}
+        is_admin = user_data.get("role") == "admin" or user_data.get("is_admin", False)
+        if not is_admin:
+            logger.warning("Non-admin user %s attempted to access /metrics", log_ref(user_id))
+            return APIResponse.forbidden('Admin access required')
     except Exception as e:
         logger.error(f"Error checking admin status: {e}")
         return APIResponse.error('Authorization check failed')
@@ -220,11 +221,11 @@ def metrics():
                 },
                 message='System metrics retrieved (monitoring service not initialized)'
             )
-    except Exception as e:
+    except Exception:
+        logger.exception("Failed to collect metrics")
         return APIResponse.error(
             message='Failed to collect metrics',
             error_code='METRICS_ERROR',
-            details={'error': str(e)}
         )
 
 @health_bp.route('/db', methods=['GET', 'OPTIONS'])
@@ -266,14 +267,14 @@ def database_health():
             message='Database is healthy'
         )
 
-    except Exception as e:
+    except Exception:
+        logger.exception("Database health check failed")
         return APIResponse.error(
             message='Database health check failed',
             error_code='DB_UNHEALTHY',
             status_code=503,
             details={
                 'status': 'unhealthy',
-                'error': str(e),
                 'timestamp': datetime.now(UTC).isoformat()
             }
         )
@@ -296,12 +297,12 @@ def advanced_health_check():
         return APIResponse.unauthorized('Authentication required')
     try:
         user_doc = db.collection("users").document(user_id).get()
-        if user_doc.exists:
-            user_data = user_doc.to_dict()
-            is_admin = user_data.get("role") == "admin" or user_data.get("is_admin", False)
-            if not is_admin:
-                logger.warning(f"Non-admin user {user_id} attempted to access /health/advanced")
-                return APIResponse.forbidden('Admin access required')
+        # Fail closed: without a profile there is nothing showing an admin.
+        user_data = (user_doc.to_dict() or {}) if user_doc.exists else {}
+        is_admin = user_data.get("role") == "admin" or user_data.get("is_admin", False)
+        if not is_admin:
+            logger.warning("Non-admin user %s attempted to access /health/advanced", log_ref(user_id))
+            return APIResponse.forbidden('Admin access required')
     except Exception as e:
         logger.error(f"Error checking admin status: {e}")
         return APIResponse.error('Authorization check failed')
@@ -313,7 +314,8 @@ def advanced_health_check():
                 db.collection('_health_check').limit(1).get()
                 return {'connectivity': True, 'status': 'connected'}
             except Exception as e:
-                return {'connectivity': False, 'error': str(e)}
+                logger.warning("Firestore health probe failed: %s", e)
+                return {'connectivity': False, 'error': 'Firestore unreachable'}
 
         health_check_service.register_database_check(check_firebase)
 
@@ -334,5 +336,4 @@ def advanced_health_check():
         return APIResponse.error(
             message='Advanced health check failed',
             error_code='HEALTH_CHECK_ERROR',
-            details={'error': str(e)}
         )

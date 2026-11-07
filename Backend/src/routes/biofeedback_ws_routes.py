@@ -10,6 +10,7 @@ from flask import Blueprint, g, request
 
 from src.services.auth_service import AuthService
 from src.services.biofeedback_breathing_service import SOCKETIO_AVAILABLE, BreathingPattern, get_biofeedback_service
+from src.utils.log_ref import log_ref
 from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ def register_biofeedback_websocket_handlers(socketio):
                     # Join user-specific room
                     from flask_socketio import join_room
                     join_room(user_id)
-                    logger.info(f"User {user_id} joined biofeedback room")
+                    logger.info("%s joined biofeedback room", log_ref(user_id))
         except Exception as e:
             logger.warning(f"Auth failed for biofeedback connection: {e}")
 
@@ -107,6 +108,8 @@ def register_biofeedback_websocket_handlers(socketio):
 
             # Process in service
             service = get_biofeedback_service(socketio)
+            if service.owned_by_another_user(session_id, user_id):
+                return {'error': 'Session not found'}
             service.process_heart_rate_data(
                 session_id, rr_intervals, parsed_timestamps
             )
@@ -122,13 +125,17 @@ def register_biofeedback_websocket_handlers(socketio):
     def handle_end_session(data):
         """End breathing session and get summary."""
         try:
-            getattr(request, 'user_id', None)
-            session_id = data.get('session_id')
+            user_id = getattr(request, 'user_id', None)
+            if not user_id:
+                return {'error': 'Authentication required'}
 
+            session_id = data.get('session_id')
             if not session_id:
                 return {'error': 'Missing session_id'}
 
             service = get_biofeedback_service(socketio)
+            if service.owned_by_another_user(session_id, user_id):
+                return {'error': 'Session not found'}
             summary = service.end_session(session_id)
 
             return summary
@@ -220,7 +227,7 @@ def start_session_rest():
 
     except ValueError as e:
         logger.warning("Invalid session parameters: %s", e)
-        return APIResponse.bad_request(str(e))
+        return APIResponse.bad_request('Invalid session parameters')
     except Exception:
         logger.exception("Failed to start biofeedback session")
         return APIResponse.error('Failed to start session', 'INTERNAL_ERROR', 500)
@@ -242,6 +249,8 @@ def submit_heart_rate_data(session_id: str):
                      for i in range(len(rr_intervals))]
 
         service = get_biofeedback_service()
+        if service.owned_by_another_user(session_id, g.get('user_id')):
+            return APIResponse.not_found('Session not found')
         feedback = service.process_heart_rate_data(
             session_id, rr_intervals, timestamps
         )
@@ -262,7 +271,7 @@ def submit_heart_rate_data(session_id: str):
 
     except ValueError as e:
         logger.warning("Invalid HRV data for session %s: %s", session_id, e)
-        return APIResponse.bad_request(str(e))
+        return APIResponse.bad_request('Invalid heart rate data')
     except Exception:
         logger.exception("Failed to process heart rate data for session %s", session_id)
         return APIResponse.error('Failed to process heart rate data', 'INTERNAL_ERROR', 500)
@@ -274,6 +283,8 @@ def end_session_rest(session_id: str):
     """REST endpoint to end session (WebSocket alternative)."""
     try:
         service = get_biofeedback_service()
+        if service.owned_by_another_user(session_id, g.get('user_id')):
+            return APIResponse.not_found('Session not found')
         summary = service.end_session(session_id)
 
         return APIResponse.success(
@@ -283,7 +294,7 @@ def end_session_rest(session_id: str):
 
     except ValueError as e:
         logger.warning("Invalid session end request for %s: %s", session_id, e)
-        return APIResponse.bad_request(str(e))
+        return APIResponse.bad_request('Invalid session end request')
     except Exception:
         logger.exception("Failed to end biofeedback session %s", session_id)
         return APIResponse.error('Failed to end session', 'INTERNAL_ERROR', 500)

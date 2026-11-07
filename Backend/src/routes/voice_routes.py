@@ -615,7 +615,7 @@ def voice_service_status():
             "googleSpeech": False,
             "webSpeechFallback": True,
             "emotionAnalysis": True,
-            "error": str(e)
+            "error": "Speech service status unavailable"
         }, "Voice service status retrieved with errors")
 
 

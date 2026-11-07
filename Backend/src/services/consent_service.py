@@ -102,7 +102,7 @@ class ConsentService:
             logger.error(f"Error checking consent for user {user_id}: {str(e)}")
             return {
                 'has_consent': False,
-                'error': str(e)
+                'error': 'Consent status unavailable'
             }
 
     def grant_consent(self, user_id: str, consent_type: str, version: str | None = None) -> bool:
@@ -219,7 +219,7 @@ class ConsentService:
 
         except Exception as e:
             logger.error(f"Error getting user consents for {user_id}: {str(e)}")
-            return {'error': str(e)}
+            return {'error': 'Consents unavailable'}
 
     def validate_feature_access(self, user_id: str, feature: str) -> dict[str, Any]:
         """

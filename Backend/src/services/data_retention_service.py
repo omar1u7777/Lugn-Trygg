@@ -219,7 +219,7 @@ class DataRetentionService:
             logger.error("Data retention could not enumerate users: %s", e)
             return {
                 'success': False,
-                'error': str(e),
+                'error': 'Could not list users',
                 'total_deleted': total_deleted,
                 'users_processed': users_processed,
                 'collections_processed': collections_processed,
@@ -234,7 +234,7 @@ class DataRetentionService:
             logger.error(f"Data retention failed: {str(e)}")
             return {
                 'success': False,
-                'error': str(e),
+                'error': 'Retention run failed',
                 'total_deleted': total_deleted,
                 'collections_processed': collections_processed,
             }
@@ -699,7 +699,7 @@ class DataRetentionService:
                 }
             except Exception as e:
                 logger.error(f"Failed to get retention status for {collection_name}: {str(e)}")
-                status[collection_name] = {'error': str(e)}
+                status[collection_name] = {'error': 'Status unavailable'}
 
         return {
             'user_id': user_id,
