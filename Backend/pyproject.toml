@@ -154,7 +154,6 @@ addopts = [
     "--strict-markers",
     "--strict-config",
     "-v",
-    "--ignore=tests/e2e_live_test.py",  # standalone script, not a test module
 ]
 markers = [
     "unit: Unit tests",
