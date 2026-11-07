@@ -55,13 +55,12 @@ repos:
         args: [-ll, -i, -r, Backend/src]
         exclude: Backend/tests/
 
-  # Dependency security check
-  - repo: https://github.com/pyupio/safety
-    rev: 2.3.5
+  # Dependency security check (the same scan CI runs)
+  - repo: https://github.com/pypa/pip-audit
+    rev: v2.10.1
     hooks:
-      - id: safety
-        args: [--file=Backend/requirements.txt]
-        pass_filenames: false
+      - id: pip-audit
+        args: [-r, Backend/requirements.txt]
 
   # Remove debug statements
   - repo: https://github.com/pre-commit/pygrep-hooks
