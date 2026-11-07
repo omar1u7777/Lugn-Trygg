@@ -34,6 +34,15 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# How a memory that speaks of suicide is answered, and one with other risk
+# markers (hopelessness). The numbers follow ai/crisis_detector.py.
+CRISIS_INSIGHT = (
+    "Det du skriver låter mycket tungt, och du behöver inte bära det ensam. "
+    "Ring Självmordslinjen på 90101 (dygnet runt), eller 112 om det är akut."
+)
+STRAIN_INSIGHT = "Det låter som att du har det tungt just nu. Prata gärna med någon du litar på."
+STRAIN_REFLECTION = "Finns det någon du kan höra av dig till i dag?"
+
 
 @dataclass
 class MemoryAnalysisResult:
@@ -65,7 +74,7 @@ class MemoryAnalysisService:
     Professional AI service for memory analysis and therapeutic insights
 
     Implements:
-    - Swedish BERT-based text analysis
+    - Swedish text analysis with clinical risk markers
     - Multi-modal fusion (text + audio + metadata)
     - Memory pattern detection
     - Therapeutic narrative construction
@@ -116,11 +125,24 @@ class MemoryAnalysisService:
         if not text or len(text.strip()) < 10:
             return self._create_empty_analysis()
 
-        # 1. Sentiment Analysis
-        sentiment_score = self._analyze_sentiment(text)
+        # 0. Clinical risk markers, shared with mood analysis
+        mood = self.nlp.analyze_mood_text(text) if self.nlp else None
+        risk = mood.clinical_indicators if mood else {}
+        suicidal = risk.get('suicidal_ideation', 0) > 0.5
+        strained = risk.get('suicidal_ideation', 0) > 0 or risk.get('hopelessness', 0) > 0
+
+        # 1. Sentiment Analysis (risk markers outweigh any other words)
+        sentiment_score = self._analyze_sentiment(text, fallback=mood.valence if mood else None)
+        if strained:
+            sentiment_score = min(sentiment_score, -0.5)
 
         # 2. Emotion Detection
         emotions = self._detect_emotions(text)
+        if strained:
+            emotions.pop('neutral', None)
+            emotions['negative'] = max(emotions.values(), default=0.0) + 1.0
+            total = sum(emotions.values())
+            emotions = {name: value / total for name, value in emotions.items()}
 
         # 3. Theme Extraction
         themes = self._extract_themes(text)
@@ -128,11 +150,19 @@ class MemoryAnalysisService:
         # 4. Significance Scoring
         significance = self._calculate_significance(text, emotions)
 
-        # 5. Generate Insights
-        insights = self._generate_therapeutic_insights(text, themes, emotions)
+        # 5. Generate Insights: a memory at risk gets support, not a generic line
+        if suicidal:
+            insights = [CRISIS_INSIGHT]
+        elif strained:
+            insights = [STRAIN_INSIGHT]
+        else:
+            insights = self._generate_therapeutic_insights(text, themes, emotions)
 
         # 6. Suggested Reflections
-        reflections = self._suggest_reflections(text, themes, sentiment_score)
+        if strained:
+            reflections = [STRAIN_REFLECTION]
+        else:
+            reflections = self._suggest_reflections(text, themes, sentiment_score)
 
         return MemoryAnalysisResult(
             memory_id=context.get('memory_id', 'unknown') if context else 'unknown',
@@ -327,8 +357,12 @@ class MemoryAnalysisService:
             'growth_areas': self._identify_growth_areas(sorted_memories)
         }
 
-    def _analyze_sentiment(self, text: str) -> float:
-        """Analyze sentiment score from -1 (negative) to 1 (positive)"""
+    def _analyze_sentiment(self, text: str, fallback: float | None = None) -> float:
+        """Analyze sentiment score from -1 (negative) to 1 (positive).
+
+        Uses the multilingual model when transformers is installed, otherwise
+        `fallback` or the mood analyzer's valence for the same text.
+        """
         if self.sentiment_pipeline:
             try:
                 result = self.sentiment_pipeline(text[:512])[0]  # Truncate for model
@@ -345,22 +379,15 @@ class MemoryAnalysisService:
             except Exception as e:
                 logger.warning(f"Sentiment pipeline failed: {e}")
 
-        # Fallback: keyword-based
-        positive_words = ['glad', 'lycklig', 'bra', 'fantastisk', 'underbart', 'kärlek', 'vänner']
-        negative_words = ['ledsen', 'arg', 'trött', 'deppig', 'orolig', 'stressad', 'dåligt']
-
-        text_lower = text.lower()
-        pos_count = sum(1 for w in positive_words if w in text_lower)
-        neg_count = sum(1 for w in negative_words if w in text_lower)
-
-        if pos_count + neg_count == 0:
-            return 0.0
-        return (pos_count - neg_count) / (pos_count + neg_count)
+        # Fallback: the mood analyzer's vocabulary (word stems, negation, "-lös")
+        if fallback is not None:
+            return fallback
+        return self.nlp.analyze_mood_text(text).valence if self.nlp else 0.0
 
     def _detect_emotions(self, text: str) -> dict[str, float]:
         """Detect emotions and their intensities"""
         emotion_keywords = {
-            'joy': ['glad', 'lycklig', 'skratt', 'nöjd', 'fantastiskt', 'underbart'],
+            'joy': ['glad', 'lycklig', 'skratt', 'nöjd', 'stolt', 'fantastiskt', 'underbart'],
             'sadness': ['ledsen', 'sorgsen', 'gråter', 'deppig', 'nedstämd'],
             'anger': ['arg', 'ilsken', 'frustrerad', 'irriterad', 'upprörd'],
             'fear': ['rädd', 'orolig', 'ångest', 'nervös', 'panik'],

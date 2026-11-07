@@ -40,12 +40,13 @@ class SwedishMoodNLP:
         'positive': [
             'glad', 'glädje', 'lycklig', 'tacksam', 'energi', 'lugn', 'nöj',
             'tillfreds', 'stolt', 'hoppas', 'hoppfull', 'kärlek', 'älsk',
-            'entusias', 'harmoni', 'trygg'
+            'entusias', 'harmoni', 'trygg', 'underbar', 'fantastisk'
         ],
         'negative': [
             'sorg', 'ledsen', 'ångest', 'oro', 'ilsk', 'trött', 'nedstämd',
             'deprimerad', 'hopplös', 'meningslös', 'värdelös', 'olycklig',
-            'skam', 'skuld', 'ensam', 'stress', 'skräck', 'rädsla'
+            'skam', 'skuld', 'ensam', 'stress', 'skräck', 'rädsla', 'deppig',
+            'dålig', 'frustrerad', 'irriterad', 'upprörd', 'nervös'
         ],
         'clinical': [
             'depression', 'panik', 'suicid', 'självmord', 'självskada', 'trauma',

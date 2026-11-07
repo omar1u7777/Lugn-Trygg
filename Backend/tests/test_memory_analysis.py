@@ -73,3 +73,38 @@ def test_memory_with_only_photos():
 
     assert result['primary_emotion'] == 'calm'
     assert result['sentiment_score'] == 0
+
+
+CRISIS = 'Jag vill inte leva längre'
+
+
+def test_memory_with_suicidal_statement(memories):
+    result = memories.analyze_text_memory(CRISIS)
+
+    assert result.sentiment_score <= -0.5
+    assert _top(result.emotions) == 'negative'
+    # It answers with where to get help, never a generic or cheerful line.
+    assert any('90101' in insight for insight in result.therapeutic_insights)
+    assert not any('livsberättelse' in insight for insight in result.therapeutic_insights)
+    assert not any('lärde du dig' in reflection for reflection in result.suggested_reflections)
+
+
+def test_hopeless_memory_is_negative(memories):
+    result = memories.analyze_text_memory('Allt känns hopplöst just nu')
+
+    assert result.sentiment_score < 0
+    assert not any('livsberättelse' in insight for insight in result.therapeutic_insights)
+
+
+def test_proud_memory_is_positive(memories):
+    result = memories.analyze_text_memory('Jag är så stolt över att ha klarat tentan!')
+
+    assert result.sentiment_score > 0
+    assert _top(result.emotions) == 'joy'
+
+
+def test_memory_creation_marks_a_crisis_memory():
+    result = _analyze_multimodal_memory(content=CRISIS, audio_data=None, photos=[])
+
+    assert result['primary_emotion'] == 'negative'
+    assert result['sentiment_score'] <= -0.5
