@@ -400,11 +400,11 @@ class BiofeedbackBreathingService:
 
         # SAFETY CHECK: Monitor heart rate
         if metrics.heart_rate > HEART_RATE_CRITICAL_THRESHOLD:
-            # The reading is health data, so the log gives the threshold it
-            # crossed and a pseudonym for the user instead.
+            # The reading is health data, so the log says only that the
+            # critical threshold was crossed, and names the user by pseudonym.
             logger.warning(
-                "CRITICAL: heart rate above %d BPM for %s - user should stop immediately",
-                HEART_RATE_CRITICAL_THRESHOLD, log_ref(session.user_id),
+                "CRITICAL: heart rate above the critical threshold for %s - user should stop immediately",
+                log_ref(session.user_id),
             )
             # Return feedback with critical warning
             return RealTimeFeedback(

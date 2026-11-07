@@ -67,9 +67,9 @@ _auth: "_firebase_auth_type" = firebase_auth  # type: ignore[assignment]
 logger = logging.getLogger(__name__)
 
 # Sign-in error codes from Firebase that login_user acts on. The reply belongs
-# to a request that carried the user's password, so its free text is never
-# logged or re-raised: a code from this table is, and anything else is OTHER.
-_FIREBASE_SIGNIN_ERRORS = {code: code for code in (
+# to a request that carried the user's password, so none of its text is logged
+# or re-raised: the code returned is always one of these strings, or OTHER.
+_FIREBASE_SIGNIN_ERRORS = (
     'INVALID_LOGIN_CREDENTIALS',
     'INVALID_PASSWORD',
     'EMAIL_NOT_FOUND',
@@ -77,7 +77,7 @@ _FIREBASE_SIGNIN_ERRORS = {code: code for code in (
     'USER_DISABLED',
     'OPERATION_NOT_ALLOWED',
     'TOO_MANY_ATTEMPTS_TRY_LATER',
-)}
+)
 
 
 def _firebase_signin_error(response: Any) -> str:
@@ -87,7 +87,10 @@ def _firebase_signin_error(response: Any) -> str:
     except (ValueError, KeyError, TypeError):
         return 'OTHER'
     # Some codes carry an explanation: "TOO_MANY_ATTEMPTS_TRY_LATER : Access ..."
-    return _FIREBASE_SIGNIN_ERRORS.get(message.split(' ', 1)[0], 'OTHER')
+    for code in _FIREBASE_SIGNIN_ERRORS:
+        if message == code or message.startswith(code + ' '):
+            return code
+    return 'OTHER'
 
 
 def _mask_email(email: str) -> str:
