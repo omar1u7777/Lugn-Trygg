@@ -108,6 +108,8 @@ def register_biofeedback_websocket_handlers(socketio):
 
             # Process in service
             service = get_biofeedback_service(socketio)
+            if service.owned_by_another_user(session_id, user_id):
+                return {'error': 'Session not found'}
             service.process_heart_rate_data(
                 session_id, rr_intervals, parsed_timestamps
             )
@@ -123,13 +125,17 @@ def register_biofeedback_websocket_handlers(socketio):
     def handle_end_session(data):
         """End breathing session and get summary."""
         try:
-            getattr(request, 'user_id', None)
-            session_id = data.get('session_id')
+            user_id = getattr(request, 'user_id', None)
+            if not user_id:
+                return {'error': 'Authentication required'}
 
+            session_id = data.get('session_id')
             if not session_id:
                 return {'error': 'Missing session_id'}
 
             service = get_biofeedback_service(socketio)
+            if service.owned_by_another_user(session_id, user_id):
+                return {'error': 'Session not found'}
             summary = service.end_session(session_id)
 
             return summary
@@ -243,6 +249,8 @@ def submit_heart_rate_data(session_id: str):
                      for i in range(len(rr_intervals))]
 
         service = get_biofeedback_service()
+        if service.owned_by_another_user(session_id, g.get('user_id')):
+            return APIResponse.not_found('Session not found')
         feedback = service.process_heart_rate_data(
             session_id, rr_intervals, timestamps
         )
@@ -275,6 +283,8 @@ def end_session_rest(session_id: str):
     """REST endpoint to end session (WebSocket alternative)."""
     try:
         service = get_biofeedback_service()
+        if service.owned_by_another_user(session_id, g.get('user_id')):
+            return APIResponse.not_found('Session not found')
         summary = service.end_session(session_id)
 
         return APIResponse.success(

@@ -369,6 +369,15 @@ class BiofeedbackBreathingService:
 
         return session
 
+    def owned_by_another_user(self, session_id: str, user_id: str | None) -> bool:
+        """True if the session is active and was started by someone other than `user_id`.
+
+        Callers answer such a request as if the session did not exist, so
+        its existence is not revealed either.
+        """
+        session = self.active_sessions.get(session_id)
+        return session is not None and session.user_id != user_id
+
     def process_heart_rate_data(self, session_id: str,
                                  rr_intervals: list[float],
                                  timestamps: list[datetime]) -> RealTimeFeedback:
@@ -391,8 +400,8 @@ class BiofeedbackBreathingService:
 
         # SAFETY CHECK: Monitor heart rate
         if metrics.heart_rate > HEART_RATE_CRITICAL_THRESHOLD:
-            # The reading is health data and the session id embeds the uid,
-            # so the log keeps neither: the threshold and a pseudonym suffice.
+            # The reading is health data, so the log gives the threshold it
+            # crossed and a pseudonym for the user instead.
             logger.warning(
                 "CRITICAL: heart rate above %d BPM for %s - user should stop immediately",
                 HEART_RATE_CRITICAL_THRESHOLD, log_ref(session.user_id),

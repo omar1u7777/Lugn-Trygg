@@ -133,6 +133,7 @@ def test_voice_status(client, mocker):
 ])
 def test_biofeedback_rejections(client, auth_csrf_headers, mock_auth_service, mocker, method, path, service_call):
     service = MagicMock()
+    service.owned_by_another_user.return_value = False
     getattr(service, service_call).side_effect = ValueError(DETAIL)
     mocker.patch('src.routes.biofeedback_ws_routes.get_biofeedback_service', return_value=service)
 
