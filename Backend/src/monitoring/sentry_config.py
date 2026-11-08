@@ -139,6 +139,10 @@ def init_sentry(app=None):
 
             # Additional options
             send_default_pii=False,  # HIPAA compliance - don't send PII
+            # The SDK reads every frame's local variables by default, so an
+            # exception in log_mood would carry the user's note and one in the
+            # chat their message. A stack trace without values is enough.
+            include_local_variables=False,
             attach_stacktrace=True,
             max_breadcrumbs=50,
 
@@ -176,6 +180,19 @@ def init_sentry(app=None):
 
     return True
 
+def _drop_frame_variables(event: dict[str, Any]) -> None:
+    """Remove local variables from every stack frame in `event`.
+
+    init_sentry turns them off at the source; this keeps them out if that
+    setting is ever changed, since a frame's locals hold what the person wrote.
+    """
+    for interface in ('exception', 'threads'):
+        values = (event.get(interface) or {}).get('values') or []
+        for value in values:
+            for frame in (value.get('stacktrace') or {}).get('frames') or []:
+                frame.pop('vars', None)
+
+
 def before_send_filter(event: dict[str, Any], hint: dict[str, Any] | None):
     """
     Filter events before sending to Sentry.
@@ -198,6 +215,8 @@ def before_send_filter(event: dict[str, Any], hint: dict[str, Any] | None):
 
     if event.get('tags', {}).get('http.status_code') == '429':
         return None
+
+    _drop_frame_variables(event)
 
     # Scrub sensitive data from request
     if 'request' in event:

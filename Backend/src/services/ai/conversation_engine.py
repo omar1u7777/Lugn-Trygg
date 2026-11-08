@@ -233,7 +233,7 @@ class ConversationEngine:
         with CBT/ACT framework and RAG personalization.
         """
         svc = self._svc
-        logger.info(f"🧠 Generating therapeutic conversation for message: '{user_message[:50]}...'")
+        logger.info(f"🧠 Generating therapeutic conversation for a {len(user_message)}-character message")
         logger.info(f"🧠 OpenAI available: {svc.openai_available}")
 
         if not svc.openai_available or not svc.client:

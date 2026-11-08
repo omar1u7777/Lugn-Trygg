@@ -6,8 +6,7 @@ import {
   PlayIcon,
   PauseIcon,
   SpeakerWaveIcon,
-  SpeakerXMarkIcon,
-  XMarkIcon
+  SpeakerXMarkIcon
 } from "@heroicons/react/24/outline";
 import {
   getAudioLibrary,
@@ -417,9 +416,15 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  /*
+   * z-200, the level the app's other full-screen layers use: the header is
+   * z-120, the sidebar z-100 and the bottom bar z-50. At z-50 the dialog sat
+   * under all three, so the header covered its close button and the sidebar
+   * its left edge.
+   */
   const containerClasses = embedded
     ? "w-full min-h-[500px] flex flex-col bg-transparent"
-    : "fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-xs p-4";
+    : "fixed inset-0 bg-black/60 flex items-center justify-center z-200 backdrop-blur-xs p-4";
 
   /*
    * flex-1 min-h-0, not h-full.
@@ -554,9 +559,17 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                   </div>
                 </div>
 
-                <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+                {/*
+                  Below lg the list and the player are stacked, and the player
+                  is taller than a short window leaves: with the list as a
+                  shrinkable flex-1 it was squeezed to nothing and the player
+                  clipped, so neither the tracks nor Spela and Nästa could be
+                  reached. Stacked, the two scroll together; side by side (lg)
+                  the list keeps its own scroll.
+                */}
+                <div className="flex-1 min-h-0 flex flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
                   {/* Track List */}
-                  <div className="flex-1 flex flex-col min-h-0">
+                  <div className="flex flex-col shrink-0 lg:shrink lg:flex-1 lg:min-h-0">
                     <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0 ${embedded ? 'px-0' : ''}`}>
                       <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                         <span>{currentCategory?.icon}</span>
@@ -565,7 +578,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                       <p className="text-sm text-slate-600 dark:text-slate-400">{currentCategory?.description}</p>
                     </div>
 
-                    <div className={`flex-1 overflow-y-auto px-6 py-4 ${embedded ? 'px-0' : ''}`}>
+                    <div className={`lg:flex-1 lg:overflow-y-auto px-6 py-4 ${embedded ? 'px-0' : ''}`}>
                       <div className="space-y-3">
                         {currentPlaylist.map((track, index) => (
                           <div
@@ -615,9 +628,11 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                     </div>
                   </div>
 
-                  {/* Player Controls - Always Visible */}
-                  <div className="lg:w-96 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700">
-                    <div className={`p-6 h-full flex flex-col ${embedded ? 'px-4' : ''}`}>
+                  {/* Player Controls. Beside the list (lg) the panel scrolls on its
+                      own: in a short window, with an error message above them,
+                      the controls ran past the bottom of the dialog and were cut off. */}
+                  <div className="lg:w-96 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700 lg:overflow-y-auto">
+                    <div className={`p-6 min-h-full flex flex-col ${embedded ? 'px-4' : ''}`}>
                       <div className="text-center mb-6">
                         {/*
                           A div with an onClick, styled as the largest control
@@ -758,6 +773,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                           step="0.1"
                           value={volume}
                           onChange={handleVolumeChange}
+                          aria-label={t('audio.volume', 'Volym')}
                           className="flex-1 h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer slider"
                         />
                         <SpeakerWaveIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
@@ -779,16 +795,6 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
           </>
         )}
 
-        {/* Close Button - Only show if NOT embedded */}
-        {!embedded && (
-          <button
-            className="absolute top-4 right-4 min-h-[44px] min-w-[44px] bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg"
-            onClick={onClose}
-            aria-label={t('common.close', 'Stäng')}
-          >
-            <XMarkIcon className="w-5 h-5" />
-          </button>
-        )}
       </div>
 
       <audio ref={audioRef} preload="metadata" />

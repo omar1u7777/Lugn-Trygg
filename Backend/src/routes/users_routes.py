@@ -343,7 +343,7 @@ def get_wellness_goals():
             details={"goals_count": len(wellness_goals)}
         )
 
-        logger.info(f"✅ USERS - Wellness goals retrieved: {wellness_goals}")
+        logger.info(f"✅ USERS - Wellness goals retrieved: {len(wellness_goals)} goals")
         return APIResponse.success(
             {"wellnessGoals": wellness_goals, "goalStepCompletions": goal_step_completions},
             "Wellness goals retrieved"
@@ -372,7 +372,7 @@ def set_wellness_goals():
             logger.warning("Invalid wellnessGoals payload: %s", invalid.message)
             return APIResponse.from_client_error(invalid)
 
-        logger.info(f"📝 Received wellness goals data: {goals}")
+        logger.info(f"📝 Received wellness goals data: {len(goals)} goals")
 
         # Check if user exists first
         user_ref = db.collection('users').document(user_id)  # type: ignore
@@ -401,7 +401,7 @@ def set_wellness_goals():
             details={"goals": goals, "goals_count": len(goals)}
         )
 
-        logger.info(f"✅ USERS - Wellness goals saved: {goals}")
+        logger.info(f"✅ USERS - Wellness goals saved: {len(goals)} goals")
         return APIResponse.success({"wellnessGoals": goals}, "Wellness goals saved")
     except Exception as e:
         logger.exception(f"❌ Failed to save wellness goals: {e}")
@@ -457,7 +457,7 @@ def complete_goal_step():
             'updatedAt': SERVER_TIMESTAMP
         })
 
-        logger.info(f"✅ Goal step completion updated: {goal_id} - {step_text}")
+        logger.info(f"✅ Goal step completion updated: {goal_id}")
         return APIResponse.success(
             {"goalStepCompletions": goal_step_completions},
             "Goal step completion updated"

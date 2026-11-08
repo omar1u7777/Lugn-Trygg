@@ -51,6 +51,30 @@ logger = logging.getLogger(__name__)
 # Blueprint definition
 mood_bp = Blueprint('mood', __name__)
 
+
+def _scale_value(data: Any, field: str) -> int | None:
+    """A 1-10 value from a mood log payload, or None when it was not sent.
+
+    Raises ValueError for anything else. An invalid score used to become None
+    and the entry was saved anyway, as a 5 or as whatever the note's sentiment
+    gave, which moved the user's averages. bool is refused because int(True)
+    is 1; a float is accepted only when it is a whole number (JSON 7.0).
+    """
+    raw = data.get(field) if isinstance(data, dict) else None
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        return None
+    if isinstance(raw, bool) or not isinstance(raw, int | float | str):
+        raise ValueError(field)
+    if isinstance(raw, float) and not raw.is_integer():
+        raise ValueError(field)
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ValueError(field) from None
+    if not 1 <= value <= 10:
+        raise ValueError(field)
+    return value
+
 # CRITICAL FIX: Use Redis for caching (production ready for 10k users)
 # Fallback to in-memory cache if Redis not available
 _mood_cache = {}
@@ -268,16 +292,6 @@ def log_mood() -> Response | tuple[Response, int]:
             logger.error(f"Firebase query failed: {str(e)}")
             return APIResponse.error('Service temporarily unavailable', status_code=503)
 
-        plan_context = SubscriptionService.get_plan_context(user_data, user_id=user_id)
-        try:
-            SubscriptionService.consume_quota(user_id, 'mood_logs', plan_context['limits'])
-        except SubscriptionLimitError:
-            limit_value = plan_context['limits'].get('moodLogsPerDay')
-            logger.info(
-                "Mood log denied due to quota: user=%s limit=%s", user_id, limit_value
-            )
-            return APIResponse.error('Daily mood log limit reached', 'QUOTA_EXCEEDED', 429)
-
         # --- Unified payload handling for both JSON and multipart/form-data ---
         # If frontend sends audio, it uses multipart/form-data; otherwise JSON
         #
@@ -292,28 +306,48 @@ def log_mood() -> Response | tuple[Response, int]:
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = request.form.to_dict()
             audio_file = request.files.get('audio')
-            audio_bytes = audio_file.read() if audio_file else None
-            voice_url = None
-            if audio_bytes:
-                try:
-                    bucket = firebase_storage.bucket()
-                    timestamp_str = datetime.now(UTC).strftime('%Y%m%d_%H%M%S')
-                    blob_name = f"users/{user_id}/voice/{timestamp_str}_{uuid.uuid4().hex[:8]}.webm"
-                    blob = bucket.blob(blob_name)
-                    blob.upload_from_string(audio_bytes, content_type='audio/webm')
-                    blob.make_public()
-                    voice_url = blob.public_url
-                    logger.info(f"🎙️ Voice uploaded to Storage: {blob_name}")
-                except Exception as storage_err:
-                    logger.warning(f"⚠️ Failed to upload voice to Storage: {storage_err}")
         else:
             data = request.get_json(force=True, silent=True)
-            audio_bytes = None
-            voice_url = None
             audio_file = None
 
         if not data and not audio_file:
             return APIResponse.bad_request('No data provided')
+
+        # Scores are checked before the quota is used or anything is stored, so
+        # a refused log costs the user nothing.
+        try:
+            user_score = _scale_value(data, 'score')
+            valence = _scale_value(data, 'valence')
+            arousal = _scale_value(data, 'arousal')
+        except ValueError as invalid:
+            return APIResponse.bad_request(
+                f'Ogiltigt värde för {invalid}: måste vara ett heltal från 1 till 10.'
+            )
+
+        plan_context = SubscriptionService.get_plan_context(user_data, user_id=user_id)
+        try:
+            SubscriptionService.consume_quota(user_id, 'mood_logs', plan_context['limits'])
+        except SubscriptionLimitError:
+            limit_value = plan_context['limits'].get('moodLogsPerDay')
+            logger.info(
+                "Mood log denied due to quota: user=%s limit=%s", user_id, limit_value
+            )
+            return APIResponse.error('Daily mood log limit reached', 'QUOTA_EXCEEDED', 429)
+
+        audio_bytes = audio_file.read() if audio_file else None
+        voice_url = None
+        if audio_bytes:
+            try:
+                bucket = firebase_storage.bucket()
+                timestamp_str = datetime.now(UTC).strftime('%Y%m%d_%H%M%S')
+                blob_name = f"users/{user_id}/voice/{timestamp_str}_{uuid.uuid4().hex[:8]}.webm"
+                blob = bucket.blob(blob_name)
+                blob.upload_from_string(audio_bytes, content_type='audio/webm')
+                blob.make_public()
+                voice_url = blob.public_url
+                logger.info(f"🎙️ Voice uploaded to Storage: {blob_name}")
+            except Exception as storage_err:
+                logger.warning(f"⚠️ Failed to upload voice to Storage: {storage_err}")
 
         mood_text = data.get('mood_text', '') if data else ''
         # CRITICAL FIX: Get note (from frontend MoodLogger)
@@ -345,39 +379,12 @@ def log_mood() -> Response | tuple[Response, int]:
                 tags = [tags] if tags else []
         tags = [str(t).strip()[:50] for t in tags[:10] if isinstance(t, str | int | float) and str(t).strip()]
 
-        # Get user-submitted score (1-10 scale)
-        user_score = data.get('score') if data else None
-        if user_score is not None:
-            try:
-                user_score = int(user_score)
-                if user_score < 1 or user_score > 10:
-                    user_score = None
-            except (ValueError, TypeError):
-                user_score = None
-        # Circumplex Model: Get valence and arousal (1-10 scale)
-        valence = data.get('valence') if data else None
-        arousal = data.get('arousal') if data else None
-        if valence is not None:
-            try:
-                valence = int(valence)
-                if valence < 1 or valence > 10:
-                    valence = None
-            except (ValueError, TypeError):
-                valence = None
-        if arousal is not None:
-            try:
-                arousal = int(arousal)
-                if arousal < 1 or arousal > 10:
-                    arousal = None
-            except (ValueError, TypeError):
-                arousal = None
-
         timestamp = (
             data.get('timestamp', datetime.now(UTC).isoformat())
             if data else datetime.now(UTC).isoformat()
         )
 
-        logger.info(f"📝 Mood log data: score={user_score}, note='{note}', mood_text='{mood_text}'")
+        logger.info(f"📝 Mood log data: score={user_score}, note={len(note or '')} chars, mood_text={bool(mood_text)}")
 
         # --- End unified payload handling ---
 
@@ -403,19 +410,19 @@ def log_mood() -> Response | tuple[Response, int]:
                 # First try to transcribe the audio to get the spoken text
                 from ..utils.speech_utils import transcribe_audio_google
                 transcript = transcribe_audio_google(audio_bytes, "sv-SE")
-                logger.info(f"🎙️ Voice transcription result: '{transcript}'")
+                logger.info(f"🎙️ Voice transcription: {len(transcript or '')} chars")
 
                 # Use the transcript for emotion analysis, or fallback to empty string
                 transcript_text = transcript if transcript else ""
                 voice_analysis = _get_ai_services_module().ai_services.analyze_voice_emotion(audio_bytes, transcript_text)
-                logger.info(f"🎭 Voice analysis result: {voice_analysis}")
+                logger.info("🎭 Voice analysis completed")
 
                 # If transcription failed, try fallback analysis using Swedish keywords
                 if not transcript:
                     logger.info("🎙️ No transcription available, trying Swedish keyword analysis")
                     try:
                         voice_analysis = _get_ai_services_module().ai_services.analyze_voice_emotion_fallback(transcript_text)
-                        logger.info(f"🎭 Fallback voice analysis result: {voice_analysis}")
+                        logger.info("🎭 Fallback voice analysis completed")
                     except Exception as fallback_error:
                         logger.warning(f"Fallback voice analysis also failed: {str(fallback_error)}")
                         # If even fallback fails, use neutral values
@@ -480,7 +487,7 @@ def log_mood() -> Response | tuple[Response, int]:
                 'neutral': 'neutral'
             }
             final_mood_text = emotion_to_mood.get(primary_emotion, 'neutral')
-            logger.info(f"🎭 Using voice analysis mood: {final_mood_text}")
+            logger.info("🎭 Using the voice analysis for the mood")
 
         # BACKEND DEDUPLICATION: Prevent same score within 5 minutes
         if user_score is not None:
@@ -515,7 +522,7 @@ def log_mood() -> Response | tuple[Response, int]:
         # Save to database
         try:
             logger.info(f"💾 Attempting to save mood to Firestore for user: {user_id}")
-            logger.info(f"💾 Mood data: score={user_score}, text='{final_mood_text}', timestamp={timestamp}")
+            logger.info(f"💾 Mood data: score={user_score}, text={bool(final_mood_text)}, timestamp={timestamp}")
 
             mood_ref = db.collection('users').document(user_id).collection('moods')
 

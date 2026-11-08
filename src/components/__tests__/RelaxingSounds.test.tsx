@@ -119,7 +119,7 @@ describe('RelaxingSounds', () => {
     render(<RelaxingSounds onClose={onClose} />);
     await waitFor(() => screen.getByText('Regnskog'));
 
-    // Two close buttons exist (header + floating) - both call onClose
+    // One close button, in the dialog's header (the floating duplicate sat under the app header)
     const closeBtns = screen.getAllByLabelText(/Stäng/i);
     expect(closeBtns.length).toBeGreaterThanOrEqual(1);
     fireEvent.click(closeBtns[0]);
