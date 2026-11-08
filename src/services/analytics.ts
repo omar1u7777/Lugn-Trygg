@@ -6,6 +6,7 @@
 
 import { logger } from '../utils/logger';
 import * as Sentry from './sentryClient';
+import { markReported, wasReported } from '../utils/reportedErrors';
 
 type AnalyticsProperties = Record<string, unknown>;
 
@@ -163,8 +164,14 @@ export const analytics = {
     }
   },
 
-  // Error tracking
+  // Error tracking. An error is sent once, whichever of the logger and this
+  // got to it first; the console line is debug because the logger, not
+  // analytics, owns the console.
   error: (error: Error, context: ErrorContext = {}) => {
+    if (wasReported(error)) {
+      return;
+    }
+
     const errorData = {
       message: error.message,
       stack: error.stack,
@@ -186,7 +193,8 @@ export const analytics = {
         },
       });
 
-      logger.error('❌ Error tracked:', errorData);
+      markReported(error);
+      logger.debug('❌ Error tracked:', errorData);
     } catch (err) {
       logger.warn('Error tracking failed:', err);
     }
@@ -556,9 +564,13 @@ export function trackRetention(daysSinceSignup: number) {
  * Track errors to Sentry
  */
 export function trackError(error: Error) {
+  if (wasReported(error)) {
+    return;
+  }
   try {
     Sentry.captureException(error);
-    logger.error('🚨 Error tracked in Sentry:', error);
+    markReported(error);
+    logger.debug('🚨 Error tracked in Sentry:', { message: error.message });
   } catch (e) {
     logger.error('Failed to track error:', e);
   }

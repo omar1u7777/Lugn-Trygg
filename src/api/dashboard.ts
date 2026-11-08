@@ -155,8 +155,8 @@ const fetchDashboardSummary = async (userId: string, forceRefresh: boolean, sign
     // Rendered after the panel's own "Kunde inte ladda översikten:" heading, so
     // this has to add something rather than repeat it.
     const errorMessage = extractErrorMessage(error, 'Tjänsten svarade inte. Det kan vara tillfälligt.');
-    logger.error('Dashboard summary fetch error:', { error: apiError, responseData });
-    throw new Error(errorMessage);
+    logger.error('Dashboard summary fetch error:', error, { responseData });
+    throw new Error(errorMessage, { cause: error });
   }
 };
 
@@ -251,7 +251,7 @@ export const setWellnessGoals = async (goals: string[]) => {
   } catch (error: unknown) {
     const apiError = error as Record<string, unknown>;
     logger.error('Set wellness goals error:', apiError);
-    throw new Error(extractErrorMessage(error, 'Kunde inte spara dina mål.'));
+    throw new Error(extractErrorMessage(error, 'Kunde inte spara dina mål.'), { cause: error });
   }
 };
 export interface ActivityProgress {

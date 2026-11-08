@@ -359,7 +359,7 @@ export const getMoodStatistics = async (_userId: string) => {
       recentTrend: data.recentTrend ?? data.recent_trend ?? 'stable'
     };
   } catch (error: unknown) {
-    throw new Error(getApiErrorMessage(error, "An error occurred while fetching statistics."));
+    throw new Error(getApiErrorMessage(error, "An error occurred while fetching statistics."), { cause: error });
   }
 };
 
@@ -374,7 +374,7 @@ export const analyzeText = async (text: string) => {
     const response = await api.post(API_ENDPOINTS.MOOD.ANALYZE_TEXT, { text });
     return response.data?.data || response.data;
   } catch (error: unknown) {
-    throw new Error(getApiErrorMessage(error, "An error occurred during text analysis."));
+    throw new Error(getApiErrorMessage(error, "An error occurred during text analysis."), { cause: error });
   }
 };
 
@@ -407,6 +407,6 @@ export const exportMoodData = async (userId: string, format: 'csv' | 'json' = 'c
     
     return [headers.join(','), ...rows].join('\n');
   } catch (error: unknown) {
-    throw new Error(getApiErrorMessage(error, "An error occurred while exporting mood data."));
+    throw new Error(getApiErrorMessage(error, "An error occurred while exporting mood data."), { cause: error });
   }
 };

@@ -2,6 +2,7 @@ import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, AxiosHeaders, Int
 import { getBackendUrl } from "../config/env";
 import { tokenStorage, purgeUserScopedStorage } from "../utils/secureStorage";
 import { logger } from "../utils/logger";
+import { markReported } from "../utils/reportedErrors";
 import { API_ENDPOINTS } from "./constants";
 import { getCsrfToken as getSharedCsrfToken, clearCsrfToken, registerCsrfFetcher } from "./csrf";
 import { ApiError } from "./errors";
@@ -255,19 +256,6 @@ const trackApiCall = async (
   }
 };
 
-// Helper function to track errors
-const trackError = async (
-  errorType: string,
-  extraData: Record<string, unknown>
-) => {
-  try {
-    const analytics = await getAnalytics();
-    analytics.business.error(errorType, extraData);
-  } catch (error) {
-    logger.warn('Failed to track error:', { error: String(error) });
-  }
-};
-
 /** Coerce an axios request body into the plain object the offline queue stores. */
 const normalizeQueuedBody = (data: unknown): Record<string, unknown> => {
   if (data && typeof data === 'object' && !Array.isArray(data)) {
@@ -334,11 +322,6 @@ const handleSuccessfulResponse = async (response: AxiosResponse): Promise<AxiosR
 
 const handleRateLimitError = async (error: AxiosError, originalRequest: ApiConfig): Promise<never> => {
   const retryAfter = parseInt(error.response?.headers[RETRY_AFTER_HEADER] || DEFAULT_RETRY_AFTER.toString());
-  logger.warn(`Rate limit exceeded. Retry after ${retryAfter} seconds`);
-  await trackError('Rate Limit Exceeded', {
-    endpoint: originalRequest.url,
-    retryAfter,
-  });
   // Unified contract: ApiError with status + code so consumers can branch on
   // error.code / error.response.status instead of parsing the Swedish message.
   throw new ApiError(RATE_LIMIT_MESSAGE(retryAfter), {
@@ -372,14 +355,6 @@ const handleTimeoutError = async (error: AxiosError, originalRequest: ApiConfig)
 };
 
 const handleNetworkError = async (error: AxiosError, originalRequest: ApiConfig): Promise<never> => {
-  logger.error("API Network Error:", {
-    message: error.message,
-    url: originalRequest.url,
-    method: originalRequest.method,
-    code: error.code,
-    offline: !navigator.onLine
-  });
-
   if (!navigator.onLine && originalRequest) {
     originalRequest._offlineQueued = true;
     await queueOfflineRequest(
@@ -395,21 +370,6 @@ const handleNetworkError = async (error: AxiosError, originalRequest: ApiConfig)
     });
   }
 
-  await trackError('Network Error', {
-    endpoint: originalRequest.url,
-    method: originalRequest.method,
-    code: error.code,
-    offline: !navigator.onLine
-  });
-  throw error;
-};
-
-const handleSetupError = async (error: AxiosError, originalRequest: ApiConfig): Promise<never> => {
-  logger.error("API Error:", error.message);
-  await trackError('API Setup Error', {
-    message: error.message,
-    url: originalRequest.url
-  });
   throw error;
 };
 
@@ -525,6 +485,12 @@ const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | n
     throw error;
   }
 
+  // The app cancelled this request itself (a page unmounted, a newer request
+  // replaced it). Nothing failed: nothing to retry, queue or count.
+  if (axios.isCancel(error)) {
+    throw error;
+  }
+
   // Track failed API call
   const startTime = originalRequest.startTime;
   if (startTime) {
@@ -542,17 +508,6 @@ const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | n
   }
 
   if (error.response) {
-    // Server responded with error status
-    const errorData = {
-      status: error.response.status,
-      statusText: error.response.statusText,
-      data: error.response.data,
-      url: originalRequest.url,
-      method: originalRequest.method,
-      timestamp: Date.now()
-    };
-    logger.error("API Error Response:", errorData);
-
     if (error.response.status === 401
         && !originalRequest._retry
         && !isSessionEndpoint(originalRequest.url)
@@ -582,16 +537,8 @@ const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | n
     if (error.response.status === 408 || error.response.status === 504) {
       await handleTimeoutError(error, originalRequest);
     }
-
-    await trackError(`API Error ${error.response.status}`, {
-      endpoint: originalRequest.url,
-      method: originalRequest.method,
-      status: error.response.status
-    });
   } else if (error.request) {
     await handleNetworkError(error, originalRequest);
-  } else {
-    await handleSetupError(error, originalRequest);
   }
 
   throw error;
@@ -640,6 +587,42 @@ const normalizeToApiError = (err: unknown): Error => {
   return err instanceof Error ? err : new ApiError(String(err));
 };
 
+const isCancellation = (error: Error): boolean =>
+  axios.isCancel(error) || axios.isCancel(error.cause);
+
+/**
+ * Report a request that has failed for good, once.
+ *
+ * This is the one place a failed request is logged and sent to Sentry: after
+ * the token refresh, the CSRF retry and the transient-error retries have had
+ * their turn, so a 401 the refresh recovers from is not reported at all and a
+ * request retried three times is reported once. The error is the ApiError the
+ * caller receives, so a caller that logs it too only adds a debug line (see
+ * logger.error). Retries and refreshes re-enter this interceptor; an inner
+ * level reports first and the outer levels find the error already reported.
+ *
+ * A cancellation is not a failure. It is marked so that a caller logging it
+ * does not turn it into one.
+ */
+const reportFailedRequest = (error: Error): Error => {
+  if (isCancellation(error)) {
+    markReported(error);
+    return error;
+  }
+
+  if (error instanceof ApiError) {
+    logger.error('API request failed:', error, {
+      method: error.method?.toUpperCase(),
+      url: error.url,
+      status: error.status,
+      code: error.code,
+    });
+  } else {
+    logger.error('API request failed:', error);
+  }
+  return error;
+};
+
 // Response interceptor with modular error handling and retry logic
 api.interceptors.response.use(
   handleSuccessfulResponse,
@@ -653,10 +636,10 @@ api.interceptors.response.use(
         try {
           return await retryRequest(error);
         } catch (retryError) {
-          throw normalizeToApiError(retryError);
+          throw reportFailedRequest(normalizeToApiError(retryError));
         }
       }
-      throw normalizeToApiError(handledError);
+      throw reportFailedRequest(normalizeToApiError(handledError));
     }
   }
 );
@@ -686,7 +669,7 @@ api.interceptors.request.use(
       if (!csrf) {
         // [S4] Block the request — sending state-changing requests without CSRF
         // protection is a security vulnerability. Never silently continue.
-        logger.error('CSRF token unavailable. Request blocked.', { url: config.url, method });
+        // The rejection reaches the response interceptor, which reports it.
         return Promise.reject(new ApiError('CSRF token unavailable. Request blocked for security.', {
           code: 'CSRF_UNAVAILABLE',
           url: config.url,

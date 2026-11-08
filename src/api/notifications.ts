@@ -47,7 +47,7 @@ export const saveFCMToken = async (fcmToken: string) => {
     return data;
   } catch (error: unknown) {
     logger.error("Save FCM token error:", error);
-    throw new Error(getApiErrorMessage(error, "Failed to save notification token"));
+    throw new Error(getApiErrorMessage(error, "Failed to save notification token"), { cause: error });
   }
 };
 
@@ -70,7 +70,7 @@ export const sendReminder = async (message: string, type: string = 'daily'): Pro
     return data;
   } catch (error: unknown) {
     logger.error("Send reminder error:", error);
-    throw new Error(getApiErrorMessage(error, "Failed to send reminder"));
+    throw new Error(getApiErrorMessage(error, "Failed to send reminder"), { cause: error });
   }
 };
 
@@ -93,7 +93,7 @@ export const scheduleDailyNotifications = async (enabled: boolean, time: string 
     return data;
   } catch (error: unknown) {
     logger.error("Schedule daily notifications error:", error);
-    throw new Error(getApiErrorMessage(error, "Failed to schedule daily notifications"));
+    throw new Error(getApiErrorMessage(error, "Failed to schedule daily notifications"), { cause: error });
   }
 };
 
@@ -111,7 +111,7 @@ export const disableAllNotifications = async (): Promise<{ allDisabled: boolean 
     return data;
   } catch (error: unknown) {
     logger.error("Disable notifications error:", error);
-    throw new Error(getApiErrorMessage(error, "Failed to disable notifications"));
+    throw new Error(getApiErrorMessage(error, "Failed to disable notifications"), { cause: error });
   }
 };
 
@@ -157,6 +157,6 @@ export const updateNotificationSettings = async (settings: {
     return data;
   } catch (error: unknown) {
     logger.error("Update notification settings error:", error);
-    throw new Error(getApiErrorMessage(error, "Failed to update notification settings"));
+    throw new Error(getApiErrorMessage(error, "Failed to update notification settings"), { cause: error });
   }
 };

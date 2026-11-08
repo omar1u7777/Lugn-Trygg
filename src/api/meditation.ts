@@ -26,7 +26,7 @@ export const saveMeditationSession = async (sessionData: {
     return response.data?.data || response.data;
   } catch (error: unknown) {
     logger.error("Save meditation session error:", error);
-    throw new Error(getApiErrorMessage(error, "Failed to save meditation session"));
+    throw new Error(getApiErrorMessage(error, "Failed to save meditation session"), { cause: error });
   }
 };
 
@@ -47,6 +47,6 @@ export const getMeditationSessions = async (limit: number = 50, signal?: AbortSi
   } catch (error: unknown) {
     if (error instanceof Error && error.name === 'AbortError') return { sessions: [] };
     logger.error("Get meditation sessions error:", error);
-    throw new Error(getApiErrorMessage(error, "Failed to get meditation sessions"));
+    throw new Error(getApiErrorMessage(error, "Failed to get meditation sessions"), { cause: error });
   }
 };
