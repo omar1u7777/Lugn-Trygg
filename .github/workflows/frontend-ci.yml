@@ -185,6 +185,7 @@ jobs:
           npx playwright test \
             responsive-critical.spec.ts \
             navigation.spec.ts \
+            sounds-short-window.spec.ts \
             --project=chromium \
             --reporter=list
 
