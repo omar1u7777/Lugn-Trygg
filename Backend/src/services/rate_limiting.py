@@ -461,10 +461,6 @@ class AdvancedRateLimiter:
             client_id = user_id or get_remote_address()
             key = f"ratelimit:{endpoint}:{client_id}"
 
-            # Get current usage
-            current_usage_raw = self.redis_client.get(key)
-            current_usage = int(current_usage_raw) if current_usage_raw else 0  # type: ignore[arg-type]
-
             # Get limit for this endpoint
             limit_str = self.get_rate_limit(endpoint, user_id)
 
@@ -485,25 +481,33 @@ class AdvancedRateLimiter:
                     else:
                         window_seconds = 3600  # Default to hour
 
-                    # Check if limit exceeded
-                    if current_usage >= max_requests:
+                    # Fixed window: the first request sets the expiry, later
+                    # ones leave it. Setting it on every request restarted the
+                    # window, so a user well under the limit who kept using
+                    # the app never had the count reset and was locked out.
+                    count = int(self.redis_client.incr(key))  # type: ignore[arg-type]
+                    if count == 1:
+                        self.redis_client.expire(key, window_seconds)
+                    ttl = self.redis_client.ttl(key)
+                    if ttl is None or int(ttl) < 0:  # type: ignore[arg-type]
+                        # No expiry (written by older code, or expire failed):
+                        # without one the count would never reset.
+                        self.redis_client.expire(key, window_seconds)
+                        ttl = window_seconds
+                    ttl = int(ttl)  # type: ignore[arg-type]
+
+                    if count > max_requests:
                         return False, {
-                            'retry_after': window_seconds,
+                            'retry_after': ttl,
                             'limit': max_requests,
                             'remaining': 0,
-                            'reset': int(time.time() + window_seconds)
+                            'reset': int(time.time() + ttl)
                         }
-
-                    # Increment usage
-                    self.redis_client.incr(key)
-                    self.redis_client.expire(key, window_seconds)
-
-                    remaining = max_requests - current_usage - 1
 
                     return True, {
                         'limit': max_requests,
-                        'remaining': max(0, remaining),
-                        'reset': int(time.time() + window_seconds)
+                        'remaining': max_requests - count,
+                        'reset': int(time.time() + ttl)
                     }
             except (ValueError, IndexError):
                 pass
