@@ -8,7 +8,7 @@ import {
   ChevronDownIcon 
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
-import { extractDisplayName } from '../../utils/nameUtils';
+import { getUserName } from '../../utils/nameUtils';
 
 interface ProfileDropdownProps {
   isPremium?: boolean;
@@ -21,7 +21,9 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isPremium, planLabel 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
-  const userDisplayName = extractDisplayName(user?.email || '');
+  // The stored name, else the address itself: a name made from the address
+  // turned "omaralhaek97@…" into "Omaralhaek".
+  const userDisplayName = getUserName(user) ?? user?.email ?? '';
   const focusRing = 'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-500 focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900';
 
   // Stäng dropdown vid klick utanför
@@ -63,7 +65,10 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isPremium, planLabel 
         aria-haspopup="true"
       >
         <UserCircleIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-        <span className="text-sm font-medium text-gray-900 dark:text-white hidden sm:inline max-w-[120px] truncate">
+        <span
+          className="text-sm font-medium text-gray-900 dark:text-white hidden sm:inline max-w-[120px] truncate"
+          title={userDisplayName}
+        >
           {userDisplayName}
         </span>
         <ChevronDownIcon className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />

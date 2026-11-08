@@ -34,7 +34,7 @@ import { completeGoalStep } from '../api/users';
 import { analytics } from '../services/analytics';
 import { logger } from '../utils/logger';
 import useAuth from '../hooks/useAuth';
-import { extractDisplayName } from '../utils/nameUtils';
+import { getUserName } from '../utils/nameUtils';
 import type { TFunction } from 'i18next';
 
 interface WorldClassDashboardProps {
@@ -578,7 +578,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
       {/* Hero Header */}
       <DashboardHeader
-        userName={extractDisplayName(user?.email || '') || t('dashboard.friend')}
+        userName={getUserName(user) ?? t('dashboard.friend')}
         isLoading={loading}
         lastUpdatedAt={lastUpdatedAt || undefined}
         onFocusAction={scrollToMoodCheckIn}

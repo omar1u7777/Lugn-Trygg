@@ -1710,6 +1710,7 @@
   },
   "profileHub": {
     "guest": "Gäst",
+    "yourProfile": "Din profil",
     "manageJourney": "Hantera din personliga resa, inställningar och säkerhet.",
     "loginToSave": "Logga in för att spara din data.",
     "upgradeNow": "Uppgradera nu",

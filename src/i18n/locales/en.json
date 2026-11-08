@@ -1710,6 +1710,7 @@
   },
   "profileHub": {
     "guest": "Guest",
+    "yourProfile": "Your profile",
     "manageJourney": "Manage your personal journey, settings and security.",
     "loginToSave": "Log in to save your data.",
     "upgradeNow": "Upgrade now",
