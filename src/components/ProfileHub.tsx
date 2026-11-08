@@ -71,6 +71,9 @@ const ProfileHub: React.FC = () => {
   const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
   const { plan, isPremium, isTrial, usage, getRemainingMoodLogs, getRemainingMessages } = useSubscription();
+  // A trial has every premium feature: the header offered it "Uppgradera nu"
+  // beside a plan card saying "Obegränsad tillgång".
+  const hasFullAccess = isPremium || isTrial;
   /*
    * The active tab lives in the URL.
    *
@@ -495,7 +498,7 @@ const ProfileHub: React.FC = () => {
                     t('profileHub.memberForDays', { count: profileStats.accountAge })
                   )}
                 </div>
-                {!isPremium && (
+                {!hasFullAccess && (
                   <Button
                     variant="primary"
                     size="small"

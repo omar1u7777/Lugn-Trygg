@@ -56,11 +56,14 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { isPremium, plan } = useSubscription();
+  const { isPremium, isTrial, plan } = useSubscription();
   const { t } = useTranslation();
-  
+  // A trial has unlimited history; checking premium alone gave it the free
+  // banner, which read "Endast senaste -1 dagars historik".
+  const hasFullAccess = isPremium || isTrial;
+
   // History limit for free users
-  const historyDays = isPremium ? -1 : plan.limits.historyDays; // 7 days for free
+  const historyDays = hasFullAccess ? -1 : plan.limits.historyDays; // 7 days for free
 
   const [data, setData] = useState<AnalyticsData>({
     totalMoods: 0,
@@ -343,7 +346,7 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
           </div>
 
           {/* Free Tier Limit Banner */}
-          {!isPremium && (
+          {!hasFullAccess && (
             <div className="mb-8 p-4 bg-linear-to-r from-amber-400 to-amber-500 rounded-xl text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -373,7 +376,7 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
                 </h4>
                 <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
                   {t('worldAnalytics.transparencyDesc')}
-                  {!isPremium && <strong> {t('worldAnalytics.freeTierNote', { days: historyDays })}</strong>}
+                  {!hasFullAccess && <strong> {t('worldAnalytics.freeTierNote', { days: historyDays })}</strong>}
                 </p>
                 <div className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
                   <p>• <strong>{t('worldAnalytics.methodAverage')}:</strong> {t('worldAnalytics.methodAverageDesc')}</p>
