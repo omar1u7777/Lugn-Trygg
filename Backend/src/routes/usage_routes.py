@@ -7,7 +7,7 @@ from ..firebase_config import db
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
-from ..services.subscription_service import SubscriptionLimitError, SubscriptionService
+from ..services.subscription_service import SubscriptionService
 from ..utils.response_utils import APIResponse
 
 usage_bp = Blueprint("usage", __name__)
@@ -68,7 +68,13 @@ def get_usage_status():
 @AuthService.jwt_required
 @rate_limit_by_endpoint
 def increment_mood_log():
-    """Increment mood log count (called after successful mood save)."""
+    """Sync the mood log count after a successful save.
+
+    POST /api/v1/mood/log already consumed the quota, before it saved. This
+    endpoint consumed it a second time, so every mood log cost two units and
+    a free user was refused after half their daily logs. Like /increment/chat,
+    it now returns the authoritative count from System A without changing it.
+    """
     try:
         user_id = g.get("user_id")
         if not user_id:
@@ -77,22 +83,14 @@ def increment_mood_log():
         subscription_tier, _ = _get_user_subscription_tier(user_id)
         limits = get_subscription_limits(subscription_tier)
 
-        # Delegate to System A for atomic, race-safe enforcement
-        try:
-            result = SubscriptionService.consume_quota(
-                user_id,
-                "mood_logs",
-                {"moodLogsPerDay": limits["mood_logs_per_day"]},
-            )
-        except SubscriptionLimitError:
-            audit_log("mood_limit_reached", user_id, {"tier": subscription_tier})
-            return APIResponse.error("Daily mood log limit reached", "RATE_LIMIT_EXCEEDED", 429)
+        # Read current count from System A — do NOT increment again
+        usage = SubscriptionService.get_daily_usage(user_id)
 
-        audit_log("mood_log_incremented", user_id, {"count": result["mood_logs"]})
+        audit_log("mood_log_synced", user_id, {"count": usage["mood_logs"]})
 
         return APIResponse.success({
             "success": True,
-            "mood_logs": result["mood_logs"],
+            "mood_logs": usage["mood_logs"],
             "limit": limits["mood_logs_per_day"],
         })
     except Exception as e:
