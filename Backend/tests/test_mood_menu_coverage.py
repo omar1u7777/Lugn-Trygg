@@ -2255,7 +2255,7 @@ def test_log_mood_audio_storage_success(client, mocker, auth_csrf_headers, mock_
 
 
 def test_log_mood_validation_branches(client, mocker, auth_csrf_headers, mock_subscription_ok, mock_crisis_none, mock_ai_services):
-    """Log mood should truncate note/context, parse string tags, and handle invalid score/valence/arousal."""
+    """Log mood should truncate note/context and parse string tags (invalid scores: test_mood_score_validation)."""
     _patch_mood_route_db(mocker)
     response = client.post(
         "/api/mood/log",
@@ -2264,9 +2264,9 @@ def test_log_mood_validation_branches(client, mocker, auth_csrf_headers, mock_su
             "note": "ABC" * 1000,
             "context": "C" * 600,
             "tags": '["stress", 42, "" , "x"]',
-            "score": "invalid",
-            "valence": "bad",
-            "arousal": "-1",
+            "score": 7,
+            "valence": 6,
+            "arousal": 4,
             "timestamp": "2026-07-15T08:00:00Z",
         },
         headers=auth_csrf_headers,
@@ -2834,14 +2834,14 @@ def test_log_mood_tags_non_string_non_empty(app, mocker):
 
 
 def test_log_mood_score_validation(app, mocker):
-    """log_mood should clamp out-of-range or non-numeric scores."""
+    """log_mood should refuse a non-numeric score instead of saving the entry without it."""
     from src.routes import mood_routes as mr
     _patch_mood_route_db(mocker)
     unwrapped = _unwrap_route(mr.log_mood)
     with app.test_request_context("/api/mood/log", method="POST", data=json.dumps({"mood_text": "Bra", "score": "abc", "valence": "20", "arousal": "0"}), content_type="application/json"):
         mr.g.user_id = "testuser1234567890ab"
         response = unwrapped()
-    assert response[1] == 201
+    assert response[1] == 400
 
 
 def test_log_mood_outer_exception(app, mocker):
@@ -2894,14 +2894,14 @@ def test_analyze_text_outer_exception(app, mocker):
 
 
 def test_log_mood_score_out_of_range(app, mocker):
-    """log_mood should clamp out-of-range score."""
+    """log_mood should refuse an out-of-range score instead of saving the entry without it."""
     from src.routes import mood_routes as mr
     _patch_mood_route_db(mocker)
     unwrapped = _unwrap_route(mr.log_mood)
     with app.test_request_context("/api/mood/log", method="POST", data=json.dumps({"mood_text": "Bra", "score": 15, "arousal": "abc"}), content_type="application/json"):
         mr.g.user_id = "testuser1234567890ab"
         response = unwrapped()
-    assert response[1] == 201
+    assert response[1] == 400
 
 
 def test_log_mood_xp_award_exception(app, mocker):
