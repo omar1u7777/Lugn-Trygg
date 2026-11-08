@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { getMoods, logMood as apiLogMood, getWeeklyAnalysis } from '../../../api/api';
+import { getMoodPage, logMood as apiLogMood, getWeeklyAnalysis } from '../../../api/api';
 import useAuth from '../../../hooks/useAuth';
 import { MoodEntry, MoodStats, MoodTrend, MOOD_COLORS } from '../types';
 import { getMoodLabel as getCanonicalMoodLabel } from '../utils';
@@ -45,8 +45,9 @@ interface UseMoodDataReturn {
   loadMore: () => Promise<void>;
 }
 
-// Cache for mood data
-const moodCache = new Map<string, { data: MoodEntry[]; timestamp: number }>();
+// Cache for the first page. hasMore travels with it: a cached page used to
+// report hasMore false, which hid "Ladda fler".
+const moodCache = new Map<string, { data: MoodEntry[]; hasMore: boolean; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn {
@@ -75,7 +76,8 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
       const cached = moodCache.get(userId);
       if (cached && Date.now() - cached.timestamp < cacheTime) {
         setMoods(cached.data);
-        setHasMore(false);
+        offsetRef.current = cached.data.length;
+        setHasMore(cached.hasMore);
         return;
       }
     }
@@ -84,14 +86,16 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
     setError(null);
 
     try {
-      const [moodsData, weeklyData] = await Promise.all([
-        getMoods(userId).catch(() => []),
-        getWeeklyAnalysis(userId).catch(() => ({})),
+      // The server pages. This used to fetch the newest 50 for every page and
+      // cut [offset, offset + limit) out of them in the browser, so page two
+      // was always empty. The weekly analysis does not depend on the page.
+      const [page, weeklyData] = await Promise.all([
+        getMoodPage({ offset: currentOffset, limit }),
+        currentOffset === 0 ? getWeeklyAnalysis(userId).catch(() => ({})) : Promise.resolve(null),
       ]);
 
       // Transform data
-      const transformedMoods = (moodsData || [])
-        .slice(currentOffset, currentOffset + limit)
+      const transformedMoods = page.moods
         .map((m: Record<string, unknown>) => {
           const raw = m as { id?: string; mood_id?: string; user_id?: string; mood_score?: number; score?: number; mood?: string; text?: string; description?: string; timestamp?: string; created_at?: string; tags?: string[] };
           return {
@@ -105,19 +109,16 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
           };
         });
 
-      if (reset) {
+      if (currentOffset === 0) {
         // Update cache and replace moods
-        moodCache.set(userId, { data: transformedMoods, timestamp: Date.now() });
+        moodCache.set(userId, { data: transformedMoods, hasMore: page.hasMore, timestamp: Date.now() });
         setMoods(transformedMoods);
-        offsetRef.current = limit;
       } else {
         // Append new moods
         setMoods(prev => [...prev, ...transformedMoods]);
-        offsetRef.current = currentOffset + limit;
       }
-
-      // Check if there's more data
-      setHasMore(transformedMoods.length === limit);
+      offsetRef.current = currentOffset + transformedMoods.length;
+      setHasMore(page.hasMore);
 
       // Calculate stats (only on initial load)
       if (currentOffset === 0 && transformedMoods.length > 0) {
@@ -131,7 +132,7 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
         setStats({
           averageScore: Math.round(avgScore * 10) / 10,
           totalEntries: transformedMoods.length,
-          streak: weeklyData.streak || 0,
+          streak: weeklyData?.streak || 0,
           trend: calculateTrend(transformedMoods),
           mostCommonMood: mostCommon,
         });
