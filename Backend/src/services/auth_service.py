@@ -142,10 +142,8 @@ class AuthService:
             ) from err
         except Exception as firebase_error:
             logger.error(f"Firebase create_user failed: {type(firebase_error).__name__}: {firebase_error}")
-            raise _ServiceError(
-                f"Registrering misslyckades: {str(firebase_error)}",
-                "FIREBASE_ERROR"
-            ) from firebase_error
+            # The reply is shown to the person registering; the cause stays in the log.
+            raise _ServiceError("Registrering misslyckades", "FIREBASE_ERROR") from firebase_error
 
         # Convert email to Punycode and persist profile atomically with rollback
         punycode_email = convert_email_to_punycode(email)
