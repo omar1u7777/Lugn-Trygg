@@ -89,6 +89,8 @@ accesslog = "-"  # Log to stdout
 errorlog = "-"  # Log to stderr
 loglevel = "info"  # 'debug' for development, 'info' for production
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
+# Routes carry the Firebase uid in the URL; this logger writes its log_ref instead.
+logger_class = "src.utils.gunicorn_logging.RedactingLogger"
 
 # Process naming
 proc_name = "lugn-trygg-production"
