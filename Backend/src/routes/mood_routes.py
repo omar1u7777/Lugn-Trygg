@@ -377,7 +377,7 @@ def log_mood() -> Response | tuple[Response, int]:
             if data else datetime.now(UTC).isoformat()
         )
 
-        logger.info(f"📝 Mood log data: score={user_score}, note='{note}', mood_text='{mood_text}'")
+        logger.info(f"📝 Mood log data: score={user_score}, note={len(note or '')} chars, mood_text={bool(mood_text)}")
 
         # --- End unified payload handling ---
 
@@ -403,19 +403,19 @@ def log_mood() -> Response | tuple[Response, int]:
                 # First try to transcribe the audio to get the spoken text
                 from ..utils.speech_utils import transcribe_audio_google
                 transcript = transcribe_audio_google(audio_bytes, "sv-SE")
-                logger.info(f"🎙️ Voice transcription result: '{transcript}'")
+                logger.info(f"🎙️ Voice transcription: {len(transcript or '')} chars")
 
                 # Use the transcript for emotion analysis, or fallback to empty string
                 transcript_text = transcript if transcript else ""
                 voice_analysis = _get_ai_services_module().ai_services.analyze_voice_emotion(audio_bytes, transcript_text)
-                logger.info(f"🎭 Voice analysis result: {voice_analysis}")
+                logger.info("🎭 Voice analysis completed")
 
                 # If transcription failed, try fallback analysis using Swedish keywords
                 if not transcript:
                     logger.info("🎙️ No transcription available, trying Swedish keyword analysis")
                     try:
                         voice_analysis = _get_ai_services_module().ai_services.analyze_voice_emotion_fallback(transcript_text)
-                        logger.info(f"🎭 Fallback voice analysis result: {voice_analysis}")
+                        logger.info("🎭 Fallback voice analysis completed")
                     except Exception as fallback_error:
                         logger.warning(f"Fallback voice analysis also failed: {str(fallback_error)}")
                         # If even fallback fails, use neutral values
@@ -480,7 +480,7 @@ def log_mood() -> Response | tuple[Response, int]:
                 'neutral': 'neutral'
             }
             final_mood_text = emotion_to_mood.get(primary_emotion, 'neutral')
-            logger.info(f"🎭 Using voice analysis mood: {final_mood_text}")
+            logger.info("🎭 Using the voice analysis for the mood")
 
         # BACKEND DEDUPLICATION: Prevent same score within 5 minutes
         if user_score is not None:
@@ -515,7 +515,7 @@ def log_mood() -> Response | tuple[Response, int]:
         # Save to database
         try:
             logger.info(f"💾 Attempting to save mood to Firestore for user: {user_id}")
-            logger.info(f"💾 Mood data: score={user_score}, text='{final_mood_text}', timestamp={timestamp}")
+            logger.info(f"💾 Mood data: score={user_score}, text={bool(final_mood_text)}, timestamp={timestamp}")
 
             mood_ref = db.collection('users').document(user_id).collection('moods')
 

@@ -59,7 +59,7 @@ def save_user_goals(user_id: str):
             'updated_at': datetime.now(UTC)
         }, merge=True)
 
-        logger.info(f"✅ Goals saved successfully for user {user_id[:8]}: {validated_goals}")
+        logger.info(f"✅ Goals saved successfully for user {user_id[:8]}: {len(validated_goals)} goals")
 
         # Track analytics
         audit_log('onboarding_completed', user_id, {
@@ -145,7 +145,7 @@ def update_user_goals(user_id: str):
             'updated_at': datetime.now(UTC)
         })
 
-        logger.info(f"✅ Goals updated for user {user_id[:8]}: {validated_goals}")
+        logger.info(f"✅ Goals updated for user {user_id[:8]}: {len(validated_goals)} goals")
         audit_log('goals_updated', user_id, {'goals': validated_goals})
 
         return APIResponse.success({
