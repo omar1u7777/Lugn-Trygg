@@ -37,7 +37,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
   const { t } = useTranslation();
 
   const createGoalSelectionContent = (selGoals: string[], toggleGoal: (goal: string) => void) => (
-    <div className="space-y-4" role="region" aria-label="Goal Selection Step" tabIndex={0}>
+    <div className="space-y-4" role="region" aria-label={t('onboarding.goalStepLabel', 'Välj mål')} tabIndex={0}>
       <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
         {t('onboarding.selectGoals')}
       </h3>
@@ -73,7 +73,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
       description: t('onboarding.step1Desc'),
       icon: '🌟',
       content: (
-        <div className="space-y-4" role="region" aria-label="Welcome Step" tabIndex={0}>
+        <div className="space-y-4" role="region" aria-label={t('onboarding.welcomeStepLabel', 'Välkommen')} tabIndex={0}>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             {t('onboarding.welcomeHeading')}
           </h3>
@@ -113,7 +113,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
               <p className="text-sm text-[#6d645d] dark:text-gray-400">
                 Ditt Dashboard anpassas nu efter dina {selectedGoals.length} valda mål:
               </p>
-              <ul className="space-y-1.5" aria-label="Valda mål">
+              <ul className="space-y-1.5" aria-label={t('onboarding.selectedGoalsLabel', 'Valda mål')}>
                 {selectedGoals.map((goal) => (
                   <li key={goal} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                     <CheckIcon className="w-4 h-4 text-green-500 shrink-0" aria-hidden="true" />
@@ -246,7 +246,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
       onComplete();
     } catch (error) {
       logger.error('❌ Failed to save goals:', error);
-      setSaveError(error instanceof Error ? error.message : 'Failed to save goals');
+      // The raw error ("Network Error") was shown here, in English, in the
+      // middle of the Swedish flow. The details are in the log above.
+      setSaveError(t('onboarding.saveFailed', 'Kunde inte spara dina mål.'));
       setIsSaving(false);
       
       // Don't block user - show error but allow retry
@@ -316,7 +318,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
                   <div 
                     className="text-5xl mb-3"
                     role="img"
-                    aria-label={`Step ${activeStep + 1}: ${currentStep.title}`}
+                    aria-label={t('onboarding.stepLabel', { current: activeStep + 1, title: currentStep.title })}
                   >
                     {currentStep.icon}
                   </div>
@@ -352,7 +354,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
               {/* Stepper dots */}
               <div 
                 className="flex items-center justify-center gap-2 my-6"
-                aria-label="Onboarding steps"
+                aria-label={t('onboarding.stepsLabel', 'Introduktionens steg')}
               >
                 {ONBOARDING_STEPS.map((step, idx) => (
                   <div
@@ -364,7 +366,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
                         ? 'bg-success-700 text-white'
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                     }`}
-                    aria-label={`Step ${idx + 1}: ${step.title}`}
+                    aria-label={t('onboarding.stepLabel', { current: idx + 1, title: step.title })}
                     aria-current={activeStep === idx ? 'step' : undefined}
                   >
                     {activeStep > idx ? <CheckIcon className="w-5 h-5" /> : step.id}
