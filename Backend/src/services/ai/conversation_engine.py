@@ -43,18 +43,25 @@ CLINICAL_SCORES_ABSENT_RULE = (
 
 
 def _assessment_date(timestamp: Any) -> str:
-    """YYYY-MM-DD from a stored assessment timestamp, or '' if unreadable.
+    """Swedish YYYY-MM-DD of a stored assessment timestamp, or '' if unreadable.
 
-    Assessments are written with datetime.isoformat(); older documents may
-    hold a native Firestore timestamp.
+    Assessments are written with datetime.isoformat() in UTC; older documents
+    may hold a native Firestore timestamp. The first ten characters are the
+    UTC date, so one filled in just after midnight read as the day before.
     """
-    if isinstance(timestamp, datetime):
-        return timestamp.date().isoformat()
-    if isinstance(timestamp, str) and len(timestamp) >= 10:
+    if isinstance(timestamp, str):
+        text = timestamp.strip()
         try:
-            return datetime.fromisoformat(timestamp[:10]).date().isoformat()
+            if len(text) == 10:
+                # A bare date has no time to convert.
+                return datetime.strptime(text, "%Y-%m-%d").date().isoformat()
+            timestamp = datetime.fromisoformat(text.replace("Z", "+00:00"))
         except ValueError:
             return ""
+    if isinstance(timestamp, datetime):
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=UTC)
+        return timestamp.astimezone(LOCAL_TZ).date().isoformat()
     return ""
 
 
@@ -83,6 +90,40 @@ def _mood_time(timestamp: Any) -> str:
     if isinstance(timestamp, datetime):
         return _local_time(timestamp)
     return "okänt datum"
+
+
+def _mood_format_rules(count: int, confidence: str) -> str:
+    """How to present the mood data, for both the streaming and the plain chat.
+
+    The data-first format was required of every reply, whatever was asked: an
+    opening line, up to seven listed entries with their notes, "Mönster:" and
+    a question, also for "hej" or a question about sleep. Together with
+    RESPONSE_LENGTH_RULE it could not be met, so the model either dropped the
+    format or ignored what the person asked. It now applies to questions about
+    the mood data; the rule against conclusions from few points always holds.
+    """
+    return (
+        "\n\nVIKTIGA INSTRUKTIONER FÖR SVARET:\n"
+        "Använd formatet nedan BARA när användaren frågar om sitt humör, sina mönster "
+        "eller sina loggningar. Annars: svara på det användaren faktiskt skriver, använd "
+        "humördatan som bakgrund och lista den inte.\n"
+        f"1. Börja med: \"Baserat på dina senaste {count} loggningar (konfidens: {confidence})...\"\n"
+        "2. Visa rådatan i en punktlista med datum, score och anteckningar INNAN någon tolkning.\n"
+        "3. Efter rådatan, skriv en sektion märkt \"Mönster:\" med 1-2 datadrivna observationer.\n"
+        "4. Gör MAX 1 tolkning — formulera den som en fråga, inte ett påstående.\n"
+        f"5. Om trenden bygger på färre än 5 loggningar, skriv uttryckligen: \"Notera: datan är "
+        f"begränsad till {count} loggningar, trenden är indicativ.\"\n"
+        "Dra ALDRIG slutsatser om mönster (t.ex. \"snabba humörväxlingar\") baserat på färre "
+        "än 4 datapunkter."
+    )
+
+
+# Both prompts end with this. "max 150 ord" alone left no room for the data
+# list the format above asks for.
+RESPONSE_LENGTH_RULE = (
+    "VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord; rådatalistan "
+    "räknas inte). Var empatisk och personlig. Om du vet användarens namn, använd det naturligt."
+)
 
 
 def _mood_recency_rule() -> str:
@@ -300,16 +341,8 @@ class ConversationEngine:
 - Humörtrend: {trend}
 - Senaste humör: {mood_scores[0]}/10
 
-Rådata (visa detta först, innan tolkning):
-{raw_entries}
-
-VIKTIGA INSTRUKTIONER FÖR SVARET:
-1. Börja med: 'Baserat på dina senaste {len(mood_scores)} loggningar (konfidens: {confidence})...'
-2. Visa rådatan i en punktlista med datum, score och anteckningar INNAN någon tolkning.
-3. Efter rådatan, skriv en sektion märkt 'Mönster:' med 1-2 datadrivna observationer.
-4. Gör MAX 1 tolkning — formulera den som en fråga, inte ett påstående.
-5. Dra ALDRIG slutsatser om mönster (t.ex. 'snabba humörväxlingar') baserat på färre än 4 datapunkter.
-6. Om trenden bygger på färre än 5 loggningar, skriv uttryckligen: 'Notera: datan är begränsad till {len(mood_scores)} loggningar, trenden är indicativ.'""" + _mood_recency_rule()
+Rådata:
+{raw_entries}""" + _mood_format_rules(len(mood_scores), confidence) + _mood_recency_rule()
                         logger.info(f"📊 Mood context added: avg={avg_mood:.1f}, trend={trend}, confidence={confidence}, entries={len(mood_scores)}")
 
                         # Safety check: low moods (<=3) combined with negative notes
@@ -359,7 +392,7 @@ Din roll:
 {mood_context}
 {safety_check_context}
 
-VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk och personlig. Om du vet användarens namn, använd det naturligt."""
+{RESPONSE_LENGTH_RULE}"""
 
             # 5. Apply RAG if user_id available for personalization
             final_prompt = enhanced_prompt
@@ -636,15 +669,9 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                         f"- Genomsnittligt humör: {avg_mood:.1f}/10\n"
                         f"- Humörtrend: {trend}\n"
                         f"- Senaste humör: {mood_scores[0]}/10\n\n"
-                        f"Rådata (visa detta först, innan tolkning):\n"
-                        f"{raw_entries}\n\n"
-                        "VIKTIGA INSTRUKTIONER FÖR SVARET:\n"
-                        f"1. Börja med: \"Baserat på dina senaste {len(mood_scores)} loggningar (konfidens: {confidence})...\"\n"
-                        "2. Visa rådatan i en punktlista med datum, score och anteckningar INNAN någon tolkning.\n"
-                        "3. Efter rådatan, skriv en sektion märkt \"Mönster:\" med 1-2 datadrivna observationer.\n"
-                        "4. Gör MAX 1 tolkning — formulera den som en fråga, inte ett påstående.\n"
-                        "5. Dra ALDRIG slutsatser om mönster (t.ex. \"snabba humörväxlingar\") baserat på färre än 4 datapunkter.\n"
-                        f"6. Om trenden bygger på färre än 5 loggningar, skriv uttryckligen: \"Notera: datan är begränsad till {len(mood_scores)} loggningar, trenden är indicativ.\""
+                        "Rådata:\n"
+                        f"{raw_entries}"
+                        f"{_mood_format_rules(len(mood_scores), confidence)}"
                         f"{_mood_recency_rule()}"
                     )
 
@@ -700,8 +727,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             f"{safety_check_context}"
             f"{cross_context}"
             f"{memory_context}\n\n"
-            "VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). "
-            "Var empatisk och personlig. Om du vet användarens namn, använd det naturligt."
+            f"{RESPONSE_LENGTH_RULE}"
         )
 
     def fetch_user_profile_context(self, user_id: str) -> str:
