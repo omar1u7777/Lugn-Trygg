@@ -125,6 +125,15 @@ RESPONSE_LENGTH_RULE = (
     "räknas inte). Var empatisk och personlig. Om du vet användarens namn, använd det naturligt."
 )
 
+# The same three cases a sentiment label used to select between, left to the
+# model that reads the message anyway.
+SENTIMENT_GUIDANCE = (
+    "Läs av känsloläget i användarens senaste meddelande: vid negativa känslor, var "
+    "extra stödjande, validera känslorna och erbjud konkreta coping-strategier; vid "
+    "positiva känslor, uppmärksamma och förstärk dem; vid neutral sinnesstämning, "
+    "var nyfiken och utforskande."
+)
+
 
 def _mood_recency_rule() -> str:
     """Tells the model what time it is and which mood figures to trust.
@@ -586,27 +595,11 @@ Din roll:
         Includes sentiment guidance and per-user mood history context.
         """
         svc = self._svc
-        # Sentiment guidance based on current message
-        try:
-            sentiment_analysis = svc.enhanced_sentiment_analysis(user_message)
-            sentiment_label = sentiment_analysis.get("sentiment", "NEUTRAL")
-        except Exception:
-            sentiment_label = "NEUTRAL"
-
-        if sentiment_label == "NEGATIVE":
-            sentiment_guidance = (
-                "Användaren verkar ha negativa känslor just nu – var extra stödjande, "
-                "validera deras känslor och erbjud konkreta coping-strategier."
-            )
-        elif sentiment_label == "POSITIVE":
-            sentiment_guidance = (
-                "Användaren verkar vara i ett positivt tillstånd – uppmärksamma och "
-                "förstärk dessa positiva känslor."
-            )
-        else:
-            sentiment_guidance = (
-                "Användarens sinnesstämning är neutral – var nyfiken och utforskande."
-            )
+        # The reply model reads the tone of the message itself. This used to be
+        # a separate GPT-4o call for a sentiment label, made before the reply
+        # could start: about 1.5 s of every chat message's wait for its first
+        # word, spent on one sentence of guidance.
+        sentiment_guidance = SENTIMENT_GUIDANCE
 
         # Per-user mood history for personalised context
         mood_context = ""
