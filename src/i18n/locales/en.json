@@ -237,14 +237,6 @@
     "seeSleepTips": "See sleep tips",
     "seeRecommendations": "See recommendations"
   },
-  "navLinks": {
-    "dashboard": "Dashboard",
-    "wellness": "Wellness",
-    "mood": "Mood",
-    "aiChat": "AI Chat",
-    "insights": "Insights",
-    "profile": "Profile"
-  },
   "quickAction": {
     "mood": {
       "title": "Check in",
@@ -1370,6 +1362,12 @@
     "selectGoals": "Select your wellness goals:",
     "maxGoals": "You can select up to {{max}} goals",
     "stepOf": "Step {{current}} of {{total}}",
+    "stepLabel": "Step {{current}}: {{title}}",
+    "stepsLabel": "Onboarding steps",
+    "welcomeStepLabel": "Welcome",
+    "goalStepLabel": "Choose goals",
+    "selectedGoalsLabel": "Selected goals",
+    "saveFailed": "Your goals could not be saved.",
     "retryOrSkip": "Try again or skip",
     "skip": "Skip",
     "selectAtLeastOne": "Select at least one goal to continue",

@@ -102,7 +102,7 @@ export const getUserProfile = async (): Promise<UserProfile> => {
     return data.profile || data;
   } catch (error: unknown) {
     logger.error("Get user profile error:", error);
-    throw new Error(getApiErrorMessage(error, "Failed to get user profile"));
+    throw new Error(getApiErrorMessage(error, "Failed to get user profile"), { cause: error });
   }
 };
 
@@ -122,7 +122,7 @@ export const getUserStats = async (): Promise<UserStats> => {
     return data;
   } catch (error: unknown) {
     logger.error("Get user stats error:", error);
-    throw new Error(getApiErrorMessage(error, "Failed to get user statistics"));
+    throw new Error(getApiErrorMessage(error, "Failed to get user statistics"), { cause: error });
   }
 };
 
@@ -144,7 +144,7 @@ export const updateUserPreferences = async (preferences: UserPreferences): Promi
     return data.preferences || data;
   } catch (error: unknown) {
     logger.error("Update user preferences error:", error);
-    throw new Error(getApiErrorMessage(error, "Failed to update user preferences"));
+    throw new Error(getApiErrorMessage(error, "Failed to update user preferences"), { cause: error });
   }
 };
 
@@ -168,7 +168,7 @@ export const updateNotificationPreferences = async (preferences: NotificationPre
     logger.debug('Notification preferences updated successfully');
   } catch (error: unknown) {
     logger.error("Update notification preferences error:", error);
-    throw new Error(getApiErrorMessage(error, "Failed to update notification preferences"));
+    throw new Error(getApiErrorMessage(error, "Failed to update notification preferences"), { cause: error });
   }
 };
 
@@ -188,7 +188,7 @@ export const setNotificationSchedule = async (schedule: NotificationSchedule): P
     logger.debug('Notification schedule set successfully');
   } catch (error: unknown) {
     logger.error("Set notification schedule error:", error);
-    throw new Error(getApiErrorMessage(error, "Failed to set notification schedule"));
+    throw new Error(getApiErrorMessage(error, "Failed to set notification schedule"), { cause: error });
   }
 };
 
@@ -235,6 +235,6 @@ export const completeGoalStep = async (
     return data.goalStepCompletions;
   } catch (error: unknown) {
     logger.error("Complete goal step error:", error);
-    throw new Error(getApiErrorMessage(error, "Failed to update goal step completion"));
+    throw new Error(getApiErrorMessage(error, "Failed to update goal step completion"), { cause: error });
   }
 };

@@ -237,14 +237,6 @@
     "seeSleepTips": "Se søvntips",
     "seeRecommendations": "Se anbefalinger"
   },
-  "navLinks": {
-    "dashboard": "Oversikt",
-    "wellness": "Velvære",
-    "mood": "Humør",
-    "aiChat": "AI-chat",
-    "insights": "Innsikter",
-    "profile": "Profil"
-  },
   "quickAction": {
     "mood": {
       "title": "Kjenn etter",
@@ -1370,6 +1362,12 @@
     "selectGoals": "Velg wellness-målene dine:",
     "maxGoals": "Du kan velge opp til {{max}} mål",
     "stepOf": "Trinn {{current}} av {{total}}",
+    "stepLabel": "Steg {{current}}: {{title}}",
+    "stepsLabel": "Introduksjonens steg",
+    "welcomeStepLabel": "Velkommen",
+    "goalStepLabel": "Velg mål",
+    "selectedGoalsLabel": "Valgte mål",
+    "saveFailed": "Kunne ikke lagre målene dine.",
     "retryOrSkip": "Prøv igjen eller hopp over",
     "skip": "Hopp over",
     "selectAtLeastOne": "Velg minst ett mål for å fortsette",

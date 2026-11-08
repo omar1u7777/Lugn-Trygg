@@ -18,6 +18,7 @@ import { isDevEnvironment } from '../config/env';
 // sentryClient is deliberately import-free, so this cannot create a cycle even
 // though nearly every module in the app imports this logger.
 import { captureException } from '../services/sentryClient';
+import { markReported, wasReported } from './reportedErrors';
 
 /**
  * JSON.stringify that cannot throw.
@@ -173,8 +174,19 @@ class Logger {
 
   /**
    * Error logging (enabled in all environments)
+   *
+   * An Error is reported once. Logging it again, or logging an error whose
+   * `cause` chain contains it, is a debug line: the console error and the
+   * Sentry event already exist, and a second pair would count one failure
+   * twice. The API client reports every failed request itself, so a caller
+   * that logs the ApiError it caught lands here.
    */
   error(message: string, error?: Error | unknown, context?: unknown): void {
+    if (error instanceof Error && wasReported(error)) {
+      this.debug(message, { message: error.message, ...this.normalizeContext(context) });
+      return;
+    }
+
     if (this.shouldLog('error')) {
       const errorContext = error instanceof Error ? {
         message: error.message,
@@ -197,6 +209,10 @@ class Logger {
           },
         });
       }
+    }
+
+    if (error instanceof Error) {
+      markReported(error);
     }
   }
 

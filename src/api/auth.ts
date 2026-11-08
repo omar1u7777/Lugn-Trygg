@@ -276,7 +276,7 @@ export const logoutUser = async (): Promise<void> => {
   try {
     await api.post(API_ENDPOINTS.AUTH.LOGOUT);
   } catch (error: unknown) {
-    logger.error("API Logout error", { error });
+    logger.error("API Logout error", error);
   } finally {
     // Save onboarding status before clearing
     const savedOnboarding = saveOnboardingData();
@@ -314,7 +314,7 @@ export const refreshAccessToken = async (): Promise<string | null> => {
       return null;
     }
   } catch (error: unknown) {
-    logger.error("API Refresh Token error", { error });
+    logger.error("API Refresh Token error", error);
     return null;
   }
 };
