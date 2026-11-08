@@ -329,7 +329,7 @@ def get_rate_limit_stats():
 
             except Exception as e:
                 logger.warning(f"Error getting Redis stats: {e}")
-                stats['redisError'] = str(e)
+                stats['redisError'] = 'Redis statistics unavailable'
 
         return APIResponse.success(stats, "Rate limit statistics retrieved")
 

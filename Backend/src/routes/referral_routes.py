@@ -18,6 +18,7 @@ from ..services.email_service import email_service
 from ..services.push_notification_service import push_notification_service
 from ..services.rate_limiting import rate_limit_by_endpoint
 from ..utils import mask_email as _mask_email
+from ..utils.client_error import ClientError
 from ..utils.input_sanitization import sanitize_text
 from ..utils.public_alias import public_alias
 from ..utils.response_utils import APIResponse
@@ -645,28 +646,23 @@ def redeem_reward():
             def _txn(transaction):
                 snapshot = transaction.get(referral_ref)
                 if not snapshot.exists:
-                    raise ValueError("404:No referral data found")
+                    raise ClientError("No referral data found", status=404, code="NOT_FOUND")
                 data = snapshot.to_dict() or {}
                 available = data.get("rewards_earned", 0)
                 if available < cost:
-                    raise ValueError(f"400:{available}")
+                    raise ClientError(
+                        "Insufficient rewards",
+                        code="INSUFFICIENT_BALANCE",
+                        details={"available": available, "required": cost},
+                    )
                 balance = available - cost
                 transaction.update(referral_ref, {"rewards_earned": balance})
                 return balance
 
             try:
                 new_balance = _txn(db.transaction())  # type: ignore
-            except ValueError as ve:
-                msg = str(ve)
-                if msg.startswith("404:"):
-                    return APIResponse.not_found(msg[4:])
-                available_weeks = int(msg.split(":", 1)[1])
-                return APIResponse.error(
-                    "Insufficient rewards",
-                    "INSUFFICIENT_BALANCE",
-                    400,
-                    {"available": available_weeks, "required": cost}
-                )
+            except ClientError as refusal:
+                return APIResponse.from_client_error(refusal)
         else:
             referral_doc = referral_ref.get()
             if not referral_doc.exists:

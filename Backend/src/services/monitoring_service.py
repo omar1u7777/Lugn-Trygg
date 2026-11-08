@@ -168,7 +168,7 @@ class MonitoringService:
             return HealthStatus(
                 status='unhealthy',
                 checks={'health_check': False},
-                message=f'Health check error: {str(e)}',
+                message='Health check error',
                 timestamp=datetime.now(UTC)
             )
 
@@ -434,7 +434,7 @@ class MonitoringService:
             return {
                 'status': 'error',
                 'checks': {},
-                'message': f'Health check failed: {str(e)}',
+                'message': 'Health check failed',
                 'timestamp': datetime.now(UTC).isoformat()
             }
 

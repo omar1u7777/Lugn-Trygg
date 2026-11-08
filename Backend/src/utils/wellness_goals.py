@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+from .client_error import ClientError
 from .input_sanitization import sanitize_text
 
 _DEFAULT_MAX_WELLNESS_GOALS = 3
@@ -79,10 +80,10 @@ _ALLOWED_WELLNESS_GOALS_LOOKUP = {goal.casefold(): goal for goal in ALLOWED_WELL
 def normalize_and_validate_wellness_goals(raw_goals: object) -> list[str]:
     """Validate, sanitize, deduplicate and canonicalize wellness goals."""
     if not isinstance(raw_goals, list) or len(raw_goals) == 0:
-        raise ValueError('wellnessGoals must be a non-empty list')
+        raise ClientError('wellnessGoals must be a non-empty list')
 
     if len(raw_goals) > MAX_WELLNESS_GOALS:
-        raise ValueError(f'A maximum of {MAX_WELLNESS_GOALS} wellness goals is allowed')
+        raise ClientError(f'A maximum of {MAX_WELLNESS_GOALS} wellness goals is allowed')
 
     normalized_goals: list[str] = []
     seen_goals: set[str] = set()
@@ -90,11 +91,11 @@ def normalize_and_validate_wellness_goals(raw_goals: object) -> list[str]:
 
     for goal in raw_goals:
         if not isinstance(goal, str):
-            raise ValueError('Each wellness goal must be a string')
+            raise ClientError('Each wellness goal must be a string')
 
         sanitized_goal = sanitize_text(goal, max_length=MAX_WELLNESS_GOAL_LENGTH).strip()
         if not sanitized_goal:
-            raise ValueError('Wellness goals cannot contain empty values')
+            raise ClientError('Wellness goals cannot contain empty values')
 
         normalized_key = sanitized_goal.casefold()
         canonical_goal = _ALLOWED_WELLNESS_GOALS_LOOKUP.get(normalized_key)
@@ -111,10 +112,10 @@ def normalize_and_validate_wellness_goals(raw_goals: object) -> list[str]:
 
     if invalid_goals:
         invalid_values = ', '.join(invalid_goals)
-        raise ValueError(f'Invalid wellness goal(s): {invalid_values}')
+        raise ClientError(f'Invalid wellness goal(s): {invalid_values}')
 
     if len(normalized_goals) == 0:
-        raise ValueError('wellnessGoals must be a non-empty list')
+        raise ClientError('wellnessGoals must be a non-empty list')
 
     return normalized_goals
 
@@ -122,6 +123,6 @@ def normalize_and_validate_wellness_goals(raw_goals: object) -> list[str]:
 def extract_and_validate_wellness_goals(payload: dict | None, field_name: str = 'wellnessGoals') -> list[str]:
     """Extract goals from payload and validate them using shared rules."""
     if not payload or field_name not in payload:
-        raise ValueError(f'Request body must contain {field_name}')
+        raise ClientError(f'Request body must contain {field_name}')
 
     return normalize_and_validate_wellness_goals(payload.get(field_name))

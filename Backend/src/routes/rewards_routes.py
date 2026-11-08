@@ -12,6 +12,7 @@ from flask import Blueprint, g, request
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
+from ..utils.client_error import ClientError
 from ..utils.input_sanitization import sanitize_text
 from ..utils.response_utils import APIResponse
 
@@ -308,16 +309,20 @@ def claim_reward():
 
         def _build_update(rewards_data: dict) -> dict:
             """Validate XP/claim state against `rewards_data` and compute the
-            fields to persist. Raises ValueError('XP:<have>') or
-            ValueError('CLAIMED') on failure so the transactional and
-            fallback paths below share one validation path."""
+            fields to persist. Raises ClientError (not enough XP, already
+            claimed) so the transactional and fallback paths below share
+            one validation path."""
             user_xp = rewards_data.get('xp', 0)
             if user_xp < cost:
-                raise ValueError(f"XP:{user_xp}")
+                raise ClientError(
+                    f"Not enough XP. Need {cost}, have {user_xp}",
+                    code="INSUFFICIENT_XP",
+                    details={"needed": cost, "have": user_xp},
+                )
 
             claimed = list(rewards_data.get('claimed_rewards', []))
             if reward_id in claimed and reward.get('type') != 'premium_time':
-                raise ValueError("CLAIMED")
+                raise ClientError("Already claimed this reward")
 
             new_xp = user_xp - cost
             claimed.append(reward_id)
@@ -403,32 +408,14 @@ def claim_reward():
 
             try:
                 update_data = _txn(db.transaction())  # type: ignore
-            except ValueError as ve:
-                msg = str(ve)
-                if msg == "CLAIMED":
-                    return APIResponse.bad_request("Already claimed this reward")
-                have = int(msg.split(":", 1)[1])
-                return APIResponse.error(
-                    f"Not enough XP. Need {cost}, have {have}",
-                    "INSUFFICIENT_XP",
-                    400,
-                    {"needed": cost, "have": have}
-                )
+            except ClientError as refusal:
+                return APIResponse.from_client_error(refusal)
         else:
             rewards_data = _get_user_rewards(user_id) if db else _default_rewards_data(user_id)
             try:
                 update_data = _build_update(rewards_data)
-            except ValueError as ve:
-                msg = str(ve)
-                if msg == "CLAIMED":
-                    return APIResponse.bad_request("Already claimed this reward")
-                have = int(msg.split(":", 1)[1])
-                return APIResponse.error(
-                    f"Not enough XP. Need {cost}, have {have}",
-                    "INSUFFICIENT_XP",
-                    400,
-                    {"needed": cost, "have": have}
-                )
+            except ClientError as refusal:
+                return APIResponse.from_client_error(refusal)
 
             if db:
                 db.collection('user_rewards').document(user_id).update(update_data)  # type: ignore

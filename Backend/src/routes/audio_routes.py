@@ -573,10 +573,10 @@ def generate_audio():
             "AUDIO_GEN_UNAVAILABLE",
             503
         )
-    except Exception as e:
-        logger.exception(f"Error generating audio: {str(e)}")
+    except Exception:
+        logger.exception("Error generating audio")
         return APIResponse.error(
-            f"Failed to generate audio: {str(e)}",
+            "Failed to generate audio",
             "AUDIO_GEN_ERROR",
             500
         )

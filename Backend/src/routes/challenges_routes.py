@@ -17,6 +17,7 @@ except Exception:
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
+from ..utils.client_error import ClientError
 from ..utils.input_sanitization import input_sanitizer
 from ..utils.response_utils import APIResponse
 
@@ -410,16 +411,16 @@ def join_challenge(challenge_id: str):
                         transaction.set(challenge_ref, _challenges_store[challenge_id])
                         snapshot = transaction.get(challenge_ref)
                     else:
-                        raise ValueError('404:Challenge not found')
+                        raise ClientError('Challenge not found', status=404, code='NOT_FOUND')
 
                 challenge_data = snapshot.to_dict() or {}
                 members = challenge_data.get('members', [])
 
                 if any(m.get('user_id') == user_id for m in members):
-                    raise ValueError('400:Already joined this challenge')
+                    raise ClientError('Already joined this challenge')
 
                 if len(members) >= challenge_data.get('max_team_size', 10):
-                    raise ValueError('400:Challenge is full')
+                    raise ClientError('Challenge is full')
 
                 if gcfirestore:
                     transaction.update(challenge_ref, {
@@ -440,14 +441,8 @@ def join_challenge(challenge_id: str):
             try:
                 transaction = db.transaction()
                 _txn(transaction)
-            except ValueError as ve:
-                msg = str(ve)
-                if msg.startswith('404:'):
-                    return APIResponse.not_found(msg.split(':', 1)[1])
-                if msg.startswith('400:'):
-                    return APIResponse.bad_request(msg.split(':', 1)[1])
-                logger.error(f"Join transaction failed (custom): {msg}")
-                return APIResponse.error('Join failed')
+            except ClientError as refusal:
+                return APIResponse.from_client_error(refusal)
             except Exception as e:
                 logger.error(f"Join transaction failed: {e}")
                 return APIResponse.error('Join failed')

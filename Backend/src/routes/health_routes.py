@@ -86,7 +86,9 @@ def readiness_check():
             db.collection('_health_check').limit(1).get()
             checks['firebase'] = True
     except Exception as e:
-        checks['firebaseError'] = str(e)
+        # A public endpoint: the cause goes to the log, not the reply.
+        logger.warning("Readiness: Firebase unreachable: %s", e)
+        checks['firebaseError'] = 'unreachable'
 
     # Overall readiness
     is_ready = all([checks['server'], checks['firebase']])
