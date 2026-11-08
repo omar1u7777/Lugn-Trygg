@@ -7,6 +7,7 @@ import {
   ENTERPRISE_PRICE_SEK,
   yearlyTotalSek,
   yearlySavingsSek,
+  yearlySavingsPercent,
 } from '../pricing';
 
 /**
@@ -36,6 +37,23 @@ describe('pricing', () => {
     expect(yearlySavingsSek()).toBe((MONTHLY_PRICE_SEK - YEARLY_PRICE_PER_MONTH_SEK) * 12);
     // A saving the user cannot actually get would be a false claim.
     expect(yearlySavingsSek()).toBeGreaterThan(0);
+  });
+
+  // /upgrade said "2 månader gratis" (2 × 99 = 198 kr) beside "SPARA 240 kr".
+  // The saving is 240 kr, about 2.4 months: the free-months claim was typed
+  // in and matched neither the prices nor the badge next to it.
+  it('states the yearly saving as a share of the monthly cost, never more', () => {
+    const exact = (yearlySavingsSek() / (MONTHLY_PRICE_SEK * 12)) * 100;
+
+    expect(yearlySavingsPercent()).toBe(20);
+    expect(yearlySavingsPercent()).toBeLessThanOrEqual(exact);
+    expect(exact - yearlySavingsPercent()).toBeLessThan(1);
+  });
+
+  it.each(PRICE_COMPONENTS)('%s claims no free months of its own', (relativePath) => {
+    const source = readFileSync(join(process.cwd(), relativePath), 'utf8');
+
+    expect(source).not.toMatch(/månader gratis|månad gratis/i);
   });
 
   it('prices are whole kronor', () => {

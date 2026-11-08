@@ -28,6 +28,7 @@ import {
   ENTERPRISE_PRICE_SEK,
   yearlyTotalSek,
   yearlySavingsSek,
+  yearlySavingsPercent,
 } from '../config/pricing';
 
 /** Alla premium-fördelar */
@@ -71,7 +72,7 @@ const PREMIUM_FEATURES = [
 const PLAN_LABELS: Record<SubscriptionTier, string> = {
   free: 'Gratis',
   premium: 'Premium',
-  trial: 'Testperiod',
+  trial: 'Provperiod',
   enterprise: 'Enterprise',
 };
 
@@ -242,7 +243,7 @@ const UpgradePage: React.FC = () => {
               Faktureras som {yearlyTotal} kr/år
             </p>
             <p className="text-sm text-[#2c8374] font-semibold">
-              🎉 2 månader gratis!
+              🎉 {yearlySavingsPercent()} % billigare än månadsvis
             </p>
           </Card>
 

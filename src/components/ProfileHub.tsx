@@ -18,6 +18,7 @@ import { changeEmail, changePassword, setup2FA, verify2FASetup, deleteAccount } 
 import { getUserProfile, getUserStats, updateUserPreferences } from '../api/users';
 import { getApiErrorMessage } from '../api/errorUtils';
 import { logger } from '../utils/logger';
+import { getUserName } from '../utils/nameUtils';
 import {
   BellIcon,
   ShieldCheckIcon,
@@ -468,18 +469,20 @@ const ProfileHub: React.FC = () => {
             {/* Info Section */}
             <div className="text-center md:text-left flex-1">
               {/*
-                break-words, because an e-mail address contains nothing the
-                browser is willing to break on. At text-5xl the heading ran to
-                the edge of the viewport on the tested width and would have
-                gone past it for anything longer. title carries the full value
-                for the truncating case.
+                The person's name, with the address on its own line below.
+                The heading was the address at text-5xl, which only fits by
+                breaking it at any character, so it read as cut off, and the
+                stored name was shown nowhere.
               */}
-              <h1
-                className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 tracking-tight wrap-anywhere wrap-break-word"
-                title={user?.email || undefined}
-              >
-                {user?.email || t('profileHub.guest', 'Gäst')}
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-1 tracking-tight wrap-break-word">
+                {user
+                  ? getUserName(user) ?? t('profileHub.yourProfile', 'Din profil')
+                  : t('profileHub.guest', 'Gäst')}
               </h1>
+              {user?.email && (
+                // Addresses have nothing the browser will break on.
+                <p className="text-indigo-100 text-base sm:text-lg mb-2 wrap-anywhere">{user.email}</p>
+              )}
               <p className="text-indigo-200 text-lg mb-6 max-w-lg mx-auto md:mx-0">
                 {user?.email ? t('profileHub.manageJourney', 'Hantera din personliga resa, inställningar och säkerhet.') : t('profileHub.loginToSave', 'Logga in för att spara din data.')}
               </p>

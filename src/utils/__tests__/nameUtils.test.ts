@@ -1,30 +1,41 @@
-import { describe, it, expect } from "vitest";
-import { extractDisplayName, testNameExtraction } from "../nameUtils";
+/**
+ * The name a person gave, never one guessed from their e-mail address.
+ *
+ * The dashboard greeting, the account menu and /profile split the e-mail at
+ * "@", dropped digits and capitalised the rest: "omaralhaek97@gmail.com"
+ * became "Omaralhaek". Registration asks for a name and login returns it.
+ */
+import { describe, it, expect } from 'vitest';
+import { getUserName } from '../nameUtils';
 
-describe("AI Name Extraction", () => {
-  it("should extract and format names correctly", () => {
-    expect(extractDisplayName("marah.ghaleb.12@gmail.com")).toBe("Marah Ghaleb");
-    expect(extractDisplayName("john.doe@gmail.com")).toBe("John Doe");
-    expect(extractDisplayName("mary.jane.smith@outlook.com")).toBe("Mary Jane");
-    expect(extractDisplayName("user123@gmail.com")).toBe("User");
-    expect(extractDisplayName("test_user@domain.com")).toBe("Test User");
-    expect(extractDisplayName("simple@gmail.com")).toBe("Simple");
-    expect(extractDisplayName("")).toBe("Användare");
-    expect(extractDisplayName("no-at-symbol")).toBe("Noatsymbol");
+describe('getUserName', () => {
+  it('returns the stored name', () => {
+    expect(getUserName({ name: 'Omar Alhaek' })).toBe('Omar Alhaek');
   });
 
-  it("should handle edge cases", () => {
-    expect(extractDisplayName("a.b.c.d@gmail.com")).toBe("A B"); // Only first 2 parts
-    expect(extractDisplayName("single@gmail.com")).toBe("Single");
-    expect(extractDisplayName("with_underscore@gmail.com")).toBe("With Underscore");
-    expect(extractDisplayName("numbers123@gmail.com")).toBe("Numbers");
+  it('prefers a display name the person chose', () => {
+    expect(getUserName({ name: 'Omar Ahmad Alhaek', displayName: 'Omar' })).toBe('Omar');
   });
 
-  it("should provide test examples", () => {
-    const examples = testNameExtraction();
-    expect(examples).toHaveLength(6);
-    const firstExample = examples[0];
-    expect(firstExample?.email).toBe("marah.ghaleb.12@gmail.com");
-    expect(firstExample?.extracted).toBe("Marah Ghaleb");
+  it('trims whitespace', () => {
+    expect(getUserName({ name: '  Anna  ' })).toBe('Anna');
+  });
+
+  it.each([undefined, null, '', '   '])('has no name for %j', (name) => {
+    expect(getUserName({ name: name as string | undefined })).toBeNull();
+  });
+
+  // The login endpoint sends "Okänd" when no name is stored.
+  it.each(['Okänd', 'okänd', 'Unknown', 'Användare'])('treats the placeholder %s as no name', (name) => {
+    expect(getUserName({ name })).toBeNull();
+  });
+
+  it('never derives a name from the e-mail address', () => {
+    expect(getUserName({ email: 'omaralhaek97@gmail.com' } as never)).toBeNull();
+  });
+
+  it('accepts no user', () => {
+    expect(getUserName(null)).toBeNull();
+    expect(getUserName(undefined)).toBeNull();
   });
 });

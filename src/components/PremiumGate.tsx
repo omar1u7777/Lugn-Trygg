@@ -61,7 +61,7 @@ const FEATURE_NAMES: Partial<Record<FeatureName, string>> = {
 const PLAN_LABELS: Record<SubscriptionTier, string> = {
   free: 'Gratis',
   premium: 'Premium',
-  trial: 'Testperiod',
+  trial: 'Provperiod',
   enterprise: 'Enterprise',
 };
 
@@ -103,8 +103,8 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
           <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
             <p className="text-sm font-medium">
               {remainingDays > 0
-                ? `Gratisperiod aktiv: ${svCount(remainingDays, 'dag', 'dagar')} kvar.`
-                : 'Gratisperiod aktiv.'}
+                ? `Provperiod aktiv: ${svCount(remainingDays, 'dag', 'dagar')} kvar.`
+                : 'Provperiod aktiv.'}
             </p>
           </div>
         )}

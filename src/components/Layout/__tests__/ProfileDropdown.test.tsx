@@ -6,11 +6,38 @@ import { MemoryRouter } from 'react-router-dom';
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'sv' } }),
 }));
+let currentUser: Record<string, unknown> = { user_id: 'u1', email: 'a@b.se', name: 'Test' };
 vi.mock('../../../contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { user_id: 'u1', email: 'a@b.se', name: 'Test' }, logout: vi.fn() }),
+  useAuth: () => ({ user: currentUser, logout: vi.fn() }),
 }));
 
 import ProfileDropdown from '../ProfileDropdown';
+
+// The menu named people after their e-mail address: "omaralhaek97@…"
+// became "Omaralhaek".
+describe('ProfileDropdown name', () => {
+  const renderMenu = (user: Record<string, unknown>) => {
+    currentUser = user;
+    render(
+      <MemoryRouter>
+        <ProfileDropdown />
+      </MemoryRouter>,
+    );
+    return screen.getAllByRole('button')[0];
+  };
+
+  it('shows the stored name', () => {
+    expect(renderMenu({ user_id: 'u1', email: 'omaralhaek97@gmail.com', name: 'Omar Alhaek' }).textContent)
+      .toContain('Omar Alhaek');
+  });
+
+  it('shows the e-mail address, not a name made from it, when none is stored', () => {
+    const button = renderMenu({ user_id: 'u1', email: 'omaralhaek97@gmail.com', name: 'Okänd' });
+
+    expect(button.textContent).toContain('omaralhaek97@gmail.com');
+    expect(button.textContent).not.toContain('Omaralhaek');
+  });
+});
 
 describe('ProfileDropdown', () => {
   it('sends "Inställningar" to the settings tab, not the same page as "Profil" (UI audit N-3)', () => {

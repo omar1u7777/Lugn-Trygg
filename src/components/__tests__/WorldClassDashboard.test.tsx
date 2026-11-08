@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 const navigateMock = vi.fn();
@@ -314,5 +314,33 @@ describe('WorldClassDashboard', () => {
     });
     expect(screen.getByTestId('snackbar').textContent).toContain('dashboard.updateFailed');
     vi.useRealTimers();
+  });
+});
+
+// The greeting named people after their e-mail address: "omaralhaek97@…"
+// became "Omaralhaek". It uses the name given at registration.
+describe('WorldClassDashboard greeting', () => {
+  afterEach(() => {
+    vi.mocked(useAuth).mockReturnValue({ user: { user_id: 'u1', email: 'test@example.com' } });
+  });
+
+  it('greets the person by their stored name', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { user_id: 'u1', email: 'omaralhaek97@gmail.com', name: 'Omar Alhaek' },
+    } as ReturnType<typeof useAuth>);
+
+    render(<WorldClassDashboard />);
+
+    expect(screen.getByTestId('dashboard-header').textContent).toBe('Omar Alhaek');
+  });
+
+  it('does not make a name out of the e-mail address', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { user_id: 'u1', email: 'omaralhaek97@gmail.com', name: 'Okänd' },
+    } as ReturnType<typeof useAuth>);
+
+    render(<WorldClassDashboard />);
+
+    expect(screen.getByTestId('dashboard-header').textContent).toBe('dashboard.friend');
   });
 });
