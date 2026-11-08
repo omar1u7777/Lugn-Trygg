@@ -237,14 +237,6 @@
     "seeSleepTips": "Se søvntips",
     "seeRecommendations": "Se anbefalinger"
   },
-  "navLinks": {
-    "dashboard": "Oversikt",
-    "wellness": "Velvære",
-    "mood": "Humør",
-    "aiChat": "AI-chat",
-    "insights": "Innsikter",
-    "profile": "Profil"
-  },
   "quickAction": {
     "mood": {
       "title": "Kjenn etter",

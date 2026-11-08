@@ -398,7 +398,7 @@ const UpgradePage: React.FC = () => {
         <p className="text-gray-500 dark:text-gray-400">
           Har du frågor?{' '}
           <button 
-            onClick={() => navigate('/support')}
+            onClick={() => navigate('/feedback')}
             className="text-primary-600 hover:text-primary-700 dark:text-primary-400 font-medium"
           >
             Kontakta oss

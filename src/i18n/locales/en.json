@@ -237,14 +237,6 @@
     "seeSleepTips": "See sleep tips",
     "seeRecommendations": "See recommendations"
   },
-  "navLinks": {
-    "dashboard": "Dashboard",
-    "wellness": "Wellness",
-    "mood": "Mood",
-    "aiChat": "AI Chat",
-    "insights": "Insights",
-    "profile": "Profile"
-  },
   "quickAction": {
     "mood": {
       "title": "Check in",
