@@ -79,6 +79,7 @@ const defaultSub = {
   canSendMessage: () => true, incrementChatMessage: vi.fn(),
   getRemainingMessages: () => 10, plan: { tier: 'free', limits: { chatMessagesPerDay: 20 } },
   isPremium: false,
+  isTrial: false,
 };
 const defaultStream = { isStreaming: false, currentMessage: null, streamMessage: vi.fn().mockResolvedValue(undefined), clearStreamingMessage: vi.fn(), stopStreaming: vi.fn() };
 const defaultVoice = { isListening: false, isSupported: false, startListening: vi.fn(), stopListening: vi.fn(), transcript: '', clearTranscript: vi.fn() };
@@ -286,6 +287,13 @@ describe('WorldClassAIChat', () => {
       const { container } = renderChat();
       await waitFor(() => expect(screen.getByText('PRO')).toBeInTheDocument());
       expect(screen.queryByRole('button', { name: 'Spela in' })).not.toBeInTheDocument();
+    });
+    // A trial includes voice; it showed the PRO lock next to "Provperiod".
+    it('shows the active mic, not a PRO lock, during a trial', async () => {
+      setupMocks({ voice: { isSupported: true }, subscription: { isPremium: false, isTrial: true } });
+      renderChat();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Spela in' })).toBeInTheDocument());
+      expect(screen.queryByText('PRO')).not.toBeInTheDocument();
     });
     it('hides mic button entirely when voice not supported', async () => {
       setupMocks({ voice: { isSupported: false }, subscription: { isPremium: true } });

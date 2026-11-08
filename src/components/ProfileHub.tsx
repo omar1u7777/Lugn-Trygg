@@ -64,6 +64,8 @@ interface ProfileStats {
   totalConversations: number;
   totalMemories: number;
   accountAge: number;
+  /** Days with a mood entry; null when unknown, shown as "–". */
+  activeDays: number | null;
 }
 
 const ProfileHub: React.FC = () => {
@@ -71,6 +73,9 @@ const ProfileHub: React.FC = () => {
   const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
   const { plan, isPremium, isTrial, usage, getRemainingMoodLogs, getRemainingMessages } = useSubscription();
+  // A trial has every premium feature: the header offered it "Uppgradera nu"
+  // beside a plan card saying "Obegränsad tillgång".
+  const hasFullAccess = isPremium || isTrial;
   /*
    * The active tab lives in the URL.
    *
@@ -137,6 +142,7 @@ const ProfileHub: React.FC = () => {
     totalConversations: 0,
     totalMemories: 0,
     accountAge: 0,
+    activeDays: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -245,6 +251,7 @@ const ProfileHub: React.FC = () => {
           totalConversations: stats?.totalConversations || 0,
           totalMemories: stats?.totalMemories || 0,
           accountAge,
+          activeDays: typeof stats?.activeDays === 'number' ? stats.activeDays : null,
         });
         logger.debug('✅ PROFILE HUB - Stats loaded from backend', {
           totalMoods: stats?.totalMoods || 0,
@@ -495,7 +502,7 @@ const ProfileHub: React.FC = () => {
                     t('profileHub.memberForDays', { count: profileStats.accountAge })
                   )}
                 </div>
-                {!isPremium && (
+                {!hasFullAccess && (
                   <Button
                     variant="primary"
                     size="small"
@@ -517,7 +524,9 @@ const ProfileHub: React.FC = () => {
           { label: t('profileHub.moodLogs', 'Humörloggar'), value: profileStats.totalMoods, icon: HeartIcon, color: 'text-pink-500', bg: 'bg-pink-50 dark:bg-pink-900/20' },
           { label: t('profileHub.aiChats', 'AI-samtal'), value: profileStats.totalConversations, icon: ChatBubbleLeftIcon, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
           { label: t('profileHub.memories', 'Minnen'), value: profileStats.totalMemories, icon: SparklesIcon, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20' },
-          { label: t('profileHub.daysActive', 'Dagar aktiv'), value: `${profileStats.accountAge}d`, icon: UserIcon, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20' }
+          // Days with a mood entry. It showed accountAge, the same number as
+          // "Medlem i X dagar" in the header.
+          { label: t('profileHub.daysActive', 'Dagar aktiv'), value: profileStats.activeDays ?? '–', icon: UserIcon, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20' }
         ].map((stat) => (
           <div key={stat.label} className="group bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 shadow-xs hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
             <div className={`w-12 h-12 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center mb-4 transition-transform group-hover:rotate-6`}>

@@ -284,7 +284,9 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const { t, i18n } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
-  const { canSendMessage, incrementChatMessage, getRemainingMessages, plan, isPremium } = useSubscription();
+  const { canSendMessage, incrementChatMessage, getRemainingMessages, plan, isPremium, isTrial } = useSubscription();
+  // A trial includes voice; checking premium alone showed it a PRO lock.
+  const hasFullAccess = isPremium || isTrial;
   const navigate = useNavigate();
 
   // Streaming hook - onComplete adds the completed AI message to messages state
@@ -786,7 +788,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
           <div className="relative flex items-end gap-2 max-w-4xl mx-auto">
             {/* Voice input button — premium feature with gate for free users */}
             {voiceSupported && (
-              isPremium ? (
+              hasFullAccess ? (
                 <button
                   onClick={() => {
                     if (isListening) {

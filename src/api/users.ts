@@ -36,6 +36,8 @@ export interface UserStats {
   totalConversations: number;
   totalMemories: number;
   accountAge: number;
+  /** Swedish calendar days with a mood entry; null when the server could not count. */
+  activeDays?: number | null;
   lastActiveAt?: string;
   streakDays?: number;
 }
