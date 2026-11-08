@@ -339,10 +339,12 @@
       "title": "Circumplex Model",
       "description": "Describe your emotional state in two dimensions",
       "quadrant": "Emotional state",
-      "quadrantHappy": "High energy, pleasant",
-      "quadrantTense": "High energy, unpleasant",
-      "quadrantCalm": "Low energy, pleasant",
-      "quadrantSad": "Low energy, unpleasant"
+      "energyLow": "Low energy",
+      "energyModerate": "Moderate energy",
+      "energyHigh": "High energy",
+      "feelingUnpleasant": "unpleasant",
+      "feelingNeutral": "neutral",
+      "feelingPleasant": "pleasant"
     },
     "tags": {
       "label": "Tags (optional)",

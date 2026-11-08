@@ -339,10 +339,12 @@
       "title": "Circumplex Model",
       "description": "Beskriv ditt känslotillstånd i två dimensioner",
       "quadrant": "Känslotillstånd",
-      "quadrantHappy": "Hög energi, behaglig",
-      "quadrantTense": "Hög energi, obehaglig",
-      "quadrantCalm": "Låg energi, behaglig",
-      "quadrantSad": "Låg energi, obehaglig"
+      "energyLow": "Låg energi",
+      "energyModerate": "Måttlig energi",
+      "energyHigh": "Hög energi",
+      "feelingUnpleasant": "obehaglig",
+      "feelingNeutral": "neutral",
+      "feelingPleasant": "behaglig"
     },
     "tags": {
       "label": "Taggar (valfritt)",
