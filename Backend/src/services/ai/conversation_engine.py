@@ -2,12 +2,17 @@
 enhanced system prompt with mood/profile/journal/goal context."""
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from src.utils.telemetry import telemetry
 
 logger = logging.getLogger(__name__)
+
+
+def _now() -> datetime:
+    return datetime.now(UTC)
 
 
 # Clinical scores reach the model from two places: the profile block, read from
@@ -51,6 +56,49 @@ def _assessment_date(timestamp: Any) -> str:
         except ValueError:
             return ""
     return ""
+
+
+# The app's users are in Sweden; dashboard_routes buckets days the same way.
+LOCAL_TZ = ZoneInfo("Europe/Stockholm")
+
+
+def _local_time(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(LOCAL_TZ).strftime("%Y-%m-%d %H:%M")
+
+
+def _mood_time(timestamp: Any) -> str:
+    """Swedish local time of a stored mood timestamp, or 'okänt datum'.
+
+    /mood/log stores datetime.now(UTC).isoformat(). Cutting that string at 16
+    characters gave the model UTC: a mood logged at 00:42 read as 23:42 the
+    day before.
+    """
+    if isinstance(timestamp, str):
+        try:
+            timestamp = datetime.fromisoformat(timestamp.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return "okänt datum"
+    if isinstance(timestamp, datetime):
+        return _local_time(timestamp)
+    return "okänt datum"
+
+
+def _mood_recency_rule() -> str:
+    """Tells the model what time it is and which mood figures to trust.
+
+    Without "now" the model cannot tell an entry from six minutes ago from
+    one from last night, and earlier replies in the history quote older lists.
+    """
+    return (
+        "\n\nHUMÖRDATA — REGEL:\n"
+        f"Nu är det {_local_time(_now())} svensk tid. Listan ovan läses ur "
+        "användarens sparade loggningar vid detta meddelande, nyaste först, "
+        "med svensk tid. Loggade humörvärden som tidigare svar i samtalet "
+        "citerar kan vara inaktuella; när du nämner loggade värden, använd "
+        "bara listan ovan."
+    )
 
 
 def split_into_chunks(text: str, chunk_size: int = 8) -> list[str]:
@@ -209,13 +257,7 @@ class ConversationEngine:
                             mood_scores.append(score)
 
                             # Build raw data entry for transparency
-                            ts = mood_data.get("timestamp")
-                            if isinstance(ts, datetime):
-                                date_str = ts.strftime("%Y-%m-%d %H:%M")
-                            elif isinstance(ts, str):
-                                date_str = ts[:16]
-                            else:
-                                date_str = "okänt datum"
+                            date_str = _mood_time(mood_data.get("timestamp"))
 
                             note = (mood_data.get("note") or "").strip()
                             tags = mood_data.get("tags") or []
@@ -267,7 +309,7 @@ VIKTIGA INSTRUKTIONER FÖR SVARET:
 3. Efter rådatan, skriv en sektion märkt 'Mönster:' med 1-2 datadrivna observationer.
 4. Gör MAX 1 tolkning — formulera den som en fråga, inte ett påstående.
 5. Dra ALDRIG slutsatser om mönster (t.ex. 'snabba humörväxlingar') baserat på färre än 4 datapunkter.
-6. Om trenden bygger på färre än 5 loggningar, skriv uttryckligen: 'Notera: datan är begränsad till {len(mood_scores)} loggningar, trenden är indicativ.'"""
+6. Om trenden bygger på färre än 5 loggningar, skriv uttryckligen: 'Notera: datan är begränsad till {len(mood_scores)} loggningar, trenden är indicativ.'""" + _mood_recency_rule()
                         logger.info(f"📊 Mood context added: avg={avg_mood:.1f}, trend={trend}, confidence={confidence}, entries={len(mood_scores)}")
 
                         # Safety check: low moods (<=3) combined with negative notes
@@ -554,13 +596,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                         score = md.get("score", md.get("sentiment_score", 5))
                         mood_scores.append(score)
 
-                        ts = md.get("timestamp")
-                        if isinstance(ts, datetime):
-                            date_str = ts.strftime("%Y-%m-%d %H:%M")
-                        elif isinstance(ts, str):
-                            date_str = ts[:16]
-                        else:
-                            date_str = "okänt datum"
+                        date_str = _mood_time(md.get("timestamp"))
 
                         note = (md.get("note") or "").strip()
                         tags = md.get("tags") or []
@@ -609,6 +645,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                         "4. Gör MAX 1 tolkning — formulera den som en fråga, inte ett påstående.\n"
                         "5. Dra ALDRIG slutsatser om mönster (t.ex. \"snabba humörväxlingar\") baserat på färre än 4 datapunkter.\n"
                         f"6. Om trenden bygger på färre än 5 loggningar, skriv uttryckligen: \"Notera: datan är begränsad till {len(mood_scores)} loggningar, trenden är indicativ.\""
+                        f"{_mood_recency_rule()}"
                     )
 
                     if (low_mood_count >= 2 and negative_notes
