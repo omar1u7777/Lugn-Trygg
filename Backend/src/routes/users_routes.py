@@ -62,11 +62,26 @@ def get_user_stats():
             return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
 
         # Count moods
+        moods_ref = db.collection('users').document(user_id).collection('moods')
         try:
-            moods_ref = db.collection('users').document(user_id).collection('moods')
             total_moods = moods_ref.count().get()[0][0].value
         except Exception:
             total_moods = 0
+
+        # Days with at least one mood entry, as Swedish calendar days, the way
+        # the rewards streak counts them. /profile showed account age under
+        # "Dagar aktiv", the same number as "Medlem i X dagar". None, not 0,
+        # when the moods cannot be read, so the page can show "–".
+        try:
+            from .dashboard_routes import _to_local_date
+            stamps = (
+                (doc.to_dict() or {}).get('timestamp')
+                for doc in moods_ref.select(['timestamp']).stream()
+            )
+            active_days = len({day for day in map(_to_local_date, stamps) if day})
+        except Exception:
+            logger.warning("Active days could not be counted", exc_info=True)
+            active_days = None
 
         # Count conversations
         try:
@@ -113,6 +128,7 @@ def get_user_stats():
             'totalConversations': total_conversations,
             'totalMemories': total_memories,
             'accountAge': account_age,
+            'activeDays': active_days,
             'lastActiveAt': last_active_at,
             'streakDays': 0,
         }
