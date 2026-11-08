@@ -13,6 +13,8 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from src.utils.log_redaction import redact_uids
+
 # Context variables for correlation IDs (thread-safe)
 request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
 trace_id_var: ContextVar[str | None] = ContextVar("trace_id", default=None)
@@ -58,7 +60,8 @@ class JSONFormatter(logging.Formatter):
         if hasattr(record, "context"):
             log_data["context"] = record.context
 
-        return json.dumps(log_data, ensure_ascii=False)
+        # Paths, messages and context may hold a uid (/api/v1/dashboard/<uid>/summary).
+        return redact_uids(json.dumps(log_data, ensure_ascii=False))
 
 
 class StructuredLogger:
