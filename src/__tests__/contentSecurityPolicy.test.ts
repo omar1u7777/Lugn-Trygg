@@ -83,11 +83,13 @@ describe('Content-Security-Policy', () => {
 
 describe('What the policy requires of the app', () => {
   it('index.html has no inline script', () => {
-    const html = readFileSync(join(ROOT, 'index.html'), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
-    const inline = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)]
-      .filter(([, attributes = '', body = '']) => !/\bsrc=/.test(attributes) || body.trim() !== '');
+    // Parsed the way a browser parses it, so comments, upper-case tags and odd
+    // attribute quoting are read as the browser would read them.
+    const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
+    const scripts = [...new DOMParser().parseFromString(html, 'text/html').querySelectorAll('script')];
+    const inline = scripts.filter((script) => !script.hasAttribute('src') || script.textContent?.trim());
 
-    expect(inline.map(([tag]) => tag.slice(0, 80))).toEqual([]);
+    expect(inline.map((script) => script.outerHTML.slice(0, 80))).toEqual([]);
   });
 
   it('src evaluates no strings as code', () => {
