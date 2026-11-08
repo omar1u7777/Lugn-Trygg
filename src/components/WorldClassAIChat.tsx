@@ -31,7 +31,6 @@ import useErrorRecovery from '../hooks/useErrorRecovery';
 import useVoiceInput from '../hooks/useVoiceInput';
 import useTextToSpeech from '../hooks/useTextToSpeech';
 import useMessagePagination from '../hooks/useMessagePagination';
-import GradualReveal from './ui/GradualReveal';
 
 import { logger } from '../utils/logger';
 
@@ -98,6 +97,8 @@ function renderInline(text: string): React.ReactNode {
   return <>{parts}</>;
 }
 
+const HEADING = /^#{1,6}\s+(.+)$/;
+
 const ChatMarkdown: React.FC<{ text: string }> = ({ text }) => {
   const lines = text.split('\n');
   const blocks: React.ReactNode[] = [];
@@ -106,6 +107,18 @@ const ChatMarkdown: React.FC<{ text: string }> = ({ text }) => {
 
   while (i < lines.length) {
     const line = lines[i];
+
+    // Heading: "# " to "###### ". The model writes "### Mönster:", which was
+    // shown with its hashes. A bold line, not <h*>: a reply should not add
+    // to the page's heading outline.
+    const heading = HEADING.exec(line ?? '');
+    if (heading) {
+      blocks.push(
+        <p key={bk++} className="font-semibold mt-2 first:mt-0">{renderInline((heading[1] ?? '').trim())}</p>
+      );
+      i++;
+      continue;
+    }
 
     // Unordered list: consecutive "- item" / "* item" lines
     if (/^[-*•]\s/.test(line)) {
@@ -149,6 +162,7 @@ const ChatMarkdown: React.FC<{ text: string }> = ({ text }) => {
     while (
       i < lines.length &&
       lines[i].trim() !== '' &&
+      !HEADING.test(lines[i] ?? '') &&
       !/^[-*•]\s/.test(lines[i]) &&
       !/^\d+[.)]\s/.test(lines[i])
     ) {
@@ -212,16 +226,19 @@ const MessageBubble: React.FC<{
             ? 'bg-primary-600 text-white rounded-tr-sm'
             : 'bg-white/80 dark:bg-slate-800/80 backdrop-blur-md text-gray-800 dark:text-gray-100 rounded-tl-sm border border-white/40 dark:border-white/10'}
         `}>
-          {/* Use GradualReveal only during live streaming — never on history messages */}
-          {!isUser && isStreaming ? (
-            <GradualReveal
-              text={message.content || ''}
-              speed={20}
-              className="text-gray-800 dark:text-gray-100"
-              showCursor={true}
-            />
-          ) : !isUser ? (
-            <ChatMarkdown text={message.content || ''} />
+          {/*
+            The tokens arrive one by one, so the stream is its own reveal.
+            GradualReveal typed it out again and cleared its text whenever its
+            input changed, i.e. on every token: the bubble kept restarting
+            from the first characters, and showed raw markdown until the end.
+          */}
+          {!isUser ? (
+            <>
+              <ChatMarkdown text={message.content || ''} />
+              {isStreaming && (
+                <span aria-hidden="true" className="inline-block w-0.5 h-5 bg-teal-500 animate-pulse ml-0.5 align-middle" />
+              )}
+            </>
           ) : (
             message.content || ''
           )}

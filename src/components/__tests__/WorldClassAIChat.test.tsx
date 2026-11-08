@@ -70,7 +70,6 @@ vi.mock('../../hooks/useTextToSpeech', () => ({
 vi.mock('../../hooks/useMessagePagination', () => ({
   default: (m: unknown[]) => ({ displayedMessages: m, isLoading: false, hasMore: false, loadMore: vi.fn(), loadingRef: { current: null } }),
 }));
-vi.mock('../ui/GradualReveal', () => ({ default: ({ text }: { text: string }) => <span>{text}</span> }));
 
 import WorldClassAIChat from '../WorldClassAIChat';
 
@@ -388,6 +387,52 @@ describe('WorldClassAIChat', () => {
         expect(screen.getByText('Punkt 1')).toBeInTheDocument();
         expect(screen.getByText('Punkt 2')).toBeInTheDocument();
       });
+    });
+
+    // The model writes "### Mönster:"; the renderer had no headings and
+    // showed the hashes.
+    it('renders headings without their hashes', async () => {
+      setupMocks({ chatHistory: { conversation: [
+        { role: 'assistant', content: '### Mönster:\nDu loggar oftare på kvällen.\n## Nästa steg', timestamp: new Date().toISOString() },
+      ] } });
+      const { container } = renderChat();
+      await waitFor(() => expect(screen.getByText('Mönster:')).toBeInTheDocument());
+      expect(screen.getByText('Nästa steg')).toBeInTheDocument();
+      expect(container.textContent).not.toContain('#');
+    });
+
+    it('keeps a hash that is not a heading', async () => {
+      setupMocks({ chatHistory: { conversation: [
+        { role: 'assistant', content: '#hashtag och ###utan mellanslag', timestamp: new Date().toISOString() },
+      ] } });
+      renderChat();
+      await waitFor(() => expect(screen.getByText('#hashtag och ###utan mellanslag')).toBeInTheDocument());
+    });
+  });
+
+  /**
+   * The streaming reply restarted with every token. It was typed out by
+   * GradualReveal, whose effect cleared the text whenever its input changed,
+   * and the input grows on each token: the bubble kept showing the first
+   * characters of a reply that was already further along.
+   */
+  describe('Streaming reply', () => {
+    it('shows everything streamed so far, formatted', async () => {
+      // The question is in the list while its answer streams in.
+      setupMocks({
+        chatHistory: { conversation: [
+          { role: 'user', content: 'Hur har jag mått?', timestamp: new Date().toISOString() },
+        ] },
+        streaming: {
+          isStreaming: true,
+          currentMessage: { id: 's1', content: '### Mönster:\nDu loggar oftare på kvällen, och', timestamp: new Date(), isComplete: false },
+        } as never,
+      });
+      const { container } = renderChat();
+
+      await waitFor(() => expect(screen.getByText('Mönster:')).toBeInTheDocument());
+      expect(container.textContent).toContain('Du loggar oftare på kvällen, och');
+      expect(container.textContent).not.toContain('###');
     });
   });
 });

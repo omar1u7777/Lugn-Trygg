@@ -242,6 +242,42 @@ export const getAllMoods = async (
   }
 };
 
+export interface MoodPage {
+  moods: GenericObject[];
+  /** Entries on the server in all; null when it could not count them. */
+  total: number | null;
+  hasMore: boolean;
+}
+
+/**
+ * One page of mood entries, newest first, paged by the server.
+ *
+ * useMoodData paged in the browser: it called getMoods, which sends no limit
+ * or offset and so always gets the newest 50, and cut the requested page out
+ * of those. Page two was entries 50-99 of a 50-entry list. Throws on failure
+ * so the caller can keep what it has and offer to try again.
+ */
+export const getMoodPage = async (
+  { offset, limit }: { offset: number; limit: number },
+  signal?: AbortSignal
+): Promise<MoodPage> => {
+  try {
+    const response = await api.get(
+      `${API_ENDPOINTS.MOOD.GET_MOODS}?limit=${limit}&offset=${offset}`,
+      signal ? { signal } : undefined
+    );
+    const data = response.data?.data || response.data;
+    const moods: GenericObject[] = Array.isArray(data?.moods) ? data.moods : [];
+    const total = typeof data?.total === 'number' ? data.total : null;
+    // The server omits total when it cannot count; a full page then says more.
+    const hasMore = typeof data?.has_more === 'boolean' ? data.has_more : moods.length === limit;
+    return { moods, total, hasMore };
+  } catch (error: unknown) {
+    if (error instanceof ApiError) throw error;
+    throw ApiError.fromAxiosError(error);
+  }
+};
+
 /**
  * Deletes a single mood entry by ID
  * @param moodId - The mood entry ID to delete

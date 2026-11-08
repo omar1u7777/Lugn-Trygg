@@ -1194,7 +1194,8 @@ class TestUserProfileContext:
         ai = AIServices.__new__(AIServices)
         result = ai._fetch_user_profile_context("test_user_id")
 
-        assert "Senaste PHQ-9 (depression): 3 p — Minimal (ifylld 2026-08-23)" in result
+        # 22:12 UTC is 00:12 on 24 August in Sweden.
+        assert "Senaste PHQ-9 (depression): 3 p — Minimal (ifylld 2026-08-24)" in result
         assert CLINICAL_SCORES_AUTHORITY_RULE in result
 
     @patch('src.firebase_config.db')
@@ -1227,9 +1228,18 @@ class TestUserProfileContext:
 
 
 class TestAssessmentDate:
+    """The Swedish calendar date, not the UTC one.
+
+    Assessments are stored in UTC. A PHQ-9 filled in at 00:12 Swedish time on
+    24 August is stored as 2026-08-23T22:12Z, and the chat said "ifylld
+    2026-08-23".
+    """
+
     @pytest.mark.parametrize("value,expected", [
-        ("2026-08-23T22:12:00+00:00", "2026-08-23"),
-        ("2026-08-23", "2026-08-23"),
+        ("2026-08-23T22:12:00+00:00", "2026-08-24"),  # 00:12 summer time
+        ("2026-11-07T23:30:00Z", "2026-11-08"),       # 00:30 winter time
+        ("2026-11-07T12:00:00+00:00", "2026-11-07"),
+        ("2026-08-23", "2026-08-23"),                 # a bare date stays as it is
         ("not a date", ""),
         (None, ""),
         (12345, ""),
@@ -1243,3 +1253,4 @@ class TestAssessmentDate:
 
         from src.services.ai.conversation_engine import _assessment_date
         assert _assessment_date(datetime(2026, 7, 8, 9, 0, tzinfo=UTC)) == "2026-07-08"
+        assert _assessment_date(datetime(2026, 7, 8, 22, 30, tzinfo=UTC)) == "2026-07-09"
