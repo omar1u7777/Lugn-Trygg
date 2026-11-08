@@ -1,4 +1,5 @@
-import { test, expect, type Locator, type Page, type Route } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
+import { fulfil, signInWithMockApi } from './support/mockApp';
 
 /**
  * The sound player can be used in a short window.
@@ -34,35 +35,8 @@ const LIBRARY = {
   },
 };
 
-// The build calls the API on another origin with credentials, so a mocked
-// response needs what a real one carries: CORS headers, and an answer to the
-// preflight that names the headers the request asked for.
-const fulfil = (route: Route, data: unknown) => {
-  const request = route.request();
-  const headers = {
-    'access-control-allow-origin': 'http://localhost:3000',
-    'access-control-allow-credentials': 'true',
-    'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'access-control-allow-headers': request.headers()['access-control-request-headers'] ?? 'authorization, content-type',
-  };
-  if (request.method() === 'OPTIONS') {
-    return route.fulfill({ status: 204, headers });
-  }
-  return route.fulfill({
-    status: 200, headers, contentType: 'application/json', body: JSON.stringify({ success: true, data }),
-  });
-};
-
 const openSounds = async (page: Page) => {
-  await page.addInitScript(() => {
-    localStorage.setItem('__e2e_test_auth__', JSON.stringify({
-      token: 'sounds-e2e-token',
-      user: { user_id: 'sounds-e2e-user', email: 'sounds@example.com', displayName: 'Ljud Test' },
-    }));
-    localStorage.setItem('__e2e_test_tier__', 'premium');
-    localStorage.setItem('i18nextLng', 'sv');
-  });
-  await page.route('**/api/**', (route) => fulfil(route, {}));
+  await signInWithMockApi(page);
   await page.route('**/api/v1/audio/library', (route) => fulfil(route, { library: LIBRARY }));
 
   await page.goto('/sounds');

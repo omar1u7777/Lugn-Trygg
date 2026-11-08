@@ -186,6 +186,7 @@ jobs:
             responsive-critical.spec.ts \
             navigation.spec.ts \
             sounds-short-window.spec.ts \
+            csp.spec.ts \
             --project=chromium \
             --reporter=list
 

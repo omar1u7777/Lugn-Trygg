@@ -8,18 +8,17 @@ const needsPromises = () =>
 
 const needsFetch = () => typeof window !== 'undefined' && typeof window.fetch === 'undefined';
 
-const needsAsyncRuntime = () => {
-  if (typeof Symbol === 'undefined') {
-    return true;
-  }
-  try {
-     
-    new Function('async function test() {}');
-    return typeof (Symbol as SymbolConstructor & { asyncIterator?: symbol }).asyncIterator === 'undefined';
-  } catch {
-    return true;
-  }
-};
+/*
+ * This used to compile `async function test() {}` with new Function to see
+ * whether the browser knows async functions. Under the Content-Security-Policy
+ * (no 'unsafe-eval') that throws, so every page load reported a violation and
+ * fetched regenerator-runtime for nothing. The bundle is an ES module full of
+ * async code: a browser running it already has async functions, and
+ * asyncIterator is what is left to check.
+ */
+const needsAsyncRuntime = () =>
+  typeof Symbol === 'undefined' ||
+  typeof (Symbol as SymbolConstructor & { asyncIterator?: symbol }).asyncIterator === 'undefined';
 
 const loadIfNeeded = (condition: boolean, loader: PolyfillLoader) =>
   condition ? loader() : Promise.resolve();
