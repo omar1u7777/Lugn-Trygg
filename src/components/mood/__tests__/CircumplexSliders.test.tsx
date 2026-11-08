@@ -119,3 +119,56 @@ describe('CircumplexSliders', () => {
     expect(screen.getByText(/Beskriv ditt känslotillstånd/)).toBeInTheDocument();
   });
 });
+
+/**
+ * The state text and the axis labels read the same value the same way.
+ *
+ * The state split each axis at 5, so the logger's starting point, valence 5
+ * and arousal 5, read "Låg energi, obehaglig" while the labels above said
+ * "Neutral" and "Måttlig".
+ */
+describe('CircumplexSliders emotional state', () => {
+  const stateText = (valence: number, arousal: number) => {
+    render(<CircumplexSliders {...defaultProps} valence={valence} arousal={arousal} />);
+    return screen.getByTestId('circumplex-state').textContent ?? '';
+  };
+
+  it('reads the starting point 5/5 as moderate energy and neutral', () => {
+    const state = stateText(5, 5);
+
+    expect(state).toContain('Måttlig energi, neutral');
+    expect(state).not.toContain('obehaglig');
+  });
+
+  it.each([
+    [8, 8, 'Hög energi, behaglig'],
+    [2, 8, 'Hög energi, obehaglig'],
+    [8, 2, 'Låg energi, behaglig'],
+    [2, 2, 'Låg energi, obehaglig'],
+  ])('keeps the corners: valence %i, arousal %i', (valence, arousal, expected) => {
+    expect(stateText(valence, arousal)).toContain(expected);
+  });
+
+  it.each(Array.from({ length: 10 }, (_, i) => i + 1))(
+    'agrees with the valence label at %i',
+    (valence) => {
+      const state = stateText(valence, 5);
+      const feeling = state.split(', ')[1];
+
+      if (valence <= 3) expect(feeling).toBe('obehaglig');
+      else if (valence <= 5) expect(feeling).toBe('neutral');
+      else expect(feeling).toBe('behaglig');
+    },
+  );
+
+  it.each(Array.from({ length: 10 }, (_, i) => i + 1))(
+    'agrees with the arousal label at %i',
+    (arousal) => {
+      const state = stateText(5, arousal);
+
+      if (arousal <= 3) expect(state).toContain('Låg energi');
+      else if (arousal <= 5) expect(state).toContain('Måttlig energi');
+      else expect(state).toContain('Hög energi');
+    },
+  );
+});

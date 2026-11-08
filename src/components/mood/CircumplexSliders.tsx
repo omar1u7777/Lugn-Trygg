@@ -41,15 +41,17 @@ export const CircumplexSliders: React.FC<CircumplexSlidersProps> = ({
   };
 
   const getValenceLabel = (value: number): string => {
-    if (value <= 3) return t('mood.valence.unpleasant', 'Obehaglig');
-    if (value <= 5) return t('mood.valence.neutral', 'Neutral');
+    const level = axisBand(value);
+    if (level === 'low') return t('mood.valence.unpleasant', 'Obehaglig');
+    if (level === 'mid') return t('mood.valence.neutral', 'Neutral');
     if (value <= 7) return t('mood.valence.pleasant', 'Behaglig');
     return t('mood.valence.veryPleasant', 'Mycket behaglig');
   };
 
   const getArousalLabel = (value: number): string => {
-    if (value <= 3) return t('mood.arousal.calm', 'Lugn');
-    if (value <= 5) return t('mood.arousal.moderate', 'Måttlig');
+    const level = axisBand(value);
+    if (level === 'low') return t('mood.arousal.calm', 'Lugn');
+    if (level === 'mid') return t('mood.arousal.moderate', 'Måttlig');
     if (value <= 7) return t('mood.arousal.energized', 'Energisk');
     return t('mood.arousal.excited', 'Upphetsad');
   };
@@ -143,7 +145,7 @@ export const CircumplexSliders: React.FC<CircumplexSlidersProps> = ({
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
             {t('mood.circumplex.quadrant', 'Känslotillstånd')}
           </p>
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+          <p data-testid="circumplex-state" className="text-sm font-semibold text-gray-800 dark:text-gray-200">
             {getCircumplexQuadrant(valence, arousal, t)}
           </p>
         </div>
@@ -152,21 +154,44 @@ export const CircumplexSliders: React.FC<CircumplexSlidersProps> = ({
   );
 };
 
-function getCircumplexQuadrant(valence: number, arousal: number, t: (key: string) => string): string {
-  // High arousal (>5), High valence (>5) = Excited/Happy
-  if (arousal > 5 && valence > 5) {
-    return `😊 ${t('mood.circumplex.quadrantHappy')}`;
-  }
-  // High arousal (>5), Low valence (≤5) = Tense/Anxious
-  if (arousal > 5 && valence <= 5) {
-    return `⚡ ${t('mood.circumplex.quadrantTense')}`;
-  }
-  // Low arousal (≤5), High valence (>5) = Calm/Relaxed
-  if (arousal <= 5 && valence > 5) {
-    return `😌 ${t('mood.circumplex.quadrantCalm')}`;
-  }
-  // Low arousal (≤5), Low valence (≤5) = Low energy
-  return `🌙 ${t('mood.circumplex.quadrantSad')}`;
+type AxisBand = 'low' | 'mid' | 'high';
+
+/**
+ * How a 1-10 slider value reads, for both the axis labels and the state text.
+ *
+ * The state used to split each axis at 5 on its own, so the logger's starting
+ * point, 5/5, read "Låg energi, obehaglig" while the labels said "Neutral"
+ * and "Måttlig".
+ */
+function axisBand(value: number): AxisBand {
+  if (value <= 3) return 'low';
+  if (value <= 5) return 'mid';
+  return 'high';
+}
+
+// Indexed [arousal][valence], after Russell's circumplex.
+const STATE_EMOJI: Record<AxisBand, Record<AxisBand, string>> = {
+  high: { low: '⚡', mid: '😮', high: '😊' },
+  mid: { low: '😕', mid: '😐', high: '🙂' },
+  low: { low: '🌙', mid: '😴', high: '😌' },
+};
+
+function getCircumplexQuadrant(
+  valence: number,
+  arousal: number,
+  t: (key: string, fallback: string) => string,
+): string {
+  const energy = {
+    low: t('mood.circumplex.energyLow', 'Låg energi'),
+    mid: t('mood.circumplex.energyModerate', 'Måttlig energi'),
+    high: t('mood.circumplex.energyHigh', 'Hög energi'),
+  }[axisBand(arousal)];
+  const feeling = {
+    low: t('mood.circumplex.feelingUnpleasant', 'obehaglig'),
+    mid: t('mood.circumplex.feelingNeutral', 'neutral'),
+    high: t('mood.circumplex.feelingPleasant', 'behaglig'),
+  }[axisBand(valence)];
+  return `${STATE_EMOJI[axisBand(arousal)][axisBand(valence)]} ${energy}, ${feeling}`;
 }
 
 const VALID_MOOD_SCORES = [2, 3, 5, 7, 8, 10];
