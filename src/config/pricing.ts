@@ -32,3 +32,13 @@ export const yearlyTotalSek = (): number => YEARLY_PRICE_PER_MONTH_SEK * 12;
 /** What the user saves per year by paying annually. */
 export const yearlySavingsSek = (): number =>
   (MONTHLY_PRICE_SEK - YEARLY_PRICE_PER_MONTH_SEK) * 12;
+
+/**
+ * The yearly saving as a whole percentage of paying monthly, rounded down so
+ * it never claims more than the prices give.
+ *
+ * /upgrade said "2 månader gratis", which is 2 × 99 = 198 kr, beside "SPARA
+ * 240 kr". A claim about the price has to come from the price.
+ */
+export const yearlySavingsPercent = (): number =>
+  Math.floor((yearlySavingsSek() / (MONTHLY_PRICE_SEK * 12)) * 100);
