@@ -5,7 +5,7 @@
  * Provides a clean interface for mood-related operations.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { getMoods, logMood as apiLogMood, getWeeklyAnalysis } from '../../../api/api';
 import useAuth from '../../../hooks/useAuth';
 import { MoodEntry, MoodStats, MoodTrend, MOOD_COLORS } from '../types';
@@ -58,7 +58,9 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
   const [trends, setTrends] = useState<MoodTrend[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [offset, setOffset] = useState(0);
+  // A ref, not state: as a dependency of fetchMoods it gave every fetched
+  // page a new fetchMoods, which re-ran the mount effect, which fetched again.
+  const offsetRef = useRef(0);
   const [hasMore, setHasMore] = useState(true);
 
   const userId = user?.user_id;
@@ -66,7 +68,7 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
   const fetchMoods = useCallback(async (reset = false) => {
     if (!userId) return;
 
-    const currentOffset = reset ? 0 : offset;
+    const currentOffset = reset ? 0 : offsetRef.current;
 
     // Check cache only on initial load
     if (currentOffset === 0) {
@@ -107,11 +109,11 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
         // Update cache and replace moods
         moodCache.set(userId, { data: transformedMoods, timestamp: Date.now() });
         setMoods(transformedMoods);
-        setOffset(limit);
+        offsetRef.current = limit;
       } else {
         // Append new moods
         setMoods(prev => [...prev, ...transformedMoods]);
-        setOffset(prev => prev + limit);
+        offsetRef.current = currentOffset + limit;
       }
 
       // Check if there's more data
@@ -155,7 +157,7 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
     } finally {
       setIsLoading(false);
     }
-  }, [userId, limit, cacheTime, offset]);
+  }, [userId, limit, cacheTime]);
 
   const loadMore = useCallback(async () => {
     if (hasMore && !isLoading) {
@@ -177,8 +179,8 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
       // Invalidate cache
       moodCache.delete(userId);
       
-      // Refetch to get updated data
-      await fetchMoods();
+      // Reload from the first page; the new entry is the newest
+      await fetchMoods(true);
       
       return true;
     } catch (err) {
@@ -200,10 +202,16 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
     return moods.reduce((sum, m) => sum + m.score, 0) / moods.length;
   }, [moods]);
 
-  // Auto-fetch on mount
+  // A refetch asks the server again; the first page may be cached for minutes.
+  const refetch = useCallback(async () => {
+    if (userId) moodCache.delete(userId);
+    await fetchMoods(true);
+  }, [userId, fetchMoods]);
+
+  // Fetch the first page once per user
   useEffect(() => {
     if (autoFetch && userId) {
-      fetchMoods();
+      fetchMoods(true);
     }
   }, [autoFetch, userId, fetchMoods]);
 
@@ -213,13 +221,13 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
     trends,
     isLoading,
     error,
-    refetch: fetchMoods,
+    refetch,
     logMood,
     getMoodColor,
     getAverageScore,
     hasMore,
     loadMore,
-  }), [moods, stats, trends, isLoading, error, fetchMoods, logMood, getMoodColor, getAverageScore, hasMore, loadMore]);
+  }), [moods, stats, trends, isLoading, error, refetch, logMood, getMoodColor, getAverageScore, hasMore, loadMore]);
 }
 
 function calculateTrend(moods: MoodEntry[]): 'up' | 'down' | 'stable' {
