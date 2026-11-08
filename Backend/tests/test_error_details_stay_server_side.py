@@ -231,3 +231,39 @@ def test_xp_award_failure(mocker):
 
     assert result['xp_gained'] == 0
     assert DETAIL not in repr(result)
+
+
+def test_audio_generation(client, auth_csrf_headers, mock_auth_service, mocker):
+    mocker.patch('scipy.io.wavfile.write', side_effect=_boom)
+
+    response = client.get('/api/v1/audio/generate?duration=1', headers=auth_csrf_headers)
+
+    assert response.status_code == 500
+    assert DETAIL not in response.get_data(as_text=True)
+
+
+def test_registration_with_an_unexpected_firebase_error(mocker):
+    from src.services.auth_service import AuthService
+
+    mocker.patch('src.services.auth_service._auth').create_user.side_effect = _boom
+
+    user, error = AuthService.register_user('ny@example.com', 'StarktL0senord!')
+
+    assert user is None
+    assert error == 'Registrering misslyckades'
+
+
+@pytest.mark.parametrize('method, failing_step', [
+    ('perform_health_check', 'get_system_metrics'),
+    ('get_health_status', 'perform_health_check'),
+])
+def test_monitoring_health(mocker, method, failing_step):
+    # Admin security metrics return this status as it is.
+    from src.services.monitoring_service import MonitoringService
+
+    service = MonitoringService.__new__(MonitoringService)
+    mocker.patch.object(service, failing_step, side_effect=_boom, create=True)
+
+    result = getattr(service, method)()
+
+    assert DETAIL not in repr(result)
