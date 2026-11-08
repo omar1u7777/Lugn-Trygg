@@ -46,6 +46,14 @@ class InsightType(Enum):
     PHYSICAL_HEALTH = "physical"  # Exercise-mood correlation
 
 
+def _is_onboarding(insight_id: str) -> bool:
+    """The "log N more times" insight, {user}_onboarding_{date}.
+
+    It is a snapshot of a count, unlike the insights drawn from the entries.
+    """
+    return '_onboarding_' in (insight_id or '')
+
+
 class TherapeuticDomain(Enum):
     """Domains for targeted interventions."""
     BEHAVIORAL_ACTIVATION = "behavioral_activation"
@@ -220,6 +228,10 @@ class DailyInsightGeneratorV2:
             today_insights = []
             for doc in query.stream():
                 data = doc.to_dict()
+                # Asking for more entries is not today's insights: once the
+                # entries are there, generating must not stop at it.
+                if _is_onboarding(data.get('insight_id', '')):
+                    continue
                 created = data.get('created_at')
                 if isinstance(created, datetime):
                     if created.tzinfo is None:
@@ -300,7 +312,9 @@ class DailyInsightGeneratorV2:
             if len(memories) < self.min_memories:
                 logger.info(f"Insufficient data for {user_id}, generating fallback insight")
                 # Generate onboarding insight for new users
-                fallback_insight = self._generate_onboarding_insight(user_id, len(memories))
+                fallback_insight = self._generate_onboarding_insight(
+                    user_id, len(memories), total_count=self._count_all_moods(user_id)
+                )
                 if fallback_insight:
                     insights.append(fallback_insight)
                     self._save_insight(fallback_insight)
@@ -912,7 +926,7 @@ class DailyInsightGeneratorV2:
 
             # Sort by created_at descending in memory
             insights.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-            return insights
+            return self._refresh_onboarding(user_id, insights)
 
         except Exception as e:
             logger.error(f"Failed to fetch pending insights: {e}")
@@ -940,7 +954,9 @@ class DailyInsightGeneratorV2:
             logger.error(f"Failed to extract activity patterns: {e}")
             return {}
 
-    def _generate_onboarding_insight(self, user_id: str, current_count: int) -> TherapeuticInsight | None:
+    def _generate_onboarding_insight(
+        self, user_id: str, current_count: int, total_count: int | None = None
+    ) -> TherapeuticInsight | None:
         """Generate onboarding insight for new users with insufficient data.
 
         #5: Checks Firestore for existing onboarding insight today to avoid duplicates.
@@ -957,30 +973,93 @@ class DailyInsightGeneratorV2:
             logger.warning(f"Failed to check existing onboarding insight: {e}")
             # Continue to generate if check fails
 
-        needed = self.min_memories - current_count
-
-        messages = {
-            0: "Välkommen! Logga ditt mående dagligen för att få personliga insikter baserade på dina mönster.",
-            1: "Bra start! Logga ditt mående en gång till för att börja se dina första insikter.",
-            2: "Du är nära! Logga ditt mående en gång till för att få dina första personliga insikter.",
-        }
-
-        message = messages.get(current_count, messages[2])
+        copy = self._onboarding_copy(current_count, total_count)
 
         return TherapeuticInsight(
             insight_id=expected_id,
             user_id=user_id,
             insight_type=InsightType.CHECKIN_NEEDED,
             domain=TherapeuticDomain.BEHAVIORAL_ACTIVATION,
-            title="Kom igång med daglig loggning",
-            message=message,
-            recommendation=f"Logga ditt mående {needed} gång(er) till för att aktivera insikter",
+            title=copy['title'],
+            message=copy['message'],
+            recommendation=copy['recommendation'],
             evidence={},
             urgency="low",
             suggested_action="Logga mående nu",
             related_memories=[],
             created_at=datetime.now(UTC),
         )
+
+    def _onboarding_copy(self, current_count: int, total_count: int | None) -> dict[str, str]:
+        """Title, message and recommendation asking for `min_memories` entries.
+
+        `current_count` is entries in the analysis window. Someone with older
+        entries is told that only the window counts; "log 2 more times to
+        activate insights" read as nonsense beside a history of 128.
+        """
+        needed = max(self.min_memories - current_count, 1)
+        times = 'en gång' if needed == 1 else f'{needed} gånger'
+
+        if total_count is not None and total_count > current_count:
+            return {
+                'title': 'Fler loggar behövs för nya insikter',
+                'message': (
+                    f"Insikterna bygger på dina loggar från de senaste {self.analysis_window} dagarna, "
+                    f"och där finns {current_count} av de {self.min_memories} som behövs."
+                ),
+                'recommendation': f"Logga ditt mående {times} till för att få nya insikter",
+            }
+
+        messages = {
+            0: "Välkommen! Logga ditt mående dagligen för att få personliga insikter baserade på dina mönster.",
+            1: "Bra start! Logga ditt mående en gång till för att börja se dina första insikter.",
+            2: "Du är nära! Logga ditt mående en gång till för att få dina första personliga insikter.",
+        }
+        return {
+            'title': 'Kom igång med daglig loggning',
+            'message': messages.get(current_count, messages[2]),
+            'recommendation': f"Logga ditt mående {times} till för att aktivera insikter",
+        }
+
+    def _count_all_moods(self, user_id: str) -> int | None:
+        """All of the user's entries, by aggregation; None if it cannot be read."""
+        try:
+            result = db.collection('users').document(user_id).collection('moods').count().get()
+            try:
+                return int(result[0][0].value)
+            except (IndexError, TypeError, AttributeError):
+                return int(result[0].value)
+        except Exception as e:
+            logger.warning(f"Could not count mood entries: {e}")
+            return None
+
+    def _refresh_onboarding(self, user_id: str, insights: list[dict]) -> list[dict]:
+        """Re-check pending "log N more times" insights against the entries now.
+
+        Met: the insight is retired, so the page goes on to generate the real
+        ones. Not met: it states the count as it is now, not as it was.
+        """
+        onboarding_ids = {i.get('insight_id') for i in insights if _is_onboarding(i.get('insight_id', ''))}
+        if not onboarding_ids:
+            return insights
+
+        count = len(self._fetch_memories(user_id, days=self.analysis_window))
+        if count >= self.min_memories:
+            for insight_id in onboarding_ids:
+                try:
+                    db.collection('insights').document(insight_id).update({
+                        'status': 'superseded',
+                        'superseded_at': datetime.now(UTC),
+                    })
+                except Exception as e:
+                    logger.warning(f"Could not retire a met onboarding insight: {e}")
+            return [i for i in insights if i.get('insight_id') not in onboarding_ids]
+
+        copy = self._onboarding_copy(count, self._count_all_moods(user_id))
+        for insight in insights:
+            if insight.get('insight_id') in onboarding_ids:
+                insight.update(copy)
+        return insights
 
     def _save_insight(self, insight: TherapeuticInsight):
         """Save to Firestore. Preserves dismissed/action_taken status on re-save."""
