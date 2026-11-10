@@ -324,6 +324,27 @@ def log_mood() -> Response | tuple[Response, int]:
                 f'Ogiltigt värde för {invalid}: måste vara ett heltal från 1 till 10.'
             )
 
+        # BACKEND DEDUPLICATION: Prevent same score within 5 minutes.
+        # Before the quota, the upload and the analysis: this ran last, so a
+        # second press of the button cost a unit of the day's quota and a model
+        # call for a log that was never saved.
+        if user_score is not None:
+            try:
+                five_min_ago = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
+                recent_moods = db.collection('users').document(user_id).collection('moods')
+                recent_query = recent_moods.where(filter=FieldFilter('timestamp', '>=', five_min_ago)) \
+                    .order_by('timestamp', direction='DESCENDING').limit(10)
+                for doc in recent_query.stream():
+                    existing = doc.to_dict()
+                    if existing.get('score') == user_score:
+                        logger.info(f"🔄 Duplicate mood blocked: user={user_id} score={user_score}")
+                        return APIResponse.error(
+                            'Duplicate mood within 5 minutes. Please wait before logging the same mood again.',
+                            'DUPLICATE_MOOD', 409
+                        )
+            except Exception as dedup_err:
+                logger.warning(f"Dedup check failed (non-blocking): {dedup_err}")
+
         plan_context = SubscriptionService.get_plan_context(user_data, user_id=user_id)
         try:
             SubscriptionService.consume_quota(user_id, 'mood_logs', plan_context['limits'])
@@ -488,24 +509,6 @@ def log_mood() -> Response | tuple[Response, int]:
             }
             final_mood_text = emotion_to_mood.get(primary_emotion, 'neutral')
             logger.info("🎭 Using the voice analysis for the mood")
-
-        # BACKEND DEDUPLICATION: Prevent same score within 5 minutes
-        if user_score is not None:
-            try:
-                five_min_ago = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
-                recent_moods = db.collection('users').document(user_id).collection('moods')
-                recent_query = recent_moods.where(filter=FieldFilter('timestamp', '>=', five_min_ago)) \
-                    .order_by('timestamp', direction='DESCENDING').limit(10)
-                for doc in recent_query.stream():
-                    existing = doc.to_dict()
-                    if existing.get('score') == user_score:
-                        logger.info(f"🔄 Duplicate mood blocked: user={user_id} score={user_score}")
-                        return APIResponse.error(
-                            'Duplicate mood within 5 minutes. Please wait before logging the same mood again.',
-                            'DUPLICATE_MOOD', 409
-                        )
-            except Exception as dedup_err:
-                logger.warning(f"Dedup check failed (non-blocking): {dedup_err}")
 
         mood_entry = {
             'user_id': user_id,

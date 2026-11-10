@@ -783,7 +783,7 @@
     "moodSaved": "Mood saved: {{mood}}",
     "saveFailed": "Could not save mood. Please try again.",
     "moodSelected": "Selected mood: {{mood}}",
-    "duplicateWarning": "You just logged the same mood",
+    "duplicateWarning": "You just logged the same mood. Wait a few minutes before logging it again.",
     "moodLoggedSuccess": "Mood logged!",
     "dailyLimitReachedMessage": "You have reached your daily mood logging limit.",
     "moodLogFailed": "Could not log mood. Please try again.",

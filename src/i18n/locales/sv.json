@@ -871,7 +871,7 @@
     "moodSaved": "Humör sparat: {{mood}}",
     "saveFailed": "Kunde inte spara humör. Försök igen.",
     "moodSelected": "Valde humör: {{mood}}",
-    "duplicateWarning": "Du loggade precis samma humör",
+    "duplicateWarning": "Du loggade precis samma humör. Vänta några minuter innan du loggar det igen.",
     "moodLoggedSuccess": "Humör loggat!",
     "dailyLimitReachedMessage": "Du har nått din dagliga gräns för humörloggningar.",
     "moodLogFailed": "Kunde inte logga humör. Försök igen.",

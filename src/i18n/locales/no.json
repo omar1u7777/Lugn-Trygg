@@ -843,7 +843,7 @@
     "moodSaved": "Humør lagret: {{mood}}",
     "saveFailed": "Kunne ikke lagre humør. Prøv igjen.",
     "moodSelected": "Valgt humør: {{mood}}",
-    "duplicateWarning": "Du logget akkurat det samme humøret",
+    "duplicateWarning": "Du logget akkurat det samme humøret. Vent noen minutter før du logger det igjen.",
     "moodLoggedSuccess": "Humør logget!",
     "dailyLimitReachedMessage": "Du har nådd din daglige grense for humørlogging.",
     "moodLogFailed": "Kunne ikke logge humør. Prøv igjen.",

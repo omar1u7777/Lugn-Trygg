@@ -382,7 +382,11 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     }
 
     if (isDuplicateMoodWithinCooldown(selectedMood)) {
-      announceToScreenReader(t('moodLogger.duplicateWarning', 'Du loggade precis samma humör'), 'polite');
+      // This told only screen readers and returned, so for everyone else the
+      // button did nothing at all.
+      const message = t('moodLogger.duplicateWarning', 'Du loggade precis samma humör. Vänta några minuter innan du loggar det igen.');
+      setLimitError(message);
+      announceToScreenReader(message, 'polite');
       return;
     }
 
@@ -475,16 +479,17 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       if (error instanceof Error && error.name === 'AbortError') return;
       if (!isMountedRef.current) return;
       logger.error('Failed to log mood:', error);
-      const axiosError = error as AxiosError<{ error?: string; message?: string }>;
-      const status = axiosError.response?.status;
-      const serverMessage = axiosError.response?.data?.message || axiosError.response?.data?.error;
+      const status = (error as AxiosError).response?.status;
 
+      // The server's own text is English ("Duplicate mood within 5 minutes…",
+      // "Daily mood log limit reached") and used to be shown as it came. The
+      // status says which of our texts applies.
       if (status === 409) {
-        const friendlyMessage = serverMessage || t('moodLogger.duplicateWarning', 'Du loggade precis samma humör. Vänta några minuter.');
+        const friendlyMessage = t('moodLogger.duplicateWarning', 'Du loggade precis samma humör. Vänta några minuter innan du loggar det igen.');
         setLimitError(friendlyMessage);
         announceToScreenReader(friendlyMessage, 'polite');
       } else if (status === 429) {
-        const friendlyMessage = serverMessage || t('moodLogger.dailyLimitReachedMessage');
+        const friendlyMessage = t('moodLogger.dailyLimitReachedMessage', 'Du har nått din dagliga gräns för humörloggningar.');
         setLimitError(friendlyMessage);
         announceToScreenReader(friendlyMessage, 'assertive');
       } else {
