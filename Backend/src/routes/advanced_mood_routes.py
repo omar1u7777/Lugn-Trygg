@@ -22,6 +22,9 @@ try:
 except ImportError:
     LSTM_AVAILABLE = False
 
+# Mood entries a forecast is made from, at the least.
+MIN_FORECAST_ENTRIES = 14
+
 try:
     from src.services.clinical_assessment import (
         ClinicalRiskStratification,
@@ -217,10 +220,17 @@ def get_advanced_forecast():
 
         mood_entries = [doc.to_dict() for doc in mood_docs]
 
-        if len(mood_entries) < 14:
-            return APIResponse.bad_request(
-                f"Need at least 14 mood entries for LSTM forecast, got {len(mood_entries)}"
-            )
+        if len(mood_entries) < MIN_FORECAST_ENTRIES:
+            # An answer, not an error. This was a 400 with an English sentence
+            # ("Need at least 14 mood entries for LSTM forecast, got 4") that
+            # the page showed as it came; and not having logged enough yet is
+            # where every new user starts, not a bad request.
+            return APIResponse.success({
+                'forecasts': [],
+                'insufficient_data': True,
+                'entries_required': MIN_FORECAST_ENTRIES,
+                'entries_logged': len(mood_entries),
+            })
 
         # Get contextual data
         contextual_data = _get_contextual_data(user_id)
