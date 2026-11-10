@@ -9,6 +9,7 @@ from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
 from ..utils.client_error import ClientError
+from ..utils.context_cache import invalidate_user_context
 from ..utils.input_sanitization import sanitize_text
 from ..utils.response_utils import APIResponse
 from ..utils.wellness_goals import extract_and_validate_wellness_goals
@@ -394,6 +395,7 @@ def set_wellness_goals():
                 'wellnessGoals': goals,
                 'updatedAt': SERVER_TIMESTAMP
             })
+        invalidate_user_context(user_id)
 
         audit_log(
             event_type="WELLNESS_GOALS_SET",

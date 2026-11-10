@@ -13,6 +13,7 @@ from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
 from src.utils.client_error import ClientError
+from src.utils.context_cache import invalidate_user_context
 from src.utils.response_utils import APIResponse
 from src.utils.wellness_goals import ALLOWED_WELLNESS_GOALS, extract_and_validate_wellness_goals
 
@@ -58,6 +59,7 @@ def save_user_goals(user_id: str):
             'onboarding_completed_at': datetime.now(UTC),
             'updated_at': datetime.now(UTC)
         }, merge=True)
+        invalidate_user_context(user_id)
 
         logger.info(f"✅ Goals saved successfully for user {user_id[:8]}: {len(validated_goals)} goals")
 
@@ -144,6 +146,7 @@ def update_user_goals(user_id: str):
             'wellnessGoals': validated_goals,
             'updated_at': datetime.now(UTC)
         })
+        invalidate_user_context(user_id)
 
         logger.info(f"✅ Goals updated for user {user_id[:8]}: {len(validated_goals)} goals")
         audit_log('goals_updated', user_id, {'goals': validated_goals})

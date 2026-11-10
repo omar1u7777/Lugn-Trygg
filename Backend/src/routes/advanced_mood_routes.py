@@ -13,6 +13,7 @@ from src.firebase_config import db
 from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
+from src.utils.context_cache import invalidate_user_context
 from src.utils.response_utils import APIResponse
 
 # Import new professional services
@@ -376,6 +377,7 @@ def assess_phq9():
             db.collection('users').document(user_id)\
                 .collection('clinical_assessments')\
                 .add(assessment_data)
+            invalidate_user_context(user_id)
         except Exception as db_error:
             logger.error(f"Failed to store PHQ-9 assessment for user {user_id}: {db_error}")
             audit_log('phq9_storage_failed', user_id, {'error': str(db_error)})
@@ -454,6 +456,7 @@ def assess_gad7():
             db.collection('users').document(user_id)\
                 .collection('clinical_assessments')\
                 .add(assessment_data)
+            invalidate_user_context(user_id)
         except Exception as db_error:
             logger.error(f"Failed to store GAD-7 assessment for user {user_id}: {db_error}")
             audit_log('gad7_storage_failed', user_id, {'error': str(db_error)})

@@ -11,6 +11,7 @@ from src.services.audit_service import audit_log
 # Absolute imports (project standard)
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
+from src.utils.context_cache import invalidate_user_context
 from src.utils.input_sanitization import input_sanitizer
 from src.utils.response_utils import APIResponse
 
@@ -253,6 +254,7 @@ def save_journal_entry(user_id):
 
         doc_ref = db.collection('journal_entries').document()
         doc_ref.set(entry_data)
+        invalidate_user_context(user_id)
 
         # Audit log for journal creation
         audit_log(
@@ -430,6 +432,7 @@ def update_journal_entry(user_id, entry_id):
             changes_made.append('tags')
 
         entry_ref.update(update_data)
+        invalidate_user_context(user_id)
 
         # Audit log for journal update
         audit_log(
@@ -510,6 +513,7 @@ def delete_journal_entry(user_id, entry_id):
 
         # Delete entry
         entry_ref.delete()
+        invalidate_user_context(user_id)
 
         # Audit log for journal deletion
         audit_log(
