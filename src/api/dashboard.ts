@@ -261,6 +261,19 @@ export interface ActivityProgress {
 }
 
 /**
+ * The counters in an answer, or a throw if the answer does not carry them.
+ * Handing back `undefined` under the type ActivityProgress took /recommendations
+ * down: the caller read a counter off it inside a state updater.
+ */
+const readActivityProgress = (data: unknown): ActivityProgress => {
+  const progress = (data as { activityProgress?: unknown } | null)?.activityProgress;
+  if (typeof progress !== 'object' || progress === null) {
+    throw new Error('Activity progress answer has no activityProgress');
+  }
+  return progress as ActivityProgress;
+};
+
+/**
  * Fetch the user's activity counters.
  *
  * These lived only in localStorage, so they were per-device: someone who
@@ -275,8 +288,7 @@ export const getActivityProgress = async (signal?: AbortSignal): Promise<Activit
     API_ENDPOINTS.USERS.ACTIVITY_PROGRESS,
     signal ? { signal } : undefined
   );
-  const data = response.data?.data ?? response.data;
-  return data.activityProgress as ActivityProgress;
+  return readActivityProgress(response.data?.data ?? response.data);
 };
 
 /**
@@ -285,6 +297,5 @@ export const getActivityProgress = async (signal?: AbortSignal): Promise<Activit
  */
 export const saveActivityProgress = async (progress: ActivityProgress): Promise<ActivityProgress> => {
   const response = await api.post(API_ENDPOINTS.USERS.ACTIVITY_PROGRESS, { activityProgress: progress });
-  const data = response.data?.data ?? response.data;
-  return data.activityProgress as ActivityProgress;
+  return readActivityProgress(response.data?.data ?? response.data);
 };

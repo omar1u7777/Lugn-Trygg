@@ -13,7 +13,7 @@ import { signInWithMockApi } from './support/mockApp';
 const PAGES = [
   '/dashboard', '/mood-basic', '/mood-list', '/analytics', '/ai-chat/insights', '/mood/assessment',
   '/mood/forecast', '/badges', '/rewards', '/sounds', '/subscribe', '/journal', '/wellness',
-  '/weekly-analysis', '/social', '/profile?tab=privacy',
+  '/weekly-analysis', '/social', '/profile?tab=privacy', '/recommendations', '/integrations',
 ];
 
 const unnamedControls = (page: Page) =>

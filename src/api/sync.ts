@@ -127,6 +127,14 @@ export async function logSyncOperation(request: LogSyncRequest): Promise<string>
   }
 }
 
+const isSyncStats = (value: unknown): value is SyncStatsResponse => {
+  if (typeof value !== 'object' || value === null) return false;
+  const stats = value as Record<string, unknown>;
+  const counts = ['totalSyncs', 'successCount', 'failedCount', 'partialCount', 'successRate'];
+  return counts.every((key) => typeof stats[key] === 'number')
+    && typeof stats.byProvider === 'object' && stats.byProvider !== null;
+};
+
 /**
  * Get sync statistics
  * 
@@ -135,8 +143,14 @@ export async function logSyncOperation(request: LogSyncRequest): Promise<string>
 export async function getSyncStats(): Promise<SyncStatsResponse> {
   try {
     const response = await api.get(API_ENDPOINTS.SYNC_HISTORY.SYNC_HISTORY_STATS);
-    
-    return response.data.data;
+    const stats: unknown = response.data?.data;
+
+    // The charts count and list straight from these. An answer without them
+    // is a failed request, not statistics.
+    if (!isSyncStats(stats)) {
+      throw new Error('Sync stats answer is not statistics');
+    }
+    return stats;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;

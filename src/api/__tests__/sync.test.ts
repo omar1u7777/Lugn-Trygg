@@ -43,7 +43,7 @@ describe('sync API', () => {
   });
 
   it('getSyncStats returns stats', async () => {
-    const stats = { totalOps: 50, successRate: 0.95 };
+    const stats = { totalSyncs: 50, successCount: 48, failedCount: 2, partialCount: 0, successRate: 96, lastSync: null, byProvider: {} };
     apiMock.get.mockResolvedValueOnce({ data: { data: stats } });
     const result = await getSyncStats();
     expect(result).toMatchObject(stats);
