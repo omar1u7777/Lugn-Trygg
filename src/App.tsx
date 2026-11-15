@@ -13,6 +13,8 @@ import NotFoundPage from "./pages/NotFoundPage";
 import { lazyWithRetry } from "./utils/performance";
 
 const ProtectedAppShell = lazyWithRetry(() => import("./components/Layout/ProtectedAppShell"));
+const PrivacyPolicyPage = lazyWithRetry(() => import("./components/Legal/LegalPages").then((m) => ({ default: m.PrivacyPolicyPage })));
+const TermsPage = lazyWithRetry(() => import("./components/Legal/LegalPages").then((m) => ({ default: m.TermsPage })));
 
 const AUTH_ROUTE_PATHS = new Set(["/", "/login", "/register"]);
 
@@ -146,9 +148,11 @@ function App() {
                     <Route path="/voice-chat" element={<Navigate to="/ai-chat" replace />} />
                     {/* /settings was a 404 that people typed or followed (UI audit N-3, N-5). */}
                     <Route path="/settings" element={<Navigate to="/profile?tab=appearance" replace />} />
-                    {/* The same panel as the profile's Integritet tab, under a second
-                        address (UI audit Dup-6). Kept as a redirect for links. */}
-                    <Route path="/privacy" element={<Navigate to="/profile?tab=privacy" replace />} />
+                    {/* The terms and the privacy policy, open to someone who has no
+                        account yet. /privacy used to redirect into the signed-in
+                        profile, so the documents a new user accepts could not be read. */}
+                    <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                    <Route path="/terms" element={<TermsPage />} />
 
                     <Route path="*" element={<NotFoundPage />} />
                 </Routes>
