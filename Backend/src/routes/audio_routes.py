@@ -6,6 +6,8 @@ Uses external royalty-free audio sources + on-demand binaural beat generation
 
 import io
 import logging
+import os
+from urllib.parse import urlparse
 
 from flask import Blueprint, Response, make_response, request, send_file
 
@@ -17,6 +19,22 @@ from src.utils.response_utils import APIResponse
 logger = logging.getLogger(__name__)
 
 audio_bp = Blueprint("audio", __name__)
+
+def served_url(source_url: str) -> str:
+    """Where a track is played from.
+
+    The library lists each track by its source address on Wikimedia Commons.
+    With AUDIO_BASE_URL set to an https address where the same files have been
+    copied (flat, under their own file names), the track is served from there
+    instead. Read per request, so the setting takes effect without a code
+    change; anything that is not an https address is ignored.
+    """
+    base = os.environ.get('AUDIO_BASE_URL', '').strip().rstrip('/')
+    parsed = urlparse(base)
+    if parsed.scheme != 'https' or not parsed.netloc:
+        return source_url
+    return f"{base}/{source_url.rsplit('/', 1)[-1]}"
+
 
 def _preflight_response() -> Response:
     """Return a properly typed 204 No Content response for OPTIONS preflight requests."""
@@ -349,7 +367,7 @@ def get_category_tracks(category_id: str):
                 'titleEn': track.get('title_en', track['title']),
                 'artist': track['artist'],
                 'duration': track['duration'],
-                'url': track['url'],
+                'url': served_url(track['url']),
                 'description': track.get('description', ''),
                 'license': track.get('license', '')
             })
@@ -389,7 +407,7 @@ def get_all_audio():
                     'titleEn': track.get('title_en', track['title']),
                     'artist': track['artist'],
                     'duration': track['duration'],
-                    'url': track['url'],
+                    'url': served_url(track['url']),
                     'description': track.get('description', ''),
                     'license': track.get('license', '')
                 })
@@ -435,7 +453,7 @@ def get_track(track_id: str):
                             'titleEn': track.get('title_en', track['title']),
                             'artist': track['artist'],
                             'duration': track['duration'],
-                            'url': track['url'],
+                            'url': served_url(track['url']),
                             'description': track.get('description', ''),
                             'license': track.get('license', '')
                         },
@@ -480,7 +498,7 @@ def search_tracks():
                         'titleEn': track.get('title_en', track['title']),
                         'artist': track['artist'],
                         'duration': track['duration'],
-                        'url': track['url'],
+                        'url': served_url(track['url']),
                         'description': track.get('description', ''),
                         'license': track.get('license', ''),
                         'categoryId': category['id'],
