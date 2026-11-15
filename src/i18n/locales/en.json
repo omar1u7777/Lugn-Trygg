@@ -559,7 +559,9 @@
     "loadError": "Could not load rewards. Please try again.",
     "claimError": "Could not claim reward.",
     "statsUnavailableTitle": "We could not load your numbers",
-    "statsUnavailableBody": "The points and streak below are not your real values right now. Your streak is intact — this is a temporary problem on our side, not something you missed."
+    "statsUnavailableBody": "The points and streak below are not your real values right now. Your streak is intact — this is a temporary problem on our side, not something you missed.",
+    "level": "Level",
+    "nextLevel": "Next Level"
   },
   "feedbackForm": {
     "title": "Feedback",
@@ -2455,7 +2457,8 @@
     }
   },
   "moodList": {
-    "shown": "Shown"
+    "shown": "Shown",
+    "loaded": "Mood list loaded. Showing all your mood entries."
   },
   "privacy": {
     "title": "Privacy & Security",
@@ -2579,5 +2582,48 @@
   },
   "aiMusic": {
     "goodFor": "Good for:"
+  },
+  "chat": {
+    "title": "Peer Support Community",
+    "guidelines": "Guidelines",
+    "rooms": "Chat Rooms",
+    "activeChat": "Active Chat",
+    "anonymous": "All chats are anonymous and moderated for safety. Be kind and supportive!",
+    "changeRoom": "Change Room",
+    "typeMessage": "Type your message...",
+    "reminder": "Be respectful and supportive. In acute crisis? Call 112 or open Help and support in the menu.",
+    "guidelinesTitle": "Community Guidelines",
+    "safeSpace": "This is a safe and supportive space for everyone.",
+    "crisis": "In Crisis?"
+  },
+  "leaderboard": {
+    "title": "Community Leaderboard",
+    "yourRank": "Your Position"
+  },
+  "achievements": {
+    "first_mood": {
+      "title": "First Step",
+      "description": "Log your first mood"
+    },
+    "week_streak": {
+      "title": "Week of Wellness",
+      "description": "Log mood 7 days in a row"
+    },
+    "month_streak": {
+      "title": "Month of Mindfulness",
+      "description": "Log mood 30 days in a row"
+    },
+    "mood_warrior": {
+      "title": "Mood Warrior",
+      "description": "Log 100 mood entries"
+    },
+    "journal_starter": {
+      "title": "Journal Starter",
+      "description": "Write your first journal entry"
+    },
+    "referral_hero": {
+      "title": "Referral Hero",
+      "description": "Invite 5 friends"
+    }
   }
 }

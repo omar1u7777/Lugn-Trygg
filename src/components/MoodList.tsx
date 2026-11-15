@@ -67,7 +67,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
       userId: user?.user_id,
     });
 
-    announceToScreenReader('Mood list loaded. Showing all your mood entries.', 'polite');
+    announceToScreenReader(t('moodList.loaded', 'Humörlistan har laddats. Alla dina humörinlägg visas.'), 'polite');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.user_id]);
 
