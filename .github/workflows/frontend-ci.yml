@@ -188,6 +188,7 @@ jobs:
             sounds-short-window.spec.ts \
             csp.spec.ts \
             a11y-basics.spec.ts \
+            legal-pages.spec.ts \
             --project=chromium \
             --reporter=list
 

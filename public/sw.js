@@ -6,6 +6,20 @@ const urlsToCache = [
   // Note: favicon.ico and manifest.json removed as they don't exist
 ];
 
+const isApiRequest = (url) => url.pathname.startsWith('/api/');
+
+// Remove API answers that an earlier version of this worker stored.
+const removeStoredApiAnswers = () =>
+  caches.open(CACHE_NAME).then((cache) =>
+    cache.keys().then((requests) =>
+      Promise.all(
+        requests
+          .filter((request) => isApiRequest(new URL(request.url)))
+          .map((request) => cache.delete(request))
+      )
+    )
+  );
+
 // Install Service Worker
 self.addEventListener('install', (event) => {
   console.log('🚀 Service Worker installing for production...');
@@ -43,41 +57,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // CRITICAL FIX: Don't cache API requests that require authentication
-  if (url.pathname.startsWith('/api/')) {
-    // API requests: Network-first strategy with offline fallback
+  // API answers are never stored. They are signed-in answers (moods, journal,
+  // profile) keyed by address only: a stored copy outlived sign-out and could
+  // be shown to the next person to sign in on this browser while offline.
+  if (isApiRequest(url)) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful GET requests only
-          if (request.method === 'GET' && response.status === 200) {
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // Offline: Try to return cached version
-          return caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            // No cache: Return offline response for API calls
-            return new Response(
-              JSON.stringify({ 
-                error: 'Offline', 
-                message: 'Nätverksfel. Kontrollera din internetanslutning.' 
-              }),
-              {
-                status: 503,
-                statusText: 'Service Unavailable',
-                headers: { 'Content-Type': 'application/json' }
-              }
-            );
-          });
-        })
+      fetch(request).catch(() => new Response(
+        JSON.stringify({
+          error: 'Offline',
+          message: 'Nätverksfel. Kontrollera din internetanslutning.'
+        }),
+        {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'Content-Type': 'application/json' }
+        }
+      ))
     );
     return;
   }
@@ -148,7 +143,7 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    })
+    }).then(removeStoredApiAnswers)
   );
   self.clients.claim();
 });

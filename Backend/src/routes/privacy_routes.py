@@ -359,6 +359,25 @@ def delete_user_data(user_id: str):
         return APIResponse.error("An internal error occurred during data deletion")
 
 
+def delete_user_files(user_id: str) -> int:
+    """Delete every file in the bucket under users/{user_id}/. Returns the count.
+
+    The trailing slash matters: without it the prefix for user-1 also matches
+    user-10. Raises what the bucket raises, so the caller can stop before it
+    has deleted anything else.
+    """
+    # Firebase is initialised lazily, so the module-level name can still be
+    # None from import time: ask the config module again.
+    storage = firebase_storage or getattr(_firebase_config, 'firebase_storage', None)
+    if storage is None:
+        return 0
+    deleted = 0
+    for blob in storage.bucket().list_blobs(prefix=f"users/{user_id}/"):
+        blob.delete()
+        deleted += 1
+    return deleted
+
+
 def purge_user_data(user_id: str) -> dict[str, Any]:
     """Permanently delete ALL data for `user_id` across every collection.
 
@@ -378,6 +397,12 @@ def purge_user_data(user_id: str) -> dict[str, Any]:
         'deletionDate': datetime.now(UTC).isoformat(),
         'deletedCollections': []
     }
+
+    # Files first (voice recordings). If the bucket fails, nothing has been
+    # deleted yet and the account can be retried whole.
+    files_deleted = delete_user_files(user_id)
+    if files_deleted:
+        deletion_summary['deletedCollections'].append({'collection': 'storage_files', 'count': files_deleted})
 
     def _delete_filtered(collection_name: str, field: str, summary_name: str | None = None):
         """Delete all top-level docs where `field == user_id`."""

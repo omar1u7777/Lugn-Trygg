@@ -414,7 +414,7 @@ const RegisterForm: React.FC = () => {
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
                 {t('registerForm.acceptTermsPrefix')}{" "}
-                <Link to="/privacy" className="text-primary-600 dark:text-primary-400 underline hover:no-underline" target="_blank" rel="noopener noreferrer">
+                <Link to="/terms" className="text-primary-600 dark:text-primary-400 underline hover:no-underline" target="_blank" rel="noopener noreferrer">
                   {t('registerForm.termsLink')}
                 </Link>
               </span>
