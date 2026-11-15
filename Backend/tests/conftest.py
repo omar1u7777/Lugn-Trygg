@@ -722,3 +722,11 @@ def make_gad7_data():
             answers = [0] * 7
         return {'responses': {k: a for k, a in zip(gad7_keys, answers)}}
     return _make
+
+
+@pytest.fixture(autouse=True)
+def _no_background_mood_analysis(mocker):
+    """POST /mood/log hands a note to a thread pool for analysis after it has
+    answered. No test should leave a thread running against another test's
+    mocks; tests of the hand-over patch this name themselves."""
+    mocker.patch('src.routes.mood_routes.schedule_sentiment_analysis', return_value=True)
