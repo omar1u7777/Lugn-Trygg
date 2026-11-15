@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { getMoodPage, logMood as apiLogMood, getWeeklyAnalysis } from '../../../api/api';
+import { getMoodPage, logMood as apiLogMood } from '../../../api/api';
 import useAuth from '../../../hooks/useAuth';
 import { MoodEntry, MoodStats, MoodTrend, MOOD_COLORS } from '../types';
 import { getMoodLabel as getCanonicalMoodLabel } from '../utils';
@@ -88,11 +88,12 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
     try {
       // The server pages. This used to fetch the newest 50 for every page and
       // cut [offset, offset + limit) out of them in the browser, so page two
-      // was always empty. The weekly analysis does not depend on the page.
-      const [page, weeklyData] = await Promise.all([
-        getMoodPage({ offset: currentOffset, limit }),
-        currentOffset === 0 ? getWeeklyAnalysis(userId).catch(() => ({})) : Promise.resolve(null),
-      ]);
+      // was always empty.
+      //
+      // The weekly analysis was fetched here as well, for a `streak` the
+      // endpoint never returns. /weekly-analysis fetches it itself and renders
+      // this hook's consumer, so every visit asked for it twice.
+      const page = await getMoodPage({ offset: currentOffset, limit });
 
       // Transform data
       const transformedMoods = page.moods
@@ -132,7 +133,6 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
         setStats({
           averageScore: Math.round(avgScore * 10) / 10,
           totalEntries: transformedMoods.length,
-          streak: weeklyData?.streak || 0,
           trend: calculateTrend(transformedMoods),
           mostCommonMood: mostCommon,
         });
