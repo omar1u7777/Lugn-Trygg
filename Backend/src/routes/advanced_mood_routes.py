@@ -18,13 +18,15 @@ from src.utils.response_utils import APIResponse
 
 # Import new professional services
 try:
-    from src.ml.temporal_lstm import get_lstm_forecaster
+    from src.ml.temporal_lstm import TENSORFLOW_AVAILABLE, TREND_METHOD, get_lstm_forecaster
     LSTM_AVAILABLE = True
 except ImportError:
     LSTM_AVAILABLE = False
 
 # Mood entries a forecast is made from, at the least.
 MIN_FORECAST_ENTRIES = 14
+# The newest entries a forecast reads.
+FORECAST_HISTORY_ENTRIES = 60
 
 try:
     from src.services.clinical_assessment import (
@@ -213,13 +215,15 @@ def get_advanced_forecast():
         include_patterns = request.args.get('include_patterns', 'false').lower() == 'true'
 
         # Get user's mood history
+        # The newest 60, oldest first. Ascending with a limit read the first 60
+        # logs the person ever made, however long ago that was.
         mood_docs = db.collection('users').document(user_id)\
             .collection('moods')\
-            .order_by('timestamp')\
-            .limit(60)\
+            .order_by('timestamp', direction='DESCENDING')\
+            .limit(FORECAST_HISTORY_ENTRIES)\
             .get()
 
-        mood_entries = [doc.to_dict() for doc in mood_docs]
+        mood_entries = [doc.to_dict() for doc in mood_docs][::-1]
 
         if len(mood_entries) < MIN_FORECAST_ENTRIES:
             # An answer, not an error. This was a 400 with an English sentence
@@ -240,7 +244,7 @@ def get_advanced_forecast():
         forecaster = get_lstm_forecaster()
 
         # Train if needed (or load pre-trained)
-        if len(mood_entries) >= 21:
+        if TENSORFLOW_AVAILABLE and len(mood_entries) >= 21:
             training_result = forecaster.train(mood_entries)
             if not training_result.get('success'):
                 logger.warning(f"LSTM training failed: {training_result.get('error')}")
@@ -262,7 +266,9 @@ def get_advanced_forecast():
                 }
                 for f in forecasts
             ],
-            'model_type': 'temporal_attention_lstm',
+            # What made it: the page says so, and it is the score trend
+            # wherever TensorFlow is not installed.
+            'model_type': forecasts[0].method if forecasts else TREND_METHOD,
             'training_samples': len(mood_entries)
         }
 

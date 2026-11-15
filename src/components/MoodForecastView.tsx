@@ -53,6 +53,22 @@ interface RawForecastItem {
 
 const FORECAST_UNAVAILABLE = 'Prognosen är inte tillgänglig just nu. Försök igen senare.';
 
+// What the server says made the forecast. Only this one is a trained model;
+// anything else is a trend through the person's own scores.
+const LSTM_MODEL = 'temporal_attention_lstm';
+
+const RISK_FLAG_LABELS: Record<string, string> = {
+  sustained_low_mood: 'Fortsatt lågt humör',
+  predicted_depressive_episode: 'Tydligt lågt humör',
+  unstable_negative_state: 'Lågt och osäkert humör',
+  high_depression_risk: 'Höga värden i PHQ-9',
+  high_anxiety_risk: 'Höga värden i GAD-7',
+  sleep_deprivation_risk: 'Lite sömn',
+  recent_negative_mood: 'Lågt humör nyligen',
+};
+
+const riskFlagLabel = (flag: string) => RISK_FLAG_LABELS[flag] ?? 'Lågt humör';
+
 export const MoodForecastView: React.FC = () => {
   const { t: _t } = useTranslation();
   const { user: _user } = useAuth();
@@ -62,6 +78,7 @@ export const MoodForecastView: React.FC = () => {
   const [days, setDays] = useState(7);
   const [error, setError] = useState<string | null>(null);
   const [needsMoreLogs, setNeedsMoreLogs] = useState(false);
+  const [madeByModel, setMadeByModel] = useState(false);
 
   const fetchForecast = useCallback(async () => {
     setLoading(true);
@@ -106,6 +123,7 @@ export const MoodForecastView: React.FC = () => {
         }));
         
         setForecast(transformed);
+        setMadeByModel(data.model_type === LSTM_MODEL);
         setPatterns(data.temporal_patterns || []);
       } else {
         setError(FORECAST_UNAVAILABLE);
@@ -130,7 +148,7 @@ export const MoodForecastView: React.FC = () => {
   };
 
   const getRiskLevel = (flags: string[]) => {
-    if (flags.includes('predicted_depressive_episode')) return 'high';
+    if (flags.includes('predicted_depressive_episode') || flags.includes('sustained_low_mood')) return 'high';
     if (flags.includes('high_depression_risk') || flags.includes('high_anxiety_risk')) return 'moderate';
     if (flags.length > 0) return 'low';
     return 'none';
@@ -150,7 +168,7 @@ export const MoodForecastView: React.FC = () => {
         <p className="text-yellow-800">{error}</p>
         {needsMoreLogs && (
           <p className="text-sm text-yellow-600 mt-1">
-            Fortsätt logga ditt humör för att aktivera AI-prognoser
+            Fortsätt logga ditt humör för att få en prognos
           </p>
         )}
       </div>
@@ -170,10 +188,12 @@ export const MoodForecastView: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <SparklesIcon className="w-6 h-6 text-indigo-600" />
-            AI-prognos för ditt humör
+            {madeByModel ? 'AI-prognos för ditt humör' : 'Prognos för ditt humör'}
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Baserad på Temporal Attention LSTM och din historik
+            {madeByModel
+              ? 'Baserad på Temporal Attention LSTM och din historik'
+              : 'Bygger på trenden i dina senaste humörloggningar'}
           </p>
         </div>
         
@@ -264,9 +284,10 @@ export const MoodForecastView: React.FC = () => {
           <div className="flex items-start gap-3">
             <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 mt-0.5" />
             <div>
-              <p className="font-medium text-rose-900">⚠️ Prognos indikerar svårigheter</p>
+              <p className="font-medium text-rose-900">Dina senaste loggar pekar mot fortsatt lågt humör</p>
               <p className="text-sm text-rose-700 mt-1">
-                AI-modellen förutser en potentiell depressiv episod. Överväg att kontakta vårdgivare.
+                Det här är en trend i dina egna loggar, ingen diagnos. Om det känns tungt kan det hjälpa
+                att prata med någon: din vårdcentral eller 1177.
               </p>
             </div>
           </div>
@@ -309,11 +330,11 @@ export const MoodForecastView: React.FC = () => {
                         <p className="font-medium text-gray-900 dark:text-white">{data.date}</p>
                         <p className="text-2xl mt-1">{data.emoji}</p>
                         <p className="text-sm text-gray-600">
-                          Valens: {data.predicted_valence.toFixed(2)}
+                          Humör: {data.predicted_valence.toFixed(2)}
                         </p>
                         {data.risk_flags.length > 0 && (
                           <p className="text-xs text-rose-600 mt-1">
-                            ⚠️ {data.risk_flags.join(', ')}
+                            ⚠️ {data.risk_flags.map(riskFlagLabel).join(', ')}
                           </p>
                         )}
                       </div>
@@ -353,7 +374,7 @@ export const MoodForecastView: React.FC = () => {
         <div className="flex items-center justify-center gap-6 mt-4 text-sm text-gray-500">
           <div className="flex items-center gap-2">
             <div className="w-4 h-0.5 bg-teal-600"></div>
-            <span>Förutspådd valens</span>
+            <span>Förutspått humör</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-teal-100 rounded-sm"></div>

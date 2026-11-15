@@ -130,6 +130,7 @@ const SyncHistory: React.FC<SyncHistoryProps> = ({ userId, providerFilter }) => 
       <div className="flex flex-wrap gap-3 mb-4">
         {/* Provider Filter */}
         <select
+          aria-label="Enhet"
           value={selectedProvider}
           onChange={(e) => setSelectedProvider(e.target.value)}
           className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm font-medium focus:ring-2 focus:ring-red-500"
@@ -149,6 +150,7 @@ const SyncHistory: React.FC<SyncHistoryProps> = ({ userId, providerFilter }) => 
 
         {/* Date Range Filter */}
         <select
+          aria-label="Period"
           value={dateRange}
           onChange={(e) => setDateRange(e.target.value as '7days' | '30days' | '90days')}
           className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm font-medium focus:ring-2 focus:ring-red-500"

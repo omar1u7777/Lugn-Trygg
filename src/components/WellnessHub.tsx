@@ -29,6 +29,7 @@ import { Button } from './ui/tailwind'; // Keep compatible
 import OptimizedImage from './ui/OptimizedImage';
 import { getWellnessHeroImageId } from '../config/env';
 import { logger } from '../utils/logger';
+import { resolveAudioUrl } from '../utils/audioSource';
 const BreathingExercise = lazy(() => import('./recommendations/BreathingExercise').then(m => ({ default: m.BreathingExercise })));
 
 
@@ -159,10 +160,11 @@ const formatStreakLabel = (days: number, t: (key: string, options?: Record<strin
 // map. It is twenty minutes of spoken German, served to Swedish users under a
 // Swedish title. There is no honest label for that, so it is gone.
 //
-// Hotlinking Wikimedia is still the wrong long-term answer: it rate-limits
-// under load (a 429 was observed during this work) and their hotlinking policy
-// is not a hosting agreement. Real Swedish guided audio on our own CDN is what
-// this should become.
+// Hotlinking Wikimedia is the wrong long-term answer: it rate-limits under
+// load (a 429 was observed during this work) and their hotlinking policy is
+// not a hosting agreement. These are the source addresses; with
+// VITE_AUDIO_BASE_URL set, resolveAudioUrl plays the same files from our own
+// storage instead.
 const SLEEP_STORY_URLS: Record<string, string> = {
   's1': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Oceanwavescrushing.ogg',
   's2': 'https://upload.wikimedia.org/wikipedia/commons/3/38/Birds_forest.ogg',
@@ -511,7 +513,8 @@ const WellnessHub: React.FC = () => {
 
     // Play guided meditation audio (play() replaces any current audio)
     setMeditationAudioFailed(false);
-    const audioUrl = MEDITATION_AUDIO_URLS[meditation.id];
+    const source = MEDITATION_AUDIO_URLS[meditation.id];
+    const audioUrl = source && resolveAudioUrl(source);
     if (audioUrl) {
       meditationAudio.play(audioUrl, {
         loop: true,
@@ -574,7 +577,8 @@ const WellnessHub: React.FC = () => {
 
   const playSleepStory = useCallback((story: MeditationOption) => {
     stopSleepStory(true);
-    const url = SLEEP_STORY_URLS[story.id];
+    const source = SLEEP_STORY_URLS[story.id];
+    const url = source && resolveAudioUrl(source);
     if (!url) {
       logger.error('Sleep story playback failed: No URL for story', story.id);
       return;

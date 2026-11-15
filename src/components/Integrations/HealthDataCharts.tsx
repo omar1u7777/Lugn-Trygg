@@ -33,17 +33,18 @@ const HealthDataCharts: React.FC<HealthDataChartsProps> = ({ userId }) => {
 			const data = await getSyncStats();
 			setStats(data);
 		} catch (err: unknown) {
-			const message = err instanceof Error ? err.message : 'Kunde inte hämta synkstatistik.';
-			setError(message);
-			logger.error('Failed to load health sync stats', { userId, message });
+			// Our own words: an API error's message is the server's English sentence.
+			setError('Kunde inte hämta synkstatistik.');
+			logger.error('Failed to load health sync stats', err);
 		} finally {
 			setLoading(false);
 		}
-	}, [userId]);
+	}, []);
 
+	// Fetched again when the signed-in user changes: the statistics are theirs.
 	useEffect(() => {
 		void loadStats();
-	}, [loadStats]);
+	}, [loadStats, userId]);
 
 	const providerData = useMemo(() => {
 		if (!stats) return [];
@@ -104,7 +105,7 @@ const HealthDataCharts: React.FC<HealthDataChartsProps> = ({ userId }) => {
 					<p className="text-2xl font-semibold text-red-600 dark:text-red-400">{stats.failedCount}</p>
 				</div>
 				<div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
-					<p className="text-xs text-slate-500 dark:text-slate-400">Success rate</p>
+					<p className="text-xs text-slate-500 dark:text-slate-400">Andel lyckade</p>
 					<p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{stats.successRate.toFixed(1)}%</p>
 				</div>
 			</div>

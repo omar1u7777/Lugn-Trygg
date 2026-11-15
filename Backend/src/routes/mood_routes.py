@@ -26,6 +26,7 @@ from google.cloud.firestore import FieldFilter
 from src.firebase_config import db
 from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
+from src.services.mood_enrichment import schedule_sentiment_analysis
 from src.services.rate_limiting import rate_limit_by_endpoint
 from src.services.subscription_service import SubscriptionLimitError, SubscriptionService
 from src.utils.input_sanitization import input_sanitizer
@@ -412,7 +413,14 @@ def log_mood() -> Response | tuple[Response, int]:
         # Analyze sentiment if text is provided (use note or mood_text)
         sentiment_analysis = None
         text_to_analyze = note or mood_text
-        if text_to_analyze and text_to_analyze.strip():
+        has_text = bool(text_to_analyze and text_to_analyze.strip())
+        # A log with a score does not wait for the model: the score is saved
+        # as the person gave it, and the analysis is written onto the entry
+        # after the response (see mood_enrichment). Two logs do wait: one
+        # without a score, whose score is made from the analysis, and one with
+        # a recording, whose answer is the analysis.
+        analyse_after_response = has_text and user_score is not None and not audio_bytes
+        if has_text and not analyse_after_response:
             try:
                 sentiment_analysis = _get_ai_services_module().ai_services.analyze_sentiment(text_to_analyze)
                 if not isinstance(sentiment_analysis, dict):
@@ -612,6 +620,9 @@ def log_mood() -> Response | tuple[Response, int]:
 
             # PERFORMANCE: Invalidate cache so next GET returns fresh data
             invalidate_mood_cache(user_id)
+
+            if analyse_after_response and doc_id:
+                schedule_sentiment_analysis(user_id, doc_id, text_to_analyze)
 
             # CRISIS DETECTION after the mood is saved: a very low score or
             # crisis words in the text go to a risk assessment and, at high
