@@ -12,6 +12,8 @@ from typing import Any
 
 import numpy as np
 
+from src.utils.wellness_goals import read_wellness_goals
+
 # Embedding via Azure OpenAI API (no local model — saves ~420 MB RAM on Starter)
 try:
     from openai import AzureOpenAI
@@ -376,42 +378,31 @@ class ChatRAGService:
     def _retrieve_goals_contexts(
         self, db, query_embedding: np.ndarray, max_results: int
     ) -> list[RetrievedContext]:
-        """Retrieve user's goals and aspirations"""
+        """The goals the person has picked that bear on what they just wrote.
+
+        The goals are short labels (wellnessGoals on the user document), so a
+        match is one label close to the message.
+        """
         contexts = []
 
         try:
-            goals_docs = db.collection('users').document(self.user_id)\
-                .collection('goals')\
-                .where('status', 'in', ['active', 'in_progress'])\
-                .limit(20)\
-                .get()
+            goals = read_wellness_goals(db, self.user_id)
+            self.prewarm_embeddings(goals)
 
-            goals_docs = list(goals_docs)
-            self.prewarm_embeddings([
-                f"{(d.to_dict() or {}).get('title', '')} {(d.to_dict() or {}).get('description', '')}"
-                for d in goals_docs
-            ])
+            for goal in goals:
+                goal_embedding = self.embed_text(goal)
+                if goal_embedding is None:
+                    continue
+                similarity = self._calculate_similarity(query_embedding, goal_embedding)
 
-            for doc in goals_docs:
-                data = doc.to_dict()
-                goal_text = f"{data.get('title', '')} {data.get('description', '')}"
-
-                if goal_text.strip():
-                    goal_embedding = self.embed_text(goal_text)
-                    if goal_embedding is not None:
-                        similarity = self._calculate_similarity(query_embedding, goal_embedding)
-
-                        if similarity > 0.55:  # Lower threshold for goals
-                            contexts.append(RetrievedContext(
-                                content=f"Goal: {data.get('title', '')} - {data.get('description', '')}",
-                                source='goals',
-                                similarity=similarity,
-                                timestamp=datetime.fromisoformat(data.get('created_at', datetime.now().isoformat())),
-                                metadata={
-                                    'category': data.get('category'),
-                                    'progress': data.get('progress', 0)
-                                }
-                            ))
+                if similarity > 0.55:  # Lower threshold for goals
+                    contexts.append(RetrievedContext(
+                        content=f"Mål: {goal}",
+                        source='goals',
+                        similarity=similarity,
+                        timestamp=datetime.now(),
+                        metadata={},
+                    ))
         except Exception as e:
             logger.warning(f"RAG: Goals context retrieval failed: {e}")
 

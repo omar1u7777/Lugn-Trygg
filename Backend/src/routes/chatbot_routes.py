@@ -39,6 +39,7 @@ except ImportError:
 
 from src.utils.input_sanitization import input_sanitizer
 from src.utils.response_utils import APIResponse
+from src.utils.wellness_goals import read_wellness_goals
 
 chatbot_bp = Blueprint("chatbot", __name__)
 
@@ -1638,8 +1639,7 @@ def get_conversation_quality_metrics():
 
         # Get user goals for goal alignment calculation
         try:
-            goals_docs = db.collection("users").document(user_id).collection("goals").get()
-            user_goals = [g.to_dict().get("title", "") for g in goals_docs]
+            user_goals = read_wellness_goals(db, user_id)
         except Exception:
             user_goals = []
 

@@ -881,13 +881,9 @@ Din roll:
         # on their user document. This read users/{uid}/goals, a collection
         # nothing writes, so the goals never reached the prompt.
         try:
-            user_doc = db.collection("users").document(user_id).get()
-            raw_goals = (user_doc.to_dict() or {}).get("wellnessGoals") if user_doc.exists else None
-            goal_lines = [
-                f"- {goal.strip()[:100]}"
-                for goal in (raw_goals if isinstance(raw_goals, list) else [])
-                if isinstance(goal, str) and goal.strip()
-            ][:3]
+            from src.utils.wellness_goals import read_wellness_goals
+
+            goal_lines = [f"- {goal}" for goal in read_wellness_goals(db, user_id)]
 
             if goal_lines:
                 parts.append(

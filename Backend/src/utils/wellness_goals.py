@@ -126,3 +126,23 @@ def extract_and_validate_wellness_goals(payload: dict | None, field_name: str = 
         raise ClientError(f'Request body must contain {field_name}')
 
     return normalize_and_validate_wellness_goals(payload.get(field_name))
+
+
+# Characters of a stored goal that are read. The goals picked in the app are
+# short labels; this only bounds what an odd stored value can put in a prompt.
+_READ_GOAL_LENGTH = 100
+
+
+def read_wellness_goals(db, user_id: str) -> list[str]:
+    """The goals a person has picked: `wellnessGoals` on their user document.
+
+    This is the only place goals are stored. users/{uid}/goals is a collection
+    nothing writes, and three readers used to look there. Raises what the
+    read raises; each caller decides what a failed read means for it.
+    """
+    snapshot = db.collection('users').document(user_id).get()
+    stored = (snapshot.to_dict() or {}).get('wellnessGoals') if snapshot.exists else None
+    if not isinstance(stored, list):
+        return []
+    goals = [goal.strip()[:_READ_GOAL_LENGTH] for goal in stored if isinstance(goal, str) and goal.strip()]
+    return goals[:MAX_WELLNESS_GOALS]
