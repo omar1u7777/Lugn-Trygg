@@ -148,6 +148,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
                     <input
                       type="checkbox"
                       checked={settings.encryptLocalStorage}
+                      aria-label={t('privacy.encryptLocalStorage')}
                       onChange={(e) => handleSettingChange('encryptLocalStorage', e.target.checked)}
                       className="sr-only peer"
                     />
@@ -211,6 +212,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
             <input
               type="checkbox"
               checked={settings.autoDeleteOldData}
+              aria-label={t('privacy.autoDelete')}
               onChange={(e) => handleSettingChange('autoDeleteOldData', e.target.checked)}
               className="w-12 h-6 appearance-none bg-gray-200 rounded-full checked:bg-primary-600 relative cursor-pointer transition-colors before:content-[''] before:absolute before:w-5 before:h-5 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 before:transition-transform checked:before:translate-x-6"
             />
@@ -241,6 +243,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
                 <input
                   type="checkbox"
                   checked={settings.allowAnalytics}
+                  aria-label={t('privacy.allowAnalytics')}
                   onChange={(e) => handleSettingChange('allowAnalytics', e.target.checked)}
                   className="sr-only peer"
                 />
@@ -260,6 +263,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
                 <input
                   type="checkbox"
                   checked={settings.shareAnonymizedData}
+                  aria-label={t('privacy.shareAnonymized')}
                   onChange={(e) => handleSettingChange('shareAnonymizedData', e.target.checked)}
                   className="sr-only peer"
                 />

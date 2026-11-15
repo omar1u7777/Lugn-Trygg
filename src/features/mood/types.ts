@@ -36,7 +36,6 @@ export interface MoodAnalysis {
 export interface MoodStats {
   averageScore: number;
   totalEntries: number;
-  streak: number;
   trend: 'up' | 'down' | 'stable';
   mostCommonMood: string;
 }

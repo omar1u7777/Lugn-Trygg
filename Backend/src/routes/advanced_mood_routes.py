@@ -13,6 +13,7 @@ from src.firebase_config import db
 from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
+from src.utils.context_cache import invalidate_user_context
 from src.utils.response_utils import APIResponse
 
 # Import new professional services
@@ -21,6 +22,9 @@ try:
     LSTM_AVAILABLE = True
 except ImportError:
     LSTM_AVAILABLE = False
+
+# Mood entries a forecast is made from, at the least.
+MIN_FORECAST_ENTRIES = 14
 
 try:
     from src.services.clinical_assessment import (
@@ -217,10 +221,17 @@ def get_advanced_forecast():
 
         mood_entries = [doc.to_dict() for doc in mood_docs]
 
-        if len(mood_entries) < 14:
-            return APIResponse.bad_request(
-                f"Need at least 14 mood entries for LSTM forecast, got {len(mood_entries)}"
-            )
+        if len(mood_entries) < MIN_FORECAST_ENTRIES:
+            # An answer, not an error. This was a 400 with an English sentence
+            # ("Need at least 14 mood entries for LSTM forecast, got 4") that
+            # the page showed as it came; and not having logged enough yet is
+            # where every new user starts, not a bad request.
+            return APIResponse.success({
+                'forecasts': [],
+                'insufficient_data': True,
+                'entries_required': MIN_FORECAST_ENTRIES,
+                'entries_logged': len(mood_entries),
+            })
 
         # Get contextual data
         contextual_data = _get_contextual_data(user_id)
@@ -366,6 +377,7 @@ def assess_phq9():
             db.collection('users').document(user_id)\
                 .collection('clinical_assessments')\
                 .add(assessment_data)
+            invalidate_user_context(user_id)
         except Exception as db_error:
             logger.error(f"Failed to store PHQ-9 assessment for user {user_id}: {db_error}")
             audit_log('phq9_storage_failed', user_id, {'error': str(db_error)})
@@ -444,6 +456,7 @@ def assess_gad7():
             db.collection('users').document(user_id)\
                 .collection('clinical_assessments')\
                 .add(assessment_data)
+            invalidate_user_context(user_id)
         except Exception as db_error:
             logger.error(f"Failed to store GAD-7 assessment for user {user_id}: {db_error}")
             audit_log('gad7_storage_failed', user_id, {'error': str(db_error)})

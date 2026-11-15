@@ -82,7 +82,10 @@ describe('useMoodData', () => {
     await settle();
 
     expect(requests()).toBe(1);
-    expect(getWeeklyAnalysis).toHaveBeenCalledTimes(1);
+    // /weekly-analysis fetches the analysis itself and renders this hook's
+    // consumer, so the hook fetching it too meant two identical requests. It
+    // read only `streak`, a field the endpoint never returns.
+    expect(getWeeklyAnalysis).not.toHaveBeenCalled();
     expect(result.current.isLoading).toBe(false);
     expect(result.current.hasMore).toBe(true);
   });
@@ -99,8 +102,7 @@ describe('useMoodData', () => {
     expect(ids(result.current.moods)).toEqual(ids(entries(100)));
     expect(result.current.hasMore).toBe(true);
     expect(requests()).toBe(2);
-    // The weekly analysis does not change with the page.
-    expect(getWeeklyAnalysis).toHaveBeenCalledTimes(1);
+    expect(getWeeklyAnalysis).not.toHaveBeenCalled();
   });
 
   test('reaches the oldest entry and then stops', async () => {

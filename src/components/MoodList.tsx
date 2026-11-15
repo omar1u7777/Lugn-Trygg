@@ -67,7 +67,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
       userId: user?.user_id,
     });
 
-    announceToScreenReader('Mood list loaded. Showing all your mood entries.', 'polite');
+    announceToScreenReader(t('moodList.loaded', 'Humörlistan har laddats. Alla dina humörinlägg visas.'), 'polite');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.user_id]);
 
@@ -429,6 +429,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
               <input
                 type="text"
                 placeholder="🔍 Sök i humör, känslor..."
+                aria-label="Sök i humör och känslor"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:border-transparent"

@@ -152,8 +152,9 @@ const BadgeDisplay: React.FC = () => {
 
           return {
             id: achievement.id,
-            title: achievement.title,
-            description: achievement.description,
+            // By id: the server's own names are English ("First Step").
+            title: t(`achievements.${achievement.id}.title`, achievement.title),
+            description: t(`achievements.${achievement.id}.description`, achievement.description),
             icon: achieved ? '🏆' : '🔒',
             earned: achieved,
             streak: currentValue,

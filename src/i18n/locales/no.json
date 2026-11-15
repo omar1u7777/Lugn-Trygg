@@ -35,7 +35,8 @@
     "alertsActiveCount": "{count} aktive varsler",
     "updating": "Oppdaterer...",
     "showPassword": "Vis passord",
-    "hidePassword": "Skjul passord"
+    "hidePassword": "Skjul passord",
+    "refresh": "Oppdater"
   },
   "nav": {
     "dashboard": "Oversikt",
@@ -603,7 +604,9 @@
     "loadError": "Kunne ikke laste belønninger. Prøv igjen.",
     "claimError": "Kunne ikke hente belønning.",
     "statsUnavailableTitle": "Tallene dine kunne ikke hentes",
-    "statsUnavailableBody": "Poengene og rekken nedenfor er ikke dine faktiske verdier akkurat nå. Rekken din er intakt — dette er en midlertidig feil hos oss, ikke noe du har gått glipp av."
+    "statsUnavailableBody": "Poengene og rekken nedenfor er ikke dine faktiske verdier akkurat nå. Rekken din er intakt — dette er en midlertidig feil hos oss, ikke noe du har gått glipp av.",
+    "level": "Nivå",
+    "nextLevel": "Neste nivå"
   },
   "feedbackForm": {
     "title": "Tilbakemelding",
@@ -843,7 +846,7 @@
     "moodSaved": "Humør lagret: {{mood}}",
     "saveFailed": "Kunne ikke lagre humør. Prøv igjen.",
     "moodSelected": "Valgt humør: {{mood}}",
-    "duplicateWarning": "Du logget akkurat det samme humøret",
+    "duplicateWarning": "Du logget akkurat det samme humøret. Vent noen minutter før du logger det igjen.",
     "moodLoggedSuccess": "Humør logget!",
     "dailyLimitReachedMessage": "Du har nådd din daglige grense for humørlogging.",
     "moodLogFailed": "Kunne ikke logge humør. Prøv igjen.",
@@ -2455,7 +2458,8 @@
     "selectStressHint": "Velg stressnivå før start for å kunne sammenligne effekten etterpå."
   },
   "moodList": {
-    "shown": "Viste"
+    "shown": "Viste",
+    "loaded": "Humørlisten er lastet. Alle humørinnleggene dine vises."
   },
   "privacy": {
     "title": "Personvern og sikkerhet",
@@ -2579,5 +2583,48 @@
   },
   "aiMusic": {
     "goodFor": "Passer for:"
+  },
+  "chat": {
+    "title": "Støttefellesskap",
+    "guidelines": "Retningslinjer",
+    "rooms": "Chatterom",
+    "activeChat": "Aktiv chat",
+    "anonymous": "Alle chatter er anonyme og modereres for alles trygghet. Vær vennlig og støttende!",
+    "changeRoom": "Bytt rom",
+    "typeMessage": "Skriv meldingen din...",
+    "reminder": "Vær respektfull og støttende. Akutt krise? Ring 112 eller åpne Hjelp og støtte i menyen.",
+    "guidelinesTitle": "Fellesskapets retningslinjer",
+    "safeSpace": "Dette er et trygt og støttende sted for alle.",
+    "crisis": "I krise?"
+  },
+  "leaderboard": {
+    "title": "Toppliste",
+    "yourRank": "Din plassering"
+  },
+  "achievements": {
+    "first_mood": {
+      "title": "Første steg",
+      "description": "Logg ditt første humør"
+    },
+    "week_streak": {
+      "title": "En uke med velvære",
+      "description": "Logg humør 7 dager på rad"
+    },
+    "month_streak": {
+      "title": "En måned med nærvær",
+      "description": "Logg humør 30 dager på rad"
+    },
+    "mood_warrior": {
+      "title": "Humørkjemper",
+      "description": "Logg 100 humør"
+    },
+    "journal_starter": {
+      "title": "Dagbokdebut",
+      "description": "Skriv ditt første dagbokinnlegg"
+    },
+    "referral_hero": {
+      "title": "Vervehelt",
+      "description": "Inviter 5 venner"
+    }
   }
 }

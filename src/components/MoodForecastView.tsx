@@ -51,6 +51,8 @@ interface RawForecastItem {
   risk_flags?: string[];
 }
 
+const FORECAST_UNAVAILABLE = 'Prognosen är inte tillgänglig just nu. Försök igen senare.';
+
 export const MoodForecastView: React.FC = () => {
   const { t: _t } = useTranslation();
   const { user: _user } = useAuth();
@@ -59,10 +61,12 @@ export const MoodForecastView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(7);
   const [error, setError] = useState<string | null>(null);
+  const [needsMoreLogs, setNeedsMoreLogs] = useState(false);
 
   const fetchForecast = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setNeedsMoreLogs(false);
     
     try {
       // Was `/advanced-mood/forecast` — missing the /api/v1 prefix every route
@@ -74,7 +78,20 @@ export const MoodForecastView: React.FC = () => {
       
       if (response.data?.success) {
         const data = response.data.data;
-        
+
+        if (data.insufficient_data) {
+          setNeedsMoreLogs(true);
+          setError(
+            `Prognosen behöver minst ${data.entries_required} humörloggningar. Du har loggat ${data.entries_logged} hittills.`
+          );
+          return;
+        }
+        if (!Array.isArray(data.forecasts) || data.forecasts.length === 0) {
+          // The summary below divides by the number of forecasts.
+          setError(FORECAST_UNAVAILABLE);
+          return;
+        }
+
         // Transform forecast data
         const transformed = data.forecasts.map((f: RawForecastItem) => ({
           date: format(new Date(f.date), 'EEE d/M', { locale: sv }),
@@ -91,11 +108,12 @@ export const MoodForecastView: React.FC = () => {
         setForecast(transformed);
         setPatterns(data.temporal_patterns || []);
       } else {
-        setError('Kunde inte hämta prognos');
+        setError(FORECAST_UNAVAILABLE);
       }
     } catch (e: unknown) {
       logger.error('Forecast fetch failed', e);
-      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Prognos ej tillgänglig');
+      // Our own words: the server's message is English and was shown as it came.
+      setError(FORECAST_UNAVAILABLE);
     } finally {
       setLoading(false);
     }
@@ -130,9 +148,11 @@ export const MoodForecastView: React.FC = () => {
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
         <p className="text-yellow-800">{error}</p>
-        <p className="text-sm text-yellow-600 mt-1">
-          Fortsätt logga ditt humör för att aktivera AI-prognoser
-        </p>
+        {needsMoreLogs && (
+          <p className="text-sm text-yellow-600 mt-1">
+            Fortsätt logga ditt humör för att aktivera AI-prognoser
+          </p>
+        )}
       </div>
     );
   }

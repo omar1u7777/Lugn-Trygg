@@ -33,7 +33,7 @@ describe('CircumplexSliders', () => {
 
   it('renders title text', () => {
     render(<CircumplexSliders {...defaultProps} />);
-    expect(screen.getByText('Circumplex Model')).toBeInTheDocument();
+    expect(screen.getByText('Känslokarta')).toBeInTheDocument();
   });
 
   it('renders current valence value', () => {

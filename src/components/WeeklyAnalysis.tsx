@@ -105,7 +105,7 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
 
       {/* HONEST: MoodAnalytics provides real mood data, WeeklyAnalysis adds AI insights */}
       <div className="bg-white dark:bg-slate-800 rounded-4xl p-2 shadow-xs border border-slate-100 dark:border-slate-700">
-        <MoodAnalytics />
+        <MoodAnalytics embedded />
       </div>
 
       {/* AI Insights Section - Always show, with honest messaging about AI status */}

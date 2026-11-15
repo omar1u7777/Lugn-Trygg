@@ -60,7 +60,7 @@ export const CircumplexSliders: React.FC<CircumplexSlidersProps> = ({
     <div className="space-y-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
       <div className="text-center mb-4">
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
-          {t('mood.circumplex.title', 'Circumplex Model')}
+          {t('mood.circumplex.title', 'Känslokarta')}
         </h3>
         <p className="text-xs text-gray-500 dark:text-gray-400">
           {t('mood.circumplex.description', 'Beskriv ditt känslotillstånd i två dimensioner')}
@@ -107,7 +107,7 @@ export const CircumplexSliders: React.FC<CircumplexSlidersProps> = ({
       <div className="space-y-2">
         <div className="flex justify-between items-center">
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            {t('mood.arousal.label', 'Arousal (Energi/Aktivering)')}
+            {t('mood.arousal.label', 'Energi (Lugn ↔ Upphetsad)')}
           </label>
           <span className="text-sm font-semibold text-primary-600 dark:text-primary-400">
             {arousal}/10

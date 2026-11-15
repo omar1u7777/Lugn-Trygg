@@ -875,25 +875,19 @@ Din roll:
         except Exception as exc:
             logger.warning("Journal context fetch failed: %s", exc)
 
-        # 2. Active wellness goals — what the user is working towards.
+        # 2. Wellness goals — what the user is working towards.
+        #
+        # The list a person picks in onboarding and on /wellness: wellnessGoals
+        # on their user document. This read users/{uid}/goals, a collection
+        # nothing writes, so the goals never reached the prompt.
         try:
-            goals_ref = (
-                db.collection("users").document(user_id).collection("goals")
-            )
-            goal_lines: list[str] = []
-            for doc in goals_ref.limit(20).stream():
-                data = doc.to_dict() or {}
-                status = (data.get("status") or "").lower()
-                if status and status not in ("active", "in_progress", "ongoing"):
-                    continue
-                title = (data.get("title") or "").strip()
-                if not title:
-                    continue
-                progress = data.get("progress")
-                prog_part = f" ({int(progress)}%)" if isinstance(progress, int | float) else ""
-                goal_lines.append(f"- {title[:100]}{prog_part}")
-                if len(goal_lines) >= 3:
-                    break
+            user_doc = db.collection("users").document(user_id).get()
+            raw_goals = (user_doc.to_dict() or {}).get("wellnessGoals") if user_doc.exists else None
+            goal_lines = [
+                f"- {goal.strip()[:100]}"
+                for goal in (raw_goals if isinstance(raw_goals, list) else [])
+                if isinstance(goal, str) and goal.strip()
+            ][:3]
 
             if goal_lines:
                 parts.append(

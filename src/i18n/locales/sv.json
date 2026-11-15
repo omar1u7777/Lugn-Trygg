@@ -35,7 +35,8 @@
     "alertsActiveCount": "{count} aktiva larm",
     "updating": "Uppdaterar...",
     "showPassword": "Visa lösenord",
-    "hidePassword": "Dölj lösenord"
+    "hidePassword": "Dölj lösenord",
+    "refresh": "Uppdatera"
   },
   "nav": {
     "dashboard": "Översikt",
@@ -319,7 +320,7 @@
       "veryPleasant": "Mycket behaglig"
     },
     "arousal": {
-      "label": "Arousal (Energi/Aktivering)",
+      "label": "Energi (Lugn ↔ Upphetsad)",
       "min": "Lugn",
       "max": "Upphetsad",
       "calm": "Lugn",
@@ -328,7 +329,7 @@
       "excited": "Upphetsad"
     },
     "circumplex": {
-      "title": "Circumplex Model",
+      "title": "Känslokarta",
       "description": "Beskriv ditt känslotillstånd i två dimensioner",
       "quadrant": "Känslotillstånd",
       "energyLow": "Låg energi",
@@ -603,7 +604,9 @@
     "loadError": "Kunde inte ladda belöningar. Försök igen.",
     "claimError": "Kunde inte hämta belöning.",
     "statsUnavailableTitle": "Dina siffror kunde inte hämtas",
-    "statsUnavailableBody": "Poängen och streaken nedan är inte dina riktiga värden just nu. Din streak är kvar — det här är ett tillfälligt fel hos oss, inte något du har missat."
+    "statsUnavailableBody": "Poängen och streaken nedan är inte dina riktiga värden just nu. Din streak är kvar — det här är ett tillfälligt fel hos oss, inte något du har missat.",
+    "level": "Nivå",
+    "nextLevel": "Nästa nivå"
   },
   "feedbackForm": {
     "title": "Feedback",
@@ -871,7 +874,7 @@
     "moodSaved": "Humör sparat: {{mood}}",
     "saveFailed": "Kunde inte spara humör. Försök igen.",
     "moodSelected": "Valde humör: {{mood}}",
-    "duplicateWarning": "Du loggade precis samma humör",
+    "duplicateWarning": "Du loggade precis samma humör. Vänta några minuter innan du loggar det igen.",
     "moodLoggedSuccess": "Humör loggat!",
     "dailyLimitReachedMessage": "Du har nått din dagliga gräns för humörloggningar.",
     "moodLogFailed": "Kunde inte logga humör. Försök igen.",
@@ -2455,7 +2458,8 @@
     }
   },
   "moodList": {
-    "shown": "Visade"
+    "shown": "Visade",
+    "loaded": "Humörlistan har laddats. Alla dina humörinlägg visas."
   },
   "privacy": {
     "title": "Integritet och säkerhet",
@@ -2579,5 +2583,48 @@
   },
   "aiMusic": {
     "goodFor": "Passar för:"
+  },
+  "chat": {
+    "title": "Stödgemenskap",
+    "guidelines": "Riktlinjer",
+    "rooms": "Chattrum",
+    "activeChat": "Aktiv chatt",
+    "anonymous": "Alla chattar är anonyma och modereras för allas trygghet. Var vänlig och stödjande!",
+    "changeRoom": "Byt rum",
+    "typeMessage": "Skriv ditt meddelande...",
+    "reminder": "Var respektfull och stödjande. Akut kris? Ring 112 eller öppna Hjälp och stöd i menyn.",
+    "guidelinesTitle": "Gemenskapens riktlinjer",
+    "safeSpace": "Det här är en trygg och stödjande plats för alla.",
+    "crisis": "I kris?"
+  },
+  "leaderboard": {
+    "title": "Topplista",
+    "yourRank": "Din placering"
+  },
+  "achievements": {
+    "first_mood": {
+      "title": "Första steget",
+      "description": "Logga ditt första humör"
+    },
+    "week_streak": {
+      "title": "En vecka av välmående",
+      "description": "Logga humör 7 dagar i rad"
+    },
+    "month_streak": {
+      "title": "En månad av närvaro",
+      "description": "Logga humör 30 dagar i rad"
+    },
+    "mood_warrior": {
+      "title": "Humörkämpe",
+      "description": "Logga 100 humör"
+    },
+    "journal_starter": {
+      "title": "Dagboksdebut",
+      "description": "Skriv ditt första dagboksinlägg"
+    },
+    "referral_hero": {
+      "title": "Värvarhjälte",
+      "description": "Bjud in 5 vänner"
+    }
   }
 }

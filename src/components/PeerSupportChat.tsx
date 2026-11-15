@@ -381,6 +381,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
                 variant="outline"
                 onClick={loadRooms}
                 className="min-h-[44px]"
+                aria-label={t('common.refresh', 'Uppdatera')}
               >
                 <ArrowPathIcon className="w-5 h-5" aria-hidden="true" />
               </Button>
@@ -626,6 +627,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
                   className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
                   rows={2}
                   placeholder={t('chat.typeMessage', 'Type your message...')}
+                  aria-label={t('chat.typeMessage', 'Type your message...')}
                   value={newMessage}
                   onChange={(e) => {
                     setNewMessage(e.target.value);

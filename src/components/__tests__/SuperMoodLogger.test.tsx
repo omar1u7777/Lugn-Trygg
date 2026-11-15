@@ -324,10 +324,11 @@ describe('SuperMoodLogger', () => {
   });
 
   it('handles 429 rate limit from server', async () => {
+    // The app's own text, not the server's: see SuperMoodLogger.duplicate.test.tsx.
     const error = {
       response: {
         status: 429,
-        data: { error: 'Daglig gräns nådd' },
+        data: { error: 'QUOTA_EXCEEDED', message: 'Daily mood log limit reached' },
       },
     };
     logMoodMock.mockRejectedValueOnce(error);
@@ -339,8 +340,9 @@ describe('SuperMoodLogger', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Daglig gräns nådd/i)).toBeInTheDocument();
+      expect(screen.getByText('Du har nått din dagliga gräns för humörloggningar.')).toBeInTheDocument();
     });
+    expect(screen.queryByText(/Daily mood log limit/)).toBeNull();
   });
 
   it('does not call getMoods if no user', () => {
