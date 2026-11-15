@@ -54,6 +54,12 @@ export interface RouteDefinition {
   requireAdmin?: boolean;
   feature?: FeatureName;
   featureTitle?: string;
+  /**
+   * The page's main heading, for a page whose component has none of its own.
+   * Rendered as a visually hidden <h1>: these components are also embedded in
+   * other pages, where a visible <h1> of theirs would be a second one.
+   */
+  heading?: string;
 }
 
 export const ROUTES: RouteDefinition[] = [
@@ -62,7 +68,7 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/register', component: RegisterForm },
   { path: '/upgrade', component: UpgradePage, protected: true },
   { path: '/dashboard', component: WorldClassDashboard, protected: true },
-  { path: '/subscribe', component: SubscriptionForm, protected: true },
+  { path: '/subscribe', component: SubscriptionForm, heading: 'Uppgradera till Premium', protected: true },
   { path: '/ai-stories', component: AIStories, protected: true, feature: 'aiStories', featureTitle: 'AI-berättelser är en Premium-funktion' },
   { path: '/analytics', component: MoodAnalytics, protected: true, feature: 'analytics', featureTitle: 'Analyser är en Premium-funktion' },
   { path: '/health-monitoring', component: HealthMonitoring, protected: true, requireAdmin: true },
@@ -72,7 +78,7 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/referral', component: ReferralProgram, protected: true },
   { path: '/feedback', component: FeedbackForm, protected: true },
   { path: '/wellness', component: WellnessHub, protected: true, feature: 'wellness', featureTitle: 'Välmåendehubben är en Premium-funktion' },
-  { path: '/sounds', component: RelaxingSoundsWrapper, protected: true, feature: 'sounds', featureTitle: 'Lugnande ljud är en Premium-funktion' },
+  { path: '/sounds', component: RelaxingSoundsWrapper, heading: 'Avslappnande ljud', protected: true, feature: 'sounds', featureTitle: 'Lugnande ljud är en Premium-funktion' },
   { path: '/social', component: SocialHub, protected: true, feature: 'social', featureTitle: 'Sociala funktioner är Premium' },
   { path: '/journal', component: JournalHub, protected: true, feature: 'journal', featureTitle: 'Dagboken är en Premium-funktion' },
   { path: '/insights', component: InsightsHub, protected: true, feature: 'insights', featureTitle: 'Insikter är en Premium-funktion' },
@@ -80,24 +86,24 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/profile', component: ProfileHub, protected: true },
   { path: '/ai-chat', component: WorldClassAIChatWrapper, protected: true },
   // Advanced AI Chat Routes (2026)
-  { path: '/ai-chat/insights', component: AIChatInsights, protected: true, feature: 'insights', featureTitle: 'AI-samtalsinsikter är en Premium-funktion' },
+  { path: '/ai-chat/insights', component: AIChatInsights, heading: 'AI-samtalsinsikter', protected: true, feature: 'insights', featureTitle: 'AI-samtalsinsikter är en Premium-funktion' },
   // [D6] /voice = standalone voice recorder/transcription (VoiceRecorder, public route)
   //       /voice-chat removed — voice is now integrated into /ai-chat (WorldClassAIChat)
   //       with premium gate on mic button.
   { path: '/voice', component: VoicePage, protected: true },
   // [D6] /mood-logger removed — was identical to /mood-basic (both render SuperMoodLogger).
   //       Sidebar, BottomNav, and Dashboard all link to /mood-basic.
-  { path: '/mood-basic', component: MoodLoggerBasicWrapper, protected: true },
-  { path: '/mood-list', component: MoodListWrapper, protected: true },
+  { path: '/mood-basic', component: MoodLoggerBasicWrapper, heading: 'Logga humör', protected: true },
+  { path: '/mood-list', component: MoodListWrapper, heading: 'Humörhistorik', protected: true },
   // Advanced Mood Tracking Routes (2026)
   { path: '/mood/advanced', component: SuperMoodLogger, protected: true, feature: 'advancedMood', featureTitle: 'Avancerad humörloggning är en Premium-funktion' },
-  { path: '/mood/assessment', component: ClinicalAssessment, protected: true },
-  { path: '/mood/forecast', component: MoodForecastView, protected: true, feature: 'moodForecast', featureTitle: 'AI-prognoser är en Premium-funktion' },
+  { path: '/mood/assessment', component: ClinicalAssessment, heading: 'Klinisk bedömning', protected: true },
+  { path: '/mood/forecast', component: MoodForecastView, heading: 'AI-prognos', protected: true, feature: 'moodForecast', featureTitle: 'AI-prognoser är en Premium-funktion' },
   { path: '/daily-insights', component: DailyInsightsWrapper, protected: true },
-  { path: '/weekly-analysis', component: WeeklyAnalysis, protected: true },
+  { path: '/weekly-analysis', component: WeeklyAnalysis, heading: 'Veckoanalys', protected: true },
   { path: '/recommendations', component: Recommendations, protected: true, feature: 'recommendations', featureTitle: 'Rekommendationer är en Premium-funktion' },
   { path: '/gamification', component: WorldClassGamificationWrapper, protected: true, feature: 'gamification', featureTitle: 'Gamification är en Premium-funktion' },
-  { path: '/badges', component: BadgeDisplay, protected: true, feature: 'gamification', featureTitle: 'Badges är en del av Gamification (Premium)' },
+  { path: '/badges', component: BadgeDisplay, heading: 'Prestationer', protected: true, feature: 'gamification', featureTitle: 'Badges är en del av Gamification (Premium)' },
   { path: '/story-insights', component: StoryInsights, protected: true },
   { path: '/admin/performance', component: PerformanceDashboard, protected: true, requireAdmin: true },
   { path: '/admin/monitoring', component: MonitoringDashboard, protected: true, requireAdmin: true },

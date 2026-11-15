@@ -35,7 +35,8 @@
     "alertsActiveCount": "{count} active alerts",
     "updating": "Updating...",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "refresh": "Refresh"
   },
   "nav": {
     "dashboard": "Dashboard",

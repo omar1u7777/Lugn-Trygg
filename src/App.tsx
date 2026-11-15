@@ -35,6 +35,17 @@ const renderRouteElement = (route: RouteDefinition) => {
         </FeatureErrorBoundary>
     );
 
+    // Outside the boundary and the premium gate, so the page has its main
+    // heading in every state, including when the feature fails to load.
+    if (route.heading) {
+        element = (
+            <>
+                <h1 className="sr-only">{route.heading}</h1>
+                {element}
+            </>
+        );
+    }
+
     if (route.protected || route.requireAdmin) {
         element = (
             <ProtectedRoute requireAdmin={route.requireAdmin}>

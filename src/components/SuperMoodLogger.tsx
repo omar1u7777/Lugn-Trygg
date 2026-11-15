@@ -660,10 +660,11 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
 
           {/* Note */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="mood-note" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               {t('moodLogger.note', 'Anteckning (valfritt)')}
             </label>
             <textarea
+              id="mood-note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder={reflectionPrompt || t('moodLogger.notePlaceholder', 'Vad tänker du på just nu?')}

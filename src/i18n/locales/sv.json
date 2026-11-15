@@ -35,7 +35,8 @@
     "alertsActiveCount": "{count} aktiva larm",
     "updating": "Uppdaterar...",
     "showPassword": "Visa lösenord",
-    "hidePassword": "Dölj lösenord"
+    "hidePassword": "Dölj lösenord",
+    "refresh": "Uppdatera"
   },
   "nav": {
     "dashboard": "Översikt",

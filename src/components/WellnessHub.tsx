@@ -824,6 +824,7 @@ const WellnessHub: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('wellnessHub.search', 'Sök övningar...')}
+            aria-label={t('wellnessHub.search', 'Sök övningar...')}
             className="w-full max-w-md pl-12 pr-4 py-2.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-sm text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500"
           />
         </div>

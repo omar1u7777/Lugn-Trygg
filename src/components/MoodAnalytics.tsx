@@ -33,7 +33,12 @@ import { svCount } from '../utils/plural';
 
 // Lazy load heavy components - Analytics charts now using placeholder
 
-const MoodAnalytics: React.FC = () => {
+interface MoodAnalyticsProps {
+  /** Rendered inside another page, which has the main heading. */
+  embedded?: boolean;
+}
+
+const MoodAnalytics: React.FC<MoodAnalyticsProps> = ({ embedded = false }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -304,9 +309,15 @@ const MoodAnalytics: React.FC = () => {
   };
 
 
+  // As its own page (/analytics) this is the main heading; embedded, the
+  // host page has one. The loading, error and empty states had no heading.
+  const TitleTag = embedded ? 'h2' : 'h1';
+  const stateHeading = embedded ? null : <h1 className="sr-only">{t('analytics.title')}</h1>;
+
   if (loading || moodsLoading) {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
+        {stateHeading}
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
           <p className="text-gray-600 dark:text-gray-400">{t('analytics.loading')}</p>
@@ -318,6 +329,7 @@ const MoodAnalytics: React.FC = () => {
   if (error) {
     return (
       <div className="bg-error-50 dark:bg-error-900/30 border border-error-200 dark:border-error-800 rounded-lg p-4">
+        {stateHeading}
         <p className="text-error-800 dark:text-error-300">{error}</p>
       </div>
     );
@@ -356,6 +368,7 @@ const MoodAnalytics: React.FC = () => {
     
     return (
       <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-8 text-center">
+        {stateHeading}
         <ChartBarIcon className="w-16 h-16 mx-auto text-blue-400 dark:text-blue-500 mb-4" />
         <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-200 mb-2">
           {t('analytics.noDataTitle', 'Ingen data ännu')}
@@ -439,9 +452,9 @@ const MoodAnalytics: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <LightBulbIcon className="w-8 h-8 text-primary-600 dark:text-primary-500" />
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+          <TitleTag className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
             {t('analytics.title')}
-          </h1>
+          </TitleTag>
         </div>
 
         <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400">

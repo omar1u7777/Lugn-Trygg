@@ -924,6 +924,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
           {/* Category Filter */}
           <select
+            aria-label={t('recommendations.filter.category', 'Kategori')}
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -936,6 +937,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
           {/* Sort */}
           <select
+            aria-label={t('recommendations.filter.sort', 'Sortering')}
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as 'rating' | 'duration' | 'difficulty')}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"

@@ -35,7 +35,8 @@
     "alertsActiveCount": "{count} aktive varsler",
     "updating": "Oppdaterer...",
     "showPassword": "Vis passord",
-    "hidePassword": "Skjul passord"
+    "hidePassword": "Skjul passord",
+    "refresh": "Oppdater"
   },
   "nav": {
     "dashboard": "Oversikt",

@@ -436,6 +436,7 @@ const JournalHub: React.FC = () => {
                       : 'bg-stone-50 dark:bg-slate-900 border-stone-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 shadow-inner'
                       }`}
                     placeholder="Börja skriva här..."
+                    aria-label="Dagboksinlägg"
                     value={journalText}
                     onChange={(e) => setJournalText(e.target.value)}
                     autoFocus={zenMode}
