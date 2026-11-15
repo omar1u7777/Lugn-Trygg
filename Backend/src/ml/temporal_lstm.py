@@ -5,7 +5,7 @@ Implements state-of-the-art deep learning for mood prediction with attention mec
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import numpy as np
@@ -56,6 +56,64 @@ class MoodForecast:
     uncertainty: float
     contributing_factors: dict[str, float]
     risk_flags: list[str]
+    # What made the forecast, so the answer can say so.
+    method: str = 'temporal_attention_lstm'
+
+
+# The forecast is drawn on -1..1; a mood is logged as a score from 1 to 10.
+SCORE_MIN, SCORE_MAX = 1.0, 10.0
+TREND_METHOD = 'score_trend'
+# Days of logs the trend is read from, and how fast it fades: a week of rising
+# scores is not a reason to forecast a month of them.
+TREND_WINDOW_DAYS = 14
+TREND_DAMPING = 0.7
+MIN_UNCERTAINTY = 0.1
+LOW_MOOD_THRESHOLD = -0.5
+
+
+def _score_on_forecast_scale(entry: dict) -> float | None:
+    """The entry's 1-10 mood score as a value from -1 to 1, or None without one.
+
+    `score` is on every log; `valence` is an optional slider on the same 1-10
+    scale and stands in only for a log that has no score.
+    """
+    for field in ('score', 'valence'):
+        value = entry.get(field)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            continue
+        if SCORE_MIN <= value <= SCORE_MAX:
+            middle = (SCORE_MIN + SCORE_MAX) / 2
+            return (float(value) - middle) / (SCORE_MAX - middle)
+    return None
+
+
+def _entry_day(entry: dict) -> date | None:
+    """The calendar day (UTC) an entry was logged, or None if it cannot be read."""
+    stamp = entry.get('timestamp')
+    if isinstance(stamp, str):
+        try:
+            stamp = datetime.fromisoformat(stamp.replace('Z', '+00:00'))
+        except ValueError:
+            return None
+    if not isinstance(stamp, datetime):
+        return None
+    if stamp.tzinfo is not None:
+        stamp = stamp.astimezone(UTC)
+    return stamp.date()
+
+
+def daily_mood_series(entries: list[dict]) -> list[tuple[date, float]]:
+    """Mean mood per day on the forecast scale, oldest day first.
+
+    Entries without a usable score or a readable day are left out.
+    """
+    by_day: dict[date, list[float]] = {}
+    for entry in entries:
+        value = _score_on_forecast_scale(entry)
+        day = _entry_day(entry)
+        if value is not None and day is not None:
+            by_day.setdefault(day, []).append(value)
+    return [(day, float(np.mean(values))) for day, values in sorted(by_day.items())]
 
 
 @dataclass
@@ -470,35 +528,52 @@ class TemporalAttentionLSTM:
         return risks
 
     def _fallback_forecast(self, recent_entries: list[dict], days_ahead: int) -> list[MoodForecast]:
-        """Simple heuristic forecast when LSTM unavailable."""
-        forecasts = []
+        """Forecast from the trend in the logged mood scores, when there is no model.
 
-        if not recent_entries:
-            return forecasts
+        Level: the recent days, the newest weighing most. Trend: the slope over
+        the last two weeks of logged days, fading with each day ahead so the
+        forecast settles instead of running off the scale. Uncertainty: how far
+        the days have strayed from that line, growing with the distance ahead.
+        """
+        series = daily_mood_series(recent_entries)[-TREND_WINDOW_DAYS:]
+        if not series:
+            return []
 
-        # Calculate trend
-        recent_valences = [e.get('valence', 0) for e in recent_entries[-7:]]
-        if len(recent_valences) >= 2:
-            trend = np.polyfit(range(len(recent_valences)), recent_valences, 1)[0]
+        first_day = series[0][0]
+        offsets = np.array([(day - first_day).days for day, _ in series], dtype=float)
+        values = np.array([value for _, value in series], dtype=float)
+
+        level = values[0]
+        for value in values[1:]:
+            level = 0.5 * value + 0.5 * level
+
+        if len(values) >= 3:
+            slope, intercept = np.polyfit(offsets, values, 1)
+            spread = float(np.std(values - (slope * offsets + intercept)))
         else:
-            trend = 0
+            slope, spread = 0.0, float(np.std(values))
+        spread = max(MIN_UNCERTAINTY, spread)
 
-        last_valence = recent_entries[-1].get('valence', 0)
-
-        for day in range(days_ahead):
-            predicted = last_valence + trend * (day + 1)
-            predicted = max(-1, min(1, predicted))  # Clip
-
-            # Increasing uncertainty over time
-            uncertainty = 0.15 + day * 0.05
+        forecasts = []
+        step = 0.0
+        for day in range(1, days_ahead + 1):
+            step += TREND_DAMPING ** day
+            predicted = float(np.clip(level + slope * step, -1.0, 1.0))
+            uncertainty = float(min(1.0, spread * (1 + 0.15 * (day - 1))))
 
             forecasts.append(MoodForecast(
-                timestamp=datetime.now() + timedelta(days=day + 1),
+                timestamp=datetime.now(UTC) + timedelta(days=day),
                 predicted_valence=predicted,
-                confidence_interval=(predicted - uncertainty, predicted + uncertainty),
+                confidence_interval=(
+                    max(-1.0, predicted - 1.96 * uncertainty),
+                    min(1.0, predicted + 1.96 * uncertainty),
+                ),
                 uncertainty=uncertainty,
-                contributing_factors={'trend': trend},
-                risk_flags=[]
+                contributing_factors={'trend': float(slope)},
+                # A run of low scores, said as that. Not a diagnosis: this is
+                # a line through self-reported scores.
+                risk_flags=['sustained_low_mood'] if predicted < LOW_MOOD_THRESHOLD else [],
+                method=TREND_METHOD,
             ))
 
         return forecasts
