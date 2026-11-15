@@ -588,8 +588,8 @@ class DataRetentionService:
                 for doc in old_moods:
                     mood_data = doc.to_dict()
                     # Remove voice_url field if it exists
-                    if 'voice_url' in mood_data:
-                        update_data = {'voice_url': None, 'voice_transcript': None}
+                    if 'voice_url' in mood_data or 'voice_path' in mood_data:
+                        update_data = {'voice_url': None, 'voice_path': None, 'voice_transcript': None}
                         batch.update(doc.reference, update_data)
                         batch_count += 1
                         deleted_count += 1

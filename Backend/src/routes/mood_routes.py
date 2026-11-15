@@ -357,7 +357,10 @@ def log_mood() -> Response | tuple[Response, int]:
             return APIResponse.error('Daily mood log limit reached', 'QUOTA_EXCEEDED', 429)
 
         audio_bytes = audio_file.read() if audio_file else None
-        voice_url = None
+        # The recording stays private in the bucket. It used to be made public
+        # and its address saved on the entry: anyone with the address could
+        # listen. Nothing plays it back, so the entry keeps only the path.
+        voice_path = None
         if audio_bytes:
             try:
                 bucket = firebase_storage.bucket()
@@ -365,8 +368,7 @@ def log_mood() -> Response | tuple[Response, int]:
                 blob_name = f"users/{user_id}/voice/{timestamp_str}_{uuid.uuid4().hex[:8]}.webm"
                 blob = bucket.blob(blob_name)
                 blob.upload_from_string(audio_bytes, content_type='audio/webm')
-                blob.make_public()
-                voice_url = blob.public_url
+                voice_path = blob_name
                 logger.info(f"🎙️ Voice uploaded to Storage: {blob_name}")
             except Exception as storage_err:
                 logger.warning(f"⚠️ Failed to upload voice to Storage: {storage_err}")
@@ -595,8 +597,8 @@ def log_mood() -> Response | tuple[Response, int]:
                 'context': context
             }
 
-            if voice_url:
-                mood_data['voice_url'] = voice_url
+            if voice_path:
+                mood_data['voice_path'] = voice_path
             logger.info(f"💾 Prepared mood_data: score={final_score}, sentiment={mood_data.get('sentiment')}")
 
             doc_ref = mood_ref.add(mood_data)
